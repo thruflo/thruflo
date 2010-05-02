@@ -1,3 +1,6 @@
 [submodule "vendor/couchdbkit"]
 	path = vendor/couchdbkit
 	url = git://github.com/benoitc/couchdbkit.git
+[submodule "vendor/tornado"]
+	path = vendor/tornado
+	url = git://github.com/facebook/tornado.git
