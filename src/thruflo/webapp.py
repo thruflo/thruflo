@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Tornado_ wsgi application.  We use Tornado only for its nice wsgi,
-  static file, xsrf and secure cookie features.
+"""Tornado_ WSGI application.  We use Tornado for its nice web
+  framework features, not for its non blocking via callback and
+  pycurl "features".
   
   .. _Tornado: http://www.tornadoweb.org
 """
+
+import sys
+from os.path import dirname, join as join_path
 
 ## patch tornado's httpclient to use ...
 #import tornado.httpclient
@@ -21,7 +25,6 @@ from utils import do_nothing
 from views import *
 
 define('port', default=8888, help='bind to port')
-define('debug', default=False, help='debug mode')
 
 mapping = [(
         r'/', 
@@ -29,6 +32,9 @@ mapping = [(
     ), (
         r'/login\/?', 
         Login
+    ), (
+        r'/register\/?', 
+        Register
     ), (
         r'/.*',
         NotFound

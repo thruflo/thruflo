@@ -1,0 +1,63 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="sub_title()">Register</%def>
+
+${self.page_content()}
+
+<%def name="page_content()" cached="True">
+  <h4>
+    Register
+  </h4>
+  <p>
+    <form name="register-form" action="/register" method="post">
+      ${xsrf_form_html()}
+      <div class="form-row">
+        <div class="error">
+          % if errors.has_key('username'):
+            ${errors['username']}
+          % endif
+        </div>
+        <input type="text" name="username" />
+        <label for="username">
+          Username
+        </label>
+      </div>
+      <div class="form-row">
+        <div class="error">
+          % if errors.has_key('email'):
+            ${errors['email']}
+          % endif
+        </div>
+        <input type="text" name="email" />
+        <label for="email">
+          Email address
+        </label>
+      </div>
+      <div class="form-row">
+        <div class="error">
+          % if errors.has_key('password'):
+            ${errors['password']}
+          % endif
+        </div>
+        <input type="password" name="password" />
+        <label for="password">
+          Password
+        </label>
+      </div>
+      <div class="form-row">
+        <div class="error">
+          % if errors.has_key('confirm'):
+            ${errors['confirm']}
+          % endif
+        </div>
+        <input type="password" name="confirm" />
+        <label for="confirm">
+          Confirm password
+        </label>
+      </div>
+      <div class="form-row">
+        <input type="submit" />
+      </div>
+    </form>
+  </p>
+</%def>

@@ -6,6 +6,7 @@
 
 import datetime
 
+from os.path import dirname, join as join_path
 from tornado import escape
 
 from mako.template import Template

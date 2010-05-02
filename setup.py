@@ -21,16 +21,17 @@ setup(
     install_requires=[
         'setuptools_git==0.3.4',
         'simplejson>=2.0.9',
-        'grizzled==0.9.3',
+        'grizzled>=0.9.3',
+        'Mako==0.3.2',
+        'Beaker==1.5.3',
+        'couchdbkit>=0.4.6',
         #'greenlet==0.2',
         #'gevent==0.12.2',
-        #'couchdbkit==0.3.1',
         #'redis==0.6.1',
-        #'dnspython==1.7.1',
-        #'FormEncode==1.2.2',
-        #'fv_email==0.9',
+        'dnspython==1.7.1',
+        'FormEncode==1.2.2',
+        'fv_email==0.9',
         #'BeautifulSoup==3.0.8',
-        #'restkit==0.9.3'
     ],
     entry_points = {
         'setuptools.file_finders': [

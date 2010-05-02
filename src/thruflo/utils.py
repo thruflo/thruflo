@@ -5,22 +5,25 @@
 """
 
 import logging
-
-import urllib
-
 import hashlib
 import random
 import time
+import urllib
 
 try:
     import simplejson as json
 except ImportError:
     import json
 
-
 def do_nothing():
     return None
 
+
+def _unicode(value):
+    if isinstance(value, str):
+        return value.decode("utf-8")
+    assert isinstance(value, unicode)
+    return value
 
 def unicode_urlencode(params):
     if isinstance(params, dict):
@@ -44,12 +47,6 @@ def generate_hash(algorithm='sha1', s=None):
     return hasher(s).hexdigest()
     
 
-
-def _unicode(value):
-    if isinstance(value, str):
-        return value.decode("utf-8")
-    assert isinstance(value, unicode)
-    return value
 
 def json_encode(value, **kwargs):
     """JSON-encodes the given Python object."""

@@ -14,7 +14,10 @@
       <div id="inner">
         <div id="header">
           <div id="logo">
-            <img src="${static_dir_url('img/logo.png')}" />
+            <a href="/" title="thruflo">
+              thruflo
+              <!--img src="${static_url('img/logo.png')}" /-->
+            </a>
           </div>
           % if current_user:
             ${self.auth_menu()}
@@ -39,12 +42,12 @@
 <%def name="headers()" cached="True">
   <meta name="description" content="..." />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <link type="text/css" rel="stylesheet" href="${static_dir('css/reset.min.css')}" />
-  <link type="text/css" rel="stylesheet" href="${static_dir('css/style.css')}" />
-  <link type="image/ico" rel="icon" href="${static_dir('img/favicon.ico')}" />
-  <!--script type="text/javascript" src="${static_dir('js/jquery.ui.min.js')}">
-  </script-->
-  <script type="text/javascript" src="${static_dir('js/client.js')}">
+  <link type="text/css" rel="stylesheet" href="${static_url('css/reset.css')}" />
+  <link type="text/css" rel="stylesheet" href="${static_url('css/style.css')}" />
+  <link type="image/ico" rel="icon" href="${static_url('img/favicon.ico')}" />
+  <script type="text/javascript" src="${static_url('js/jquery.ui.min.js')}">
+  </script>
+  <script type="text/javascript" src="${static_url('js/client.js')}">
   </script>
 </%def>
 
@@ -52,6 +55,7 @@
 
 <%def name="auth_menu()">
   <div id="auth-menu">
+    Hello ${current_user['username']}!
     <a href="/logout" title="Logout" id="logout-button">
       <div class="grey-button">
         <div>
@@ -69,7 +73,9 @@
     <ul>
       <li>
         <div class="login-message">
-          Login
+          <a href="/login" title="Login">
+            Login
+          </a>
         </div>
       </li>
     </ul
