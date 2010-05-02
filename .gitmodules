@@ -1,0 +1,3 @@
+[submodule "vendor/couchdbkit"]
+	path = vendor/couchdbkit
+	url = git://github.com/benoitc/couchdbkit.git
