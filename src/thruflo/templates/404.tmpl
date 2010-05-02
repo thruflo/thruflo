@@ -1,0 +1,14 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="sub_title()">Welcome</%def>
+
+${self.page_content()}
+
+<%def name="page_content()" cached="True">
+  <h4>
+    404 - Page Not Found
+  </h4>
+  <p>
+    Perhaps check the URL in the address bar.  Can you see a typo?  If you clicked on a link from an email, did your email software mangle it?
+  </p>
+</%def>

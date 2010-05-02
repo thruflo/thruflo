@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC
+    "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>
+      thruflo :: ${self.sub_title()}
+    </title>
+    ${self.headers()}
+    ${self.sub_headers()}
+  </head>
+  <body>
+    <div id="outer">
+      <div id="inner">
+        <div id="header">
+          <div id="logo">
+            <img src="${static_dir_url('img/logo.png')}" />
+          </div>
+          % if current_user:
+            ${self.auth_menu()}
+          % else:
+            ${self.login_menu()}
+          % endif
+          ${self.main_menu()}
+        </div>
+        <div id="main-content">
+          ${next.body()}
+        </div>
+      </div>
+    </div>
+    ${self.footer()}
+    ${self.super_footer_scripts()}
+    ${self.footer_scripts()}
+  </body>
+</html>
+
+<%def name="sub_title()">...</%def>
+
+<%def name="headers()" cached="True">
+  <meta name="description" content="..." />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link type="text/css" rel="stylesheet" href="${static_dir('css/reset.min.css')}" />
+  <link type="text/css" rel="stylesheet" href="${static_dir('css/style.css')}" />
+  <link type="image/ico" rel="icon" href="${static_dir('img/favicon.ico')}" />
+  <!--script type="text/javascript" src="${static_dir('js/jquery.ui.min.js')}">
+  </script-->
+  <script type="text/javascript" src="${static_dir('js/client.js')}">
+  </script>
+</%def>
+
+<%def name="sub_headers()"></%def>
+
+<%def name="auth_menu()">
+  <div id="auth-menu">
+    <a href="/logout" title="Logout" id="logout-button">
+      <div class="grey-button">
+        <div>
+          <div >
+            Logout
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</%def>
+
+<%def name="login_menu()" cached="True">
+  <div id="login-menu">
+    <ul>
+      <li>
+        <div class="login-message">
+          Login
+        </div>
+      </li>
+    </ul
+  </div>
+</%def>
+
+<%def name="main_menu()" cached="True">
+  <div id="main-menu">
+    <ul>
+      <li>
+        <a href="/dashboard" title="Dashboard">
+          Dashboard
+        </a>
+      </li>
+      <li>
+        <a href="/documents" title="Documents">
+          Documents
+        </a>
+      </li>
+      <li>
+        <a href="/projects" title="Projects">
+          Projects
+        </a>
+      </li>
+      <li>
+        <a href="/themes" title="Themes">
+          Themes
+        </a>
+      </li>
+      <li>
+        <a href="/deliverables" title="Deliverables">
+          Deliverables
+        </a>
+      </li>
+    </ul>
+  </div>
+</%def>
+
+<%def name="footer()" cached="True">
+  <div id="footer">
+    &copy; James Arthur.
+  </div>
+</%def>
+
+<%def name="super_footer_scripts()"></%def>
+
+<%def name="footer_scripts()" cached="True">
+  <script type="text/javascript">
+    // <![CDATA[
+      (function () {
+          var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+          document.write(
+            unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"
+            )
+          );
+      })();
+    // ]]>
+  </script>
+  <script type="text/javascript">
+    // <![CDATA[
+      (function () {
+          try {
+            var pageTracker = _gat._getTracker("UA-11267780-1");
+            pageTracker._setDomainName(document.location.host);
+            pageTracker._trackPageview();
+          }
+          catch(err) {}
+      })();
+    // ]]>
+  </script>
+</%def>
