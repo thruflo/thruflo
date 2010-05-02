@@ -4,3 +4,6 @@
 [submodule "vendor/tornado"]
 	path = vendor/tornado
 	url = git://github.com/facebook/tornado.git
+[submodule "vendor/grizzled"]
+	path = vendor/grizzled
+	url = git://github.com/bmc/grizzled.git
