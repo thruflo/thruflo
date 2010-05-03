@@ -14,18 +14,22 @@
       <div id="inner">
         ${self.super_header()}
         <div id="header">
-          <div id="logo">
-            <a href="/" title="thruflo">
-              thruflo
-              <!--img src="${static_url('img/logo.png')}" /-->
-            </a>
-          </div>
           % if current_user:
             ${self.auth_menu()}
           % else:
             ${self.login_menu()}
           % endif
+          <div id="logo">
+            <a href="http://www.thruflo.com" title="thruflo">
+              LOGO
+              <!--img src="${static_url('img/logo.png')}" /-->
+            </a>
+          </div>
+          <div class="clear">
+          </div>
           ${self.main_menu()}
+          <div class="clear">
+          </div>
         </div>
         <div id="main-content">
           ${next.body()}
@@ -40,7 +44,26 @@
 
 <%def name="sub_title()">...</%def>
 
-<%def name="super_header()"></%def>
+<%def name="super_header()">
+  % if current_user:
+    <div id="accounts-nav">
+      <h4>
+        Accounts:
+      </h4>
+      <ul>
+        % for item in current_user.accounts:
+          <li>
+            <a href="http://${item.slug}.thruflo.com">
+              ${item.slug}
+            </a>
+          </li>
+        % endfor
+      </ul>
+      <div class="clear">
+      </div>
+    </div>
+  % endif
+</%def>
 
 <%def name="headers()" cached="True">
   <meta name="description" content="..." />
@@ -88,37 +111,7 @@
   </div>
 </%def>
 
-<%def name="main_menu()" cached="True">
-  <div id="main-menu">
-    <ul>
-      <li>
-        <a href="/dashboard" title="Dashboard">
-          Dashboard
-        </a>
-      </li>
-      <li>
-        <a href="/documents" title="Documents">
-          Documents
-        </a>
-      </li>
-      <li>
-        <a href="/projects" title="Projects">
-          Projects
-        </a>
-      </li>
-      <li>
-        <a href="/themes" title="Themes">
-          Themes
-        </a>
-      </li>
-      <li>
-        <a href="/deliverables" title="Deliverables">
-          Deliverables
-        </a>
-      </li>
-    </ul>
-  </div>
-</%def>
+<%def name="main_menu()"></%def>
 
 <%def name="footer()" cached="True">
   <div id="footer">

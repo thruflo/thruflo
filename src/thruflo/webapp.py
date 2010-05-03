@@ -15,6 +15,7 @@ from tornado import httpserver, ioloop, web
 from tornado import options as tornado_options
 from tornado.options import define, options
 
+from schema import slug_pattern as slug
 from views import *
 
 define('port', default=8888, help='bind to port')
@@ -23,14 +24,20 @@ mapping = [(
         r'/', 
         Index,
     ), (
-        r'/((.*)\/)?login\/?', 
+        r'/((%s)\/)?login\/?' % slug,
         Login
     ), (
-        r'/((.*)\/)?logout\/?', 
+        r'/((%s)\/)?logout\/?' % slug,
         Logout
     ), (
-        r'/((.*)\/)?register\/?', 
+        r'/((%s)\/)?register\/?' % slug,
         Register
+    ), (
+        r'/(%s)\/dashboard\/?' % slug,
+        Dashboard
+    ), (
+        r'/(%s)\/?' % slug,
+        AccountIndex
     ), (
         r'/.*',
         NotFound

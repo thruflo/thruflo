@@ -16,7 +16,8 @@ from formencode import validators
 from model import db, User, Account
 from utils import get_timezones
 
-valid_slug = re.compile(r'^\w{3,18}$', re.U)
+slug_pattern = r'\w{3,18}'
+valid_slug = re.compile(r'^%s$' % slug_pattern, re.U)
 class Slug(validators.UnicodeString):
     """Lowercase, no spaces, no funny chars, between 3 and 18 long.
     """

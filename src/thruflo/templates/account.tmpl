@@ -1,0 +1,29 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="main_menu()">
+  <div id="main-menu">
+    <ul>
+      <%
+        items = [
+          u'Dashboard', 
+          u'Documents', 
+          u'Projects', 
+          u'Themes',
+          u'Deliverables'
+        ]
+      %>
+      % for item in items:
+        <% 
+          path = u'/%s' % item.lower()
+        %>
+        <li selected="${request.path.startswith(path)}">
+          <a href="${path}" title="${item}">
+            ${item}
+          </a>
+        </li>
+      % endfor
+    </ul>
+  </div>
+</%def>
+
+${next.body()}
