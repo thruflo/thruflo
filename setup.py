@@ -22,15 +22,17 @@ setup(
         'setuptools_git==0.3.4',
         'simplejson>=2.0.9',
         'grizzled>=0.9.3',
-        'Mako==0.3.2',
-        'Beaker==1.5.3',
+        'Mako>=0.3.2',
+        'Beaker>=1.5.3',
         'couchdbkit>=0.4.6',
-        #'greenlet==0.2',
-        #'gevent==0.12.2',
-        #'redis==0.6.1',
-        'dnspython==1.7.1',
-        'FormEncode==1.2.2',
-        'fv_email==0.9',
+        'SQLAlchemy>=0.6.0',
+        'pytz',
+        #'greenlet>=0.2',
+        #'gevent>=0.12.2',
+        #'redis>=0.6.1',
+        'pyDNS>=2.3.4',
+        'FormEncode>=1.2.2',
+        'fv_email>=0.9',
         #'BeautifulSoup==3.0.8',
     ],
     entry_points = {
@@ -39,7 +41,8 @@ setup(
         ],
         'console_scripts': [
             'daemonize = thruflo.daemonize:main',
-            'thruflo = thruflo.webapp:main'
+            'thruflo = thruflo.webapp:main',
+            'sync = thruflo.model:main'
         ]
     }
 )

@@ -1,0 +1,17 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="super_header()">
+  <ul id="accounts-nav">
+    % for item in current_user.accounts:
+      <li>
+        <a href="#">
+          ${item}
+        </a>
+      </li>
+    % endfor
+  </ul>
+</%def>
+
+<div id="main-layout">
+  ${next.body()}
+</div>

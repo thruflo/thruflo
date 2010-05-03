@@ -4,59 +4,167 @@
 
 ${self.page_content()}
 
-<%def name="page_content()" cached="True">
+<%def name="page_content()">
   <h4>
     Register
   </h4>
   <p>
     <form name="register-form" action="/register" method="post">
       ${xsrf_form_html()}
-      <div class="form-row">
-        <div class="error">
-          % if errors.has_key('username'):
-            ${errors['username']}
-          % endif
+      <div class="error">
+        % if errors.has_key('message'):
+          ${errors['message']}
+        % endif
+      </div>
+      <div class="form-container">
+        <h4>
+          Create your account
+        </h4>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('first_name'):
+              ${errors['first_name']}
+            % endif
+          </div>
+          <input type="text" name="first_name"
+              value="${handler.get_argument('first_name', '')}"
+          />
+          <label for="first_name">
+            First name
+          </label>
         </div>
-        <input type="text" name="username" />
-        <label for="username">
-          Username
-        </label>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('last_name'):
+              ${errors['last_name']}
+            % endif
+          </div>
+          <input type="text" name="last_name"
+              value="${handler.get_argument('last_name', '')}"
+          />
+          <label for="last_name">
+            Last name
+          </label>
+        </div>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('email_address'):
+              ${errors['email_address']}
+            % endif
+          </div>
+          <input type="text" name="email_address" 
+              value="${handler.get_argument('email_address', '')}"
+          />
+          <label for="email_address">
+            Email
+          </label>
+        </div>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('company'):
+              ${errors['company']}
+            % endif
+          </div>
+          <input type="text" name="company"
+              value="${handler.get_argument('company', '')}"
+          />
+          <label for="company">
+            Company / organisation
+          </label>
+        </div>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('time_zone'):
+              ${errors['time_zone']}
+            % endif
+          </div>
+          <select name="time_zone">
+            <% 
+              default = handler.get_argument('time_zone', u'London +00:00')
+              parts = default.split(u' ')
+              default_item = (parts[1], parts[0])
+            %>
+            % for item in handler.timezones:
+              % if item == default_item:
+                <option value="${item[1]} ${item[0]}" selected="true">
+                  GMT ${item[0]} ${item[1].replace(u'_', ' ')}
+                </option>
+              % else:
+                <option value="${item[1]} ${item[0]}">
+                  GMT ${item[0]} ${item[1].replace(u'_', ' ')}
+                </option>
+              % endif
+            % endfor
+          </select>
+          <label for="time_zone">
+            Timezone
+          </label>
+        </div>
+      </div>
+      <div class="form-container">
+        <h4>
+          Choose a username and password
+        </h4>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('username'):
+              ${errors['username']}
+            % endif
+          </div>
+          <input type="text" name="username" 
+              value="${handler.get_argument('username', '')}"
+          />
+          <label for="username">
+            Username *
+          </label>
+        </div>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('password'):
+              ${errors['password']}
+            % endif
+          </div>
+          <input type="password" name="password"
+              value="${handler.get_argument('password', '')}"
+          />
+          <label for="password">
+            Password *
+          </label>
+        </div>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('confirm'):
+              ${errors['confirm']}
+            % endif
+          </div>
+          <input type="password" name="confirm" 
+              value="${handler.get_argument('confirm', '')}"
+          />
+          <label for="confirm">
+            Confirm password *
+          </label>
+        </div>
+      </div>
+      <div class="form-container">
+        <h4>
+          Create your site address
+        </h4>
+        <p>
+          Every thruflo site has its own web address. For example, if you want your Basecamp site to be at http://acme.thruflo.com you’d enter acme in the field below. Letters &amp; numbers only.
+        </p>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('account'):
+              ${errors['account']}
+            % endif
+          </div>
+          http://<input type="text" name="account" 
+              value="${handler.get_argument('account', '')}"
+          />.thruflo.com
+        </div>
       </div>
       <div class="form-row">
-        <div class="error">
-          % if errors.has_key('email'):
-            ${errors['email']}
-          % endif
-        </div>
-        <input type="text" name="email" />
-        <label for="email">
-          Email address
-        </label>
-      </div>
-      <div class="form-row">
-        <div class="error">
-          % if errors.has_key('password'):
-            ${errors['password']}
-          % endif
-        </div>
-        <input type="password" name="password" />
-        <label for="password">
-          Password
-        </label>
-      </div>
-      <div class="form-row">
-        <div class="error">
-          % if errors.has_key('confirm'):
-            ${errors['confirm']}
-          % endif
-        </div>
-        <input type="password" name="confirm" />
-        <label for="confirm">
-          Confirm password
-        </label>
-      </div>
-      <div class="form-row">
-        <input type="submit" />
+        <input type="submit" value="Create my account" />
       </div>
     </form>
   </p>

@@ -11,17 +11,10 @@
 import sys
 from os.path import dirname, join as join_path
 
-## patch tornado's httpclient to use ...
-#import tornado.httpclient
-#tornado.httpclient.AsyncHTTPClient = <...>.AsyncHTTPClient
-
-import wsgiref.simple_server
-
-from tornado import web, wsgi
+from tornado import httpserver, ioloop, web
 from tornado import options as tornado_options
 from tornado.options import define, options
 
-from utils import do_nothing
 from views import *
 
 define('port', default=8888, help='bind to port')
@@ -30,10 +23,13 @@ mapping = [(
         r'/', 
         Index,
     ), (
-        r'/login\/?', 
+        r'/((.*)\/)?login\/?', 
         Login
     ), (
-        r'/register\/?', 
+        r'/((.*)\/)?logout\/?', 
+        Logout
+    ), (
+        r'/((.*)\/)?register\/?', 
         Register
     ), (
         r'/.*',
@@ -51,20 +47,14 @@ settings = {
     'xsrf_cookies': True
 }
 
-application = wsgi.WSGIApplication(mapping, debug=False, **settings)
+application = web.Application(mapping, debug=False, **settings)
 
 def main():
-    tornado_options.enable_pretty_logging = do_nothing
     tornado_options.parse_command_line()
-    server = wsgiref.simple_server.make_server(
-        '', 
-        options.port, 
-        application
-    )
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
+    http_server = httpserver.HTTPServer(application)
+    http_server.bind(options.port)
+    http_server.start() # Forks multiple sub-processes
+    ioloop.IOLoop.instance().start()
     
 
 

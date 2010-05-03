@@ -4,7 +4,7 @@
 
 ${self.page_content()}
 
-<%def name="page_content()" cached="True">
+<%def name="page_content()">
   <h4>
     Login
   </h4>
@@ -18,7 +18,9 @@ ${self.page_content()}
             ${errors['login']}
           % endif
         </div>
-        <input type="text" name="login" />
+        <input type="text" name="login" 
+            value="${handler.get_argument('login', '')}"
+        />
         <label for="login">
           Username or email address
         </label>
@@ -29,7 +31,9 @@ ${self.page_content()}
             ${errors['password']}
           % endif
         </div>
-        <input type="password" name="password" />
+        <input type="password" name="password"
+            value="${handler.get_argument('password', '')}"
+        />
         <label for="password">
           Password
         </label>

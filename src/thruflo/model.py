@@ -1,27 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Properties, schemas and db bindings.
+"""We use a relational database for users and accounts and couchdb_
+  (via Couchdbkit_) for the per-account document data.
   
-  We use Couchdb_ to store and index data and Couchdbkit_
-  as a python wrapper / bindings.
-  
-  Couchdbkit_ provides a nice 'starting point schema' pattern
-  which works like a normal ORM for defining properties
-  and schemas and handles serialisation from python to couch
-  and back again.
-  
-  These schemas are also dynamic, so you can just add any old
-  property you want to an instance.  See the docs_ for more.
-  
-  .. _Couchdb: http://couchdb.apache.org/
+  .. _couchdb: http://couchdb.apache.org/
   .. _Couchdbkit: http://couchdbkit.org/
-  .. _docs: http://couchdbkit.org/docs/gettingstarted.html
 """
 
 __all__ = [
-    'SlugProperty', 'EmailProperty', 'PasswordProperty',
-    'dbs', 'User', 'Account',
+    'db', 'User', 'Account', 'couchdbs', 'SlugProperty', 
+    'EmailProperty', 'PasswordProperty',
     'Template', 'Document', 'Topic',
     'Project', 'ProjectSection',
     'Deliverable', 'DeliverableSection'
@@ -30,15 +19,180 @@ __all__ = [
 import datetime
 import logging
 import re
+import sys
 
 from os.path import dirname, join as join_path
 
-from fv_email import Email as EmailValidator
+### patch database bindings so they don't block
+
+#import gevent
+#from gevent import monkey
+#monkey.patch_all()
+
+### we use a relational database for ``User``s and ``Account``s
+
+from sqlalchemy import create_engine
+from sqlalchemy import Table, Column, MetaData, ForeignKey
+from sqlalchemy import Float, Integer, Unicode, Boolean, DateTime, Time
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relation
+
+if sys.platform == 'darwin': # use sqlite in development
+    engine = create_engine('sqlite:////env/thruflo/var/dev.db', echo=True)
+else: # use postgresql in production
+    import prod
+    engine = create_engine(
+        'postgresql+pg8000://%s:%s@%s/%s' % (
+            prod.username,
+            prod.password,
+            prod.host,
+            prod.dbname
+        )
+    )
+SQLModel = declarative_base()
+
+# many to many relation between ``User``s and ``Account``s
+admins = Table(
+    'admins',
+    SQLModel.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('account_id', Integer, ForeignKey('accounts.id'))
+)
+members = Table(
+    'members',
+    SQLModel.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('account_id', Integer, ForeignKey('accounts.id'))
+)
+
+class User(SQLModel):
+    """Sign up requires username, password and email_address.
+      
+      Login requires username or email_address, plus password.
+      Password is stored as a hash.
+      
+      Provides ``authenticate(username_or_email, password)``
+      method. 
+    """
+    
+    __tablename__ = 'users'
+    
+    id = Column(Integer, primary_key=True, nullable=False)
+    
+    username = Column(Unicode, unique=True)
+    email_address = Column(Unicode, unique=True)
+    password = Column(Unicode)
+    
+    first_name = Column(Unicode)
+    last_name = Column(Unicode)
+    company = Column(Unicode)
+    time_zone = Column(Integer)
+    
+    is_suspended = Column(Boolean, default=False)
+    has_confirmed = Column(Boolean, default=False)
+    
+    confirmation_hash = Column(Unicode)
+    
+    administrator_accounts = relation("Account", secondary=admins)
+    member_accounts = relation("Account", secondary=members)
+    
+    def __init__(
+            self, 
+            username, 
+            email_address, 
+            password,
+            first_name=None, 
+            last_name=None, 
+            company=None, 
+            time_zone=None, 
+            is_suspended=False, 
+            has_confirmed=False, 
+            confirmation_hash=None,
+            administrator_accounts=None,
+            member_accounts=None
+        ):
+        self.username = username
+        self.email_address = email_address
+        self.password = password
+        if first_name:
+            self.first_name = first_name
+        if last_name:
+            self.last_name = last_name
+        if company:
+            self.company = company
+        if time_zone:
+            self.time_zone = time_zone
+        self.is_suspended = is_suspended
+        self.has_confirmed = has_confirmed
+        if confirmation_hash:
+            self.confirmation_hash = confirmation_hash
+        if administrator_accounts:
+            self.administrator_accounts = administrator_accounts
+        if member_accounts:
+            self.member_accounts = member_accounts
+        
+    
+    
+    def __repr__(self):
+        return "<User('%s')>" % self.username
+    
+    
+    @property
+    def accounts(self):
+        return self.administrator_accounts + self.member_accounts
+        
+    
+    
+
+class Account(SQLModel):
+    """
+    """
+    
+    __tablename__ = 'accounts'
+    
+    id = Column(Integer, primary_key=True, nullable=False)
+    
+    slug = Column(Unicode, unique=True)
+    display_name = Column(Unicode)
+    
+    # 'basic', 'plus', 'premium', 'max'
+    plan = Column(Unicode, default='basic')
+    
+    administrators = relation("User", secondary=admins)
+    members = relation("User", secondary=members)
+    
+    def __init__(
+            self, slug, display_name=None, plan='basic',
+            administrators=None, members=None
+        ):
+        self.slug = slug
+        if display_name:
+            self.display_name = display_name
+        self.plan = plan
+        if administrators:
+            self.administrators = administrators
+        if members:
+            self.members = members
+        
+    
+    
+    def __repr__(self):
+        return "<Account('%s')>" % self.slug
+    
+    
+
+
+SQLModel.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+db = Session()
+        
+### we use couchdb for the documents within an account
 
 from couchdbkit import Document, Server, ResourceNotFound, ResourceConflict
 from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
+from fv_email import Email as EmailValidator
 from utils import generate_hash
 
 valid_slug = re.compile(r'^\w{3,18}$', re.U)
@@ -93,6 +247,7 @@ class PasswordProperty(StringProperty):
             raise ValueError(u'Must be at least 6 characters with no spaces')
         else: # convert password to a sha-1 hash
             return generate_hash(s=value)
+            
         
     
     
@@ -111,11 +266,12 @@ class Model(Document):
         
         for k, v in data.iteritems():
             setattr(self, k, v)
-        
+            
         
     
+    
 
-class MultiDBModel(Model):
+class CouchDBModel(Model):
     """Overwrites methods of the base ``Model`` class that
       prescribe a fixed mapping between class and database.
       
@@ -140,6 +296,7 @@ class MultiDBModel(Model):
             self._doc.update(doc)
         elif '_id' in doc:
             self._doc.update({'_id': doc['_id']})
+            
         
     
     
@@ -153,16 +310,19 @@ class MultiDBModel(Model):
         else:
             _db = cls._db and cls._db or db
         
-        docs_to_save= [doc._doc for doc in docs if doc._doc_type == cls._doc_type]
+        docs_to_save = [
+            doc._doc for doc in docs if doc._doc_type == cls._doc_type
+        ]
         if not len(docs_to_save) == len(docs):
-            raise ValueError("one of your documents does not have the correct type")
+            raise ValueError(
+                "one of your documents does not have the correct type"
+            )
         
         _db.bulk_save(
             docs_to_save, 
             use_uuids=use_uuids, 
             all_or_nothing=all_or_nothing
         )
-        
     
     
     @classmethod
@@ -203,6 +363,7 @@ class MultiDBModel(Model):
             obj._id = docid
             obj.save(db=_db, **params)
             return obj
+            
         
     
     
@@ -248,6 +409,7 @@ class MultiDBModel(Model):
             return _db.temp_view(data, wrapper=wrapper, **params)
         else:
             raise RuntimeError("bad view_type : %s" % view_type )
+            
         
     
     
@@ -259,12 +421,9 @@ class MultiDBModel(Model):
             raise TypeError("doc database required to delete document")
         else:
             _db = self._db and self._db or db
-        
         if self.new_document:
             raise TypeError("the document is not saved")
-        
         _db.delete_doc(self._id)
-        
         # reinit document
         del self._doc['_id']
         del self._doc['_rev']
@@ -279,10 +438,7 @@ class CouchDBs(object):
       from ``./_design``.
     """
     
-    fixed_dbs = [
-        'users'
-    ]
-    account_dbs = [
+    __all__ = [
         # created per user account on sign up
     ]
     
@@ -290,14 +446,8 @@ class CouchDBs(object):
         """Sync the views from the filesystem for each database.
         """
         
-        for item in self.fixed_dbs:
-            views = join_path(dirname(__file__), '_design', item)
-            loader = FileSystemDocsLoader(views)
-            db = getattr(self, item)
-            loader.sync(db)
-        
-        for item in self.account_dbs:
-            views = join_path(dirname(__file__), '_design', 'accounts')
+        for item in self.__all__:
+            views = join_path(dirname(__file__), '_design')
             loader = FileSystemDocsLoader(views)
             db = getattr(self, item)
             loader.sync(db)
@@ -307,84 +457,24 @@ class CouchDBs(object):
     
     def __init__(self, sync=False):
         s = Server()
-        l = s.all_dbs()
-        for item in self.fixed_dbs:
+        self.__all__ = s.all_dbs()
+        for item in self.__all__:
             setattr(self, item, s.get_or_create_db(item))
-            if item in l:
-                l.remove(item)
-        self.account_dbs = l
-        for item in self.account_dbs:
-            setattr(self, item, s.get_or_create_db(item))
+            
         
     
     
 
-dbs = CouchDBs()
+couchdbs = CouchDBs()
 
-class User(Model):
-    """Sign up requires username, password and email_address.
-      
-      Login requires username or email_address, plus password.
-      Password is stored as a hash.
-      
-      Provides ``authenticate(username_or_email, password)``
-      method. 
-    """
-    
-    username = SlugProperty(required=True)
-    password = PasswordProperty(required=True)
-    
-    email_address = EmailProperty(required=True)
-    #time_zone = TimeProperty(required=True)
-    
-    first_name = StringProperty()
-    last_name = StringProperty()
-    company = StringProperty()
-    
-    is_suspended = BooleanProperty(default=False)
-    has_confirmed = BooleanProperty(default=False)
-    
-    confirmation_hash = StringProperty()
-    
-    administrator_accounts = StringListProperty()
-    member_accounts = StringListProperty()
-    
-    @classmethod
-    def authenticate(cls, identifier, password):
-        return User.view(
-            'users/authenticate',
-            key=[identifier, password],
-            include_docs=True
-        ).one()
-        
-    
-    
-
-User.set_db(dbs.users)
-
-class Account(MultiDBModel):
-    """One ``Account`` metadata entity per database.
-    """
-    
-    slug = SlugProperty(required=True)
-    display_name = StringProperty()
-    
-    plan = StringProperty(
-        required=True, choices=[
-            'basic', 'plus', 'premium', 'max'
-        ]
-    )
-    
-
-
-class Template(MultiDBModel):
+class Template(CouchDBModel):
     """
     """
     
     content = StringProperty()
     
 
-class Document(MultiDBModel):
+class Document(CouchDBModel):
     """
     """
     
@@ -395,7 +485,7 @@ class Document(MultiDBModel):
 project_section_types = [
     'brief', 'solution', 'results'
 ]
-class Project(MultiDBModel):
+class Project(CouchDBModel):
     """
     """
     
@@ -403,7 +493,7 @@ class Project(MultiDBModel):
     display_name = StringProperty()
     
 
-class ProjectSection(MultiDBModel):
+class ProjectSection(CouchDBModel):
     """
     """
     
@@ -416,7 +506,7 @@ class ProjectSection(MultiDBModel):
     
 
 
-class Topic(MultiDBModel):
+class Topic(CouchDBModel):
     """"""
     
     slug = SlugProperty(required=True)
@@ -429,7 +519,7 @@ class Topic(MultiDBModel):
 deliverable_section_types = [
     'budget', 'process', 'time'
 ]
-class Deliverable(MultiDBModel):
+class Deliverable(CouchDBModel):
     """
     """
     
@@ -437,7 +527,7 @@ class Deliverable(MultiDBModel):
     display_name = StringProperty()
     
 
-class DeliverableSection(MultiDBModel):
+class DeliverableSection(CouchDBModel):
     """
     """
     
@@ -454,7 +544,7 @@ def main():
     """Sync the couch db views.
     """
     
-    dbs.sync()
+    couchdbs.sync()
 
 
 if __name__ == '__main__':

@@ -11,14 +11,17 @@ from datetime import datetime, timedelta
 from operator import itemgetter
 from urllib import quote
 
+import formencode
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
+
 from tornado import web
 
-from model import *
+import model, schema
 from tmpl import render_tmpl
-from utils import json_encode, json_decode
+from utils import json_encode, json_decode, get_timezones
 
 __all__ = [
-    'Index', 'Login', 'Register', 'NotFound'
+    'Index', 'Login', 'Logout', 'Register', 'NotFound'
 ]
 
 class RequestHandler(web.RequestHandler):
@@ -34,7 +37,9 @@ class RequestHandler(web.RequestHandler):
     
     def get_current_user(self):
         user_id = self.get_secure_cookie("user_id")
-        return user_id and User.get(user_id) or None
+        if user_id:
+            return model.db.query(model.User).get(int(user_id))
+        return None
         
     
     
@@ -60,7 +65,7 @@ class Index(RequestHandler):
     """
     """
     
-    def get(self):
+    def get(self, *args):
         self.render_tmpl('index.tmpl')
         
     
@@ -68,142 +73,120 @@ class Index(RequestHandler):
 
 
 class Login(RequestHandler):
-    """
+    """Accepts either a username or an email address.
+      
+      If authenticated, sets the user.id in a secure cookie.
     """
     
     def post(self, *args):
-        errors = {}
-        
-        logging.info('@@')
-        
         login = self.get_argument('login', None)
-        password = self.get_argument('password', None)
-        
-        logging.info(login)
-        logging.info(password)
-        
-        if not login:
-            errors['login'] = u'Please enter a username or email address'
-        else:
-            try:
-                SlugProperty().validate(login)
-            except ValueError:
-                try:
-                    EmailProperty().validate(login)
-                except ValueError:
-                    errors['login'] = u'%s is not a valid username or email address'
-        if not password:
-            errors['password'] = u'Please enter a password'
-        else:
-            try:
-                password = PasswordProperty().validate(password)
-            except ValueError, err:
-                errors['password'] = unicode(err)
-        if errors:
-            self.render_tmpl('login.tmpl', errors=errors)
-        else:
-            logging.warning('@@ not bothering with email confirmation yet')
-            user = User.view(
-                'users/authenticate', 
-                key=[login, password]
-            ).one()
-            if user:
-                self.set_secure_cookie('user_id', unicode(user._id))
-                self.redirect(u'/%s/dashboard' % username)
+        params = {
+            'username': login, 
+            'email_address': login,
+            'password': self.get_argument('password', None)
+        }
+        logging.info(params)
+        try:
+            params = schema.Login.to_python(params)
+        except formencode.Invalid, err:
+            # were *both* username *and* email_address invalid?
+            d = err.error_dict
+            logging.info(d)
+            if d.has_key('username') and d.has_key('email_address'):
+                d.pop('username')
+                d.pop('email_address')
+                d['login'] = u'Invalid username or email address'
+            if d.has_key('password') or d.has_key('login'):
+                logging.info('*')
+                self.render_tmpl('login.tmpl', errors=d)
             else:
-                self.render_tmpl('login.tmpl', errors={})
+                logging.info('**')
+                p = d.has_key('username') and 'email_address' or 'username'
+                kwargs = {}
+                kwargs[p] = params['username']
+                user = model.db.query(model.User).filter_by(**kwargs).first()
+                if user:
+                    self.set_secure_cookie('user_id', str(user.id))
+                    self.redirect(u'/dashboard')
+                else:
+                    self.render_tmpl('login.tmpl', errors={})
+                
             
         
     
     
-    def get(self):
-        self.post()
-        # self.render_tmpl('login.tmpl', errors={})
+    def get(self, *args):
+        self.render_tmpl('login.tmpl', errors={})
+        
+    
+    
+
+class Logout(RequestHandler):
+    """
+    """
+    
+    def get(self, *args):
+        self.clear_cookie('user_id')
+        self.redirect(self.get_argument('next', '/'))
         
     
     
 
 
 class Register(RequestHandler):
-    """If we get valid form input, we create a user,
-      store their doc._id in a secure cookie and
-      redirect to their dashboard.
+    """If we get valid form input, we create a user, store their 
+      user.id in a secure cookie and redirect to their dashboard.
     """
     
-    def post(self):
-        errors = {}
-        
-        username = self.get_argument('username', None)
-        email = self.get_argument('email', None)
-        password = self.get_argument('password', None)
-        confirm = self.get_argument('confirm', None)
-        
-        if not username:
-            errors['username'] = u'Please choose a username'
+    @property
+    def timezones(self):
+        return get_timezones()
+    
+    
+    def post(self, *args):
+        params = {
+            'username': self.get_argument('username', None),
+            'password': self.get_argument('password', None),
+            'confirm': self.get_argument('confirm', None),
+            'email_address': self.get_argument('email_address', None),
+            'first_name': self.get_argument('first_name', None),
+            'last_name': self.get_argument('last_name', None),
+            'company': self.get_argument('company', None),
+            'time_zone': self.get_argument('time_zone', None),
+            'account': self.get_argument('account', None)
+        }
+        logging.info(params)
+        try:
+            params = schema.Registration.to_python(params)
+        except formencode.Invalid, err:
+            self.render_tmpl('register.tmpl', errors=err.error_dict)
         else:
-            try:
-                SlugProperty().validate(username)
-            except ValueError, err:
-                errors['username'] = u'%s is not a valid username'
-            else:
-                exists = User.view(
-                    'users/authenticate', 
-                    startkey=[username, False],
-                    endkey=[username, u'\u9999']
-                ).count()
-                if exists:
-                    errors['username'] = u'%s is already taken'
-        if not email:
-            errors['email'] = u'Please enter your email address'
-        else:
-            try:
-                EmailProperty().validate(email)
-            except ValueError, err:
-                errors['username'] = unicode(err)
-            else:
-                exists = User.view(
-                    'users/authenticate', 
-                    startkey=[email, False],
-                    endkey=[email, u'\u9999']
-                ).count()
-                if exists:
-                    errors['email'] = u'%s is already taken'
-        if not password:
-            errors['password'] = u'Please choose a password'
-        else:
-            try:
-                PasswordProperty().validate(password)
-            except ValueError, err:
-                errors['password'] = unicode(err)
-            else:
-                if not confirm:
-                    errors['confirm'] = u'Please confirm your password'
-                else:
-                    if confirm != password:
-                        msg = u'Password and confirm password don\'t match'
-                        errors['password'] = msg
-                        errors['confirm'] = msg
-        if errors:
-            self.render_tmpl('register.tmpl', errors=errors)
-        else:
-            logging.warning('@@ register hardcodes an account')
-            logging.warning('@@ not taking any steps to handle race condition uniqueness edge case')
+            slug = params['account']
+            account = model.Account(slug)
+            model.db.add(account)
             logging.warning('@@ not bothering with email confirmation yet')
-            user = User(
-                username=username,
-                password=password,
-                email_address = email,
-                confirmation_hash = generate_hash(),
-                administrator_accounts = [username]
+            params.pop('account')
+            params.pop('confirm')
+            user = model.User(
+                administrator_accounts = [account],
+                **params
             )
-            user.save()
-            self.set_secure_cookie('user_id', unicode(user._id))
-            self.redirect(u'/%s/dashboard' % username)
+            model.db.add(user)
+            try:
+                model.db.commit()
+            except IntegrityError, err:
+                model.db.rollback()
+                errors = {'message': err.args[0]}
+                self.render_tmpl('register.tmpl', errors=errors)
+            else:
+                self.set_secure_cookie('user_id', str(user.id))
+                self.redirect(u'/dashboard')
             
         
+        
     
     
-    def get(self):
+    def get(self, *args):
         self.render_tmpl('register.tmpl', errors={})
         
     
