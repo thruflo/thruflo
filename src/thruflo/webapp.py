@@ -15,7 +15,6 @@ from tornado import httpserver, ioloop, web
 from tornado import options as tornado_options
 from tornado.options import define, options
 
-from schema import slug_pattern as slug
 from views import *
 
 define('port', default=8888, help='bind to port')
@@ -24,20 +23,17 @@ mapping = [(
         r'/', 
         Index,
     ), (
-        r'/((%s)\/)?login\/?' % slug,
+        r'/login\/?',
         Login
     ), (
-        r'/((%s)\/)?logout\/?' % slug,
+        r'/logout\/?',
         Logout
     ), (
-        r'/((%s)\/)?register\/?' % slug,
+        r'/register\/?',
         Register
     ), (
-        r'/(%s)\/dashboard\/?' % slug,
+        r'/dashboard\/?',
         Dashboard
-    ), (
-        r'/(%s)\/?' % slug,
-        AccountIndex
     ), (
         r'/.*',
         NotFound
@@ -51,7 +47,8 @@ settings = {
     ),
     'cookie_secret': 'ONqi04WSTsqnYjznTRZeH3d5lhi6pULqiGgRdGy9GIE=',
     'login_url': '/login',
-    'xsrf_cookies': True
+    'xsrf_cookies': True,
+    'domain': 'thruflo.com'
 }
 
 application = web.Application(mapping, debug=False, **settings)

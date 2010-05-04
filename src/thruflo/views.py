@@ -22,8 +22,8 @@ from tmpl import render_tmpl
 from utils import unicode_urlencode, json_encode, json_decode, get_timezones
 
 __all__ = [
-    'Index', 'Login', 'Logout', 'Register', 'Dashboard', 
-    'AccountIndex', 'NotFound'
+    'Index', 'Login', 'Logout', 'Register', 'NotFound',
+    'Dashboard', 
 ]
 
 class RequestHandler(web.RequestHandler):
@@ -33,10 +33,8 @@ class RequestHandler(web.RequestHandler):
       #. provides ``self.render_tmpl(tmpl_name, **kwargs)`` method
          using mako templates
       
-      @@: ``get_current_user`` makes a request to the db for every
-          authenticated request
-      @@: ``get_account`` does the same for ``@members_only`` and
-          ``@admins_only`` requests
+      @@: ``self.current_user`` and ``self.account`` both hit the db
+          *every request*, which is somewhat suboptimal ;)
       
     """
     
@@ -50,18 +48,42 @@ class RequestHandler(web.RequestHandler):
     
     @property
     def account(self):
-        """Throws an ``AttributeError`` if ``get_account`` hasn't 
-          been called
-        """
-        
+        if not hasattr(self, "_account"):
+            self._account = self.get_account()
         return self._account
         
     
-    def get_account(self, account_slug):
-        if not getattr(self, '_account', None):
+    def get_account(self):
+        host = self.request.host
+        parts = host.split(self.settings['domain'])
+        account_slug = parts[0]
+        if account_slug:
+            account_slug = account_slug[:-1]
             query = model.db.query(model.Account)
-            self._account = query.filter_by(slug=account_slug).first()
-        return self._account
+            return query.filter_by(slug=account_slug).first()
+        return None
+        
+    
+    
+    def redirect_to_dashboard(self, user):
+        """If we're not on an account page, redirect to 
+          the user's first account
+        """
+        
+        
+        path = self.get_argument('next', u'/dashboard')
+        
+        if not self.account:
+            accounts = user.accounts
+            if len(accounts):
+                account_slug = accounts[0].slug
+                path = u'http://%s.%s%s' % (
+                    account_slug,
+                    self.settings['domain'],
+                    path
+                )
+            
+        self.redirect(path)
         
     
     
@@ -87,8 +109,12 @@ class Index(RequestHandler):
     """
     """
     
-    def get(self, *args):
-        self.render_tmpl('index.tmpl')
+    def get(self):
+        if self.account:
+            self.redirect('/dashboard')
+        else:
+            self.render_tmpl('index.tmpl')
+        
         
     
     
@@ -100,7 +126,7 @@ class Login(RequestHandler):
       If authenticated, sets the user.id in a secure cookie.
     """
     
-    def post(self, *args):
+    def post(self):
         login = self.get_argument('login', None)
         params = {
             'username': login, 
@@ -128,22 +154,9 @@ class Login(RequestHandler):
                     self.set_secure_cookie(
                         'user_id', 
                         str(user.id),
-                        domain='.thruflo.com'
+                        domain='.%s' % self.settings['domain']
                     )
-                    # if we're not on an account page, redirect to
-                    # the user's first account
-                    path = self.get_argument('next', u'/dashboard')
-                    if len(args) and self.get_account(args[0]):
-                        pass
-                    else:
-                        accounts = user.accounts
-                        if len(accounts):
-                            account_slug = accounts[0].slug
-                            path = u'http://%s.thruflo.com%s' % (
-                                account_slug,
-                                path
-                            )
-                    self.redirect(path)
+                    self.redirect_to_dashboard(user)
                 else:
                     self.render_tmpl('login.tmpl', errors={})
                 
@@ -151,7 +164,7 @@ class Login(RequestHandler):
         
     
     
-    def get(self, *args):
+    def get(self):
         self.render_tmpl('login.tmpl', errors={})
         
     
@@ -161,9 +174,14 @@ class Logout(RequestHandler):
     """
     """
     
-    def get(self, *args):
-        self.clear_cookie('user_id', domain='.thruflo.com')
-        self.redirect(self.get_argument('next', '/'))
+    def get(self):
+        self.clear_cookie(
+            'user_id', 
+            domain='.%s' % self.settings['domain']
+        )
+        self.redirect(
+            self.get_argument('next', '/')
+        )
         
     
     
@@ -178,7 +196,7 @@ class Register(RequestHandler):
         return get_timezones()
     
     
-    def post(self, *args):
+    def post(self):
         params = {
             'username': self.get_argument('username', None),
             'password': self.get_argument('password', None),
@@ -217,15 +235,16 @@ class Register(RequestHandler):
                 self.set_secure_cookie(
                     'user_id', 
                     str(user.id),
-                    domain='.thruflo.com'
+                    domain='.%s' % self.settings['domain']
                 )
-                self.redirect(self.get_argument('next', u'/dashboard'))
+                self.redirect_to_dashboard(user)
+                
             
         
         
     
     
-    def get(self, *args):
+    def get(self):
         self.render_tmpl('register.tmpl', errors={})
         
     
@@ -241,15 +260,15 @@ def members_only(method):
     def wrapper(self, *args, **kwargs):
         authorised = False
         if self.current_user:
-            account = self.get_account(args[0])
-            if account in self.current_user.accounts:
+            account = self.account
+            if account and account in self.current_user.accounts:
                 authorised = True
         if not authorised:
             if self.request.method == "GET":
                 url = self.get_login_url()
                 if "?" not in url:
                     url += "?" + unicode_urlencode(
-                        dict(next=self.request.uri)
+                        dict(next=self.request.path)
                     )
                 self.redirect(url)
                 return
@@ -265,32 +284,17 @@ class Dashboard(RequestHandler):
     """
     
     @members_only
-    def get(self, account_slug):
+    def get(self):
         self.render_tmpl('dashboard.tmpl')
     
     
 
 
-class AccountIndex(RequestHandler):
-    """Landing on ``/:account/`` redirects to ``/:account/dashboard``
-      if the ``Account`` exists.
-    """
-    
-    def get(self, *args):
-        account = self.get_account(args[0])
-        if account:
-            self.redirect('/dashboard')
-        else:
-            self.render_tmpl('404.tmpl')
-        
-    
-    
-
 class NotFound(RequestHandler):
     """
     """
     
-    def get(self, *args):
+    def get(self):
         self.render_tmpl('404.tmpl')
         
     

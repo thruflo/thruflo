@@ -20,7 +20,7 @@
             ${self.login_menu()}
           % endif
           <div id="logo">
-            <a href="http://www.thruflo.com" title="thruflo">
+            <a href="http://${handler.settings['domain']}" title="thruflo">
               LOGO
               <!--img src="${static_url('img/logo.png')}" /-->
             </a>
@@ -53,7 +53,7 @@
       <ul>
         % for item in current_user.accounts:
           <li>
-            <a href="http://${item.slug}.thruflo.com">
+            <a href="http://${item.slug}.${handler.settings['domain']}">
               ${item.slug}
             </a>
           </li>

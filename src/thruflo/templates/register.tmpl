@@ -150,7 +150,7 @@ ${self.page_content()}
           Create your site address
         </h4>
         <p>
-          Every thruflo site has its own web address. For example, if you want your Basecamp site to be at http://acme.thruflo.com you’d enter acme in the field below. Letters &amp; numbers only.
+          Every site has its own web address. For example, if you want your site to be at http://mysite.${handler.settings['domain']} you’d enter <em>mysite</em> in the field below. Letters &amp; numbers only.
         </p>
         <div class="form-row">
           <div class="error">
@@ -160,7 +160,7 @@ ${self.page_content()}
           </div>
           http://<input type="text" name="account" 
               value="${handler.get_argument('account', '')}"
-          />.thruflo.com
+          />.${handler.settings['domain']}
         </div>
       </div>
       <div class="form-row">
