@@ -35,6 +35,18 @@ mapping = [(
         r'/dashboard\/?',
         Dashboard
     ), (
+        r'/documents\/?',
+        Documents
+    ), (
+        r'/projects\/?(\w*)?',
+        Projects
+    ), (
+        r'/themes\/?',
+        Themes
+    ), (
+        r'/deliverables\/?',
+        Deliverables
+    ), (
         r'/.*',
         NotFound
     )

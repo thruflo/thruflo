@@ -9,8 +9,7 @@
 """
 
 __all__ = [
-    'db', 'User', 'Account', 'couchdbs', 'SlugProperty', 
-    'EmailProperty', 'PasswordProperty',
+    'db', 'User', 'Account', 'couchdbs',
     'Template', 'Document', 'Topic',
     'Project', 'ProjectSection',
     'Deliverable', 'DeliverableSection'
@@ -374,6 +373,8 @@ class CouchDBModel(Model):
             db=None, **params
         ):
         def default_wrapper(row):
+            logging.info(row)
+            print row
             data = row.get('value')
             docid = row.get('id')
             doc = row.get('doc')
@@ -413,6 +414,27 @@ class CouchDBModel(Model):
         
     
     
+    @classmethod
+    def view(
+            cls, 
+            view_name,
+            wrapper=None, 
+            dynamic_properties=True,
+            wrap_doc=True, 
+            db=None,
+            **params
+        ):
+        return cls.__view(
+            view_type="view", 
+            data=view_name, 
+            wrapper=wrapper,
+            dynamic_properties=dynamic_properties, 
+            wrap_doc=wrap_doc,
+            db=db,
+            **params
+        )
+    
+    
     def delete(self, db=None):
         """Delete document from the database.
         """
@@ -438,29 +460,35 @@ class CouchDBs(object):
       from ``./_design``.
     """
     
-    __all__ = [
-        # created per user account on sign up
-    ]
+    _dbs = {}
     
-    def sync(self):
-        """Sync the views from the filesystem for each database.
-        """
+    def __getitem__(self, db_name):
+        if not self._dbs.has_key(db_name):
+            self._dbs[db_name] = self.server.get_or_create_db(db_name)
+        return self._dbs[db_name]
         
-        for item in self.__all__:
-            views = join_path(dirname(__file__), '_design')
-            loader = FileSystemDocsLoader(views)
-            db = getattr(self, item)
-            loader.sync(db)
-            
+    
+    
+    def _sync_db(self, db_name):
+        db = self[db_name]
+        self.loader.sync(db)
+        
+    
+    def sync(self, db_name=None):
+        if not db_name:
+            for db_name in self.server.all_dbs():
+                self._sync_db(db_name)
+        else:
+            self._sync_db(db_name)
         
     
     
     def __init__(self, sync=False):
-        s = Server()
-        self.__all__ = s.all_dbs()
-        for item in self.__all__:
-            setattr(self, item, s.get_or_create_db(item))
-            
+        path = join_path(dirname(__file__), '_design')
+        self.loader = FileSystemDocsLoader(path)
+        self.server = Server()
+        if sys.platform == 'darwin':
+            self.sync()
         
     
     
@@ -506,7 +534,7 @@ class ProjectSection(CouchDBModel):
     
 
 
-class Topic(CouchDBModel):
+class Theme(CouchDBModel):
     """"""
     
     slug = SlugProperty(required=True)

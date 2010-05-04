@@ -6,6 +6,7 @@
 
 __all__ = [
     'Registration', 'Login',
+    'Project', 
 ]
 
 import re
@@ -271,4 +272,8 @@ class Login(formencode.Schema):
     
     password = SecurePassword(not_empty=True)
     
+
+
+class Project(formencode.Schema):
+    display_name = validators.UnicodeString(not_empty=True)
 

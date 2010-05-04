@@ -7,6 +7,7 @@
 import functools
 import logging
 import time
+import uuid
 
 from datetime import datetime, timedelta
 from operator import itemgetter
@@ -23,7 +24,7 @@ from utils import unicode_urlencode, json_encode, json_decode, get_timezones
 
 __all__ = [
     'Index', 'Login', 'Logout', 'Register', 'NotFound',
-    'Dashboard', 
+    'Dashboard', 'Documents', 'Projects', 'Themes', 'Deliverables'
 ]
 
 class RequestHandler(web.RequestHandler):
@@ -279,6 +280,65 @@ def members_only(method):
     
 
 
+class SlugMixin(object):
+    """Couchdb ``doc._id``s are long ``uuid4``s which is great
+      for avoiding conflicts but too long to feature nicely in
+      a user friendly URL.
+      
+      Equally, there's no reason we need to ask users to provide
+      a slug when creating something.
+      
+      So, we need a mechanism to generate shorter, more user 
+      friendly identifiers that can be used as the value of the 
+      an instance's ``slug`` property.  These need to be fairly 
+      unique, so it's very rare they would clash within a document
+      type, within an account.
+      
+      We also need a sensible approach to conflicts, which is to
+      manually re-slug the newer instance until there is only one.
+      
+      Plus we check when generating a slug that it's unique.
+      
+      All in all, overkill.  Which is good.
+    """
+    
+    def generate_slug(self):
+        """Generates a random seven digit unicode string.
+        """
+        
+        return unicode(uuid.uuid4().int)[:7]
+        
+    
+    def get_from_slug(self, slug, document_class):
+        db = model.couchdbs[self.account.slug]
+        docs = document_class.view(
+            'all/type_slug_mod',
+            startkey=[
+                document_class._doc_type,
+                slug,
+                False
+            ],
+            endkey=[
+                document_class._doc_type,
+                slug,
+                []
+            ],
+            db=db
+        ).all()
+        if len(docs) == 0:
+            return None
+        elif len(docs) > 1:
+            newer = docs[1:]
+            newer.reverse()
+            for doc in newer:
+                doc.slug = self.generate_slug()
+                db.save_doc(doc)
+        return docs[0]
+        
+    
+    
+
+
 class Dashboard(RequestHandler):
     """
     """
@@ -286,6 +346,99 @@ class Dashboard(RequestHandler):
     @members_only
     def get(self):
         self.render_tmpl('dashboard.tmpl')
+    
+    
+
+class Documents(RequestHandler):
+    """
+    """
+    
+    @members_only
+    def get(self):
+        self.render_tmpl('documents.tmpl')
+        
+    
+    
+
+class Projects(RequestHandler, SlugMixin):
+    """
+    """
+    
+    def add(self):
+        """Add a new project.
+        """
+        
+        # @@ add and check the slug thang
+        
+        raise NotImplementedError
+        
+    
+    
+    def edit(self):
+        """Edit project metadata.
+        """
+        
+        raise NotImplementedError
+        
+    
+    
+    def save(self):
+        """Overwrite a project section.
+        """
+        
+        raise NotImplementedError
+        
+    
+    
+    def fork(self):
+        """Duplicate a project section.
+        """
+        
+        raise NotImplementedError
+        
+    
+    
+    @members_only
+    def post(self, action):
+        """Dispatches ``/projects/:action`` to ``self.action()``. 
+          
+          All actions are called via an XMLHTTPRequest and 
+          return json.
+        """
+        
+        self.set_header('Content-Type', 'application/json; charset=UTF-8')
+        
+        method = getattr(self, action)
+        method()
+        
+    
+    
+    @members_only
+    def get(self, *args):
+        self.render_tmpl('projects.tmpl')
+        
+    
+    
+
+class Themes(RequestHandler):
+    """
+    """
+    
+    @members_only
+    def get(self):
+        self.render_tmpl('themes.tmpl')
+        
+    
+    
+
+class Deliverables(RequestHandler):
+    """
+    """
+    
+    @members_only
+    def get(self):
+        self.render_tmpl('deliverables.tmpl')
+        
     
     
 

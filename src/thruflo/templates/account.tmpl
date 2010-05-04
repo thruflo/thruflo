@@ -16,7 +16,7 @@
         <% 
           path = u'/%s' % item.lower()
         %>
-        <li selected="${request.path.startswith(path)}">
+        <li class="${request.path.startswith(path) and 'selected' or ''}">
           <a href="${path}" title="${item}">
             ${item}
           </a>
