@@ -38,7 +38,7 @@ mapping = [(
         r'/documents\/?',
         Documents
     ), (
-        r'/projects\/?(\w*)?',
+        r'/projects\/?([\w]*)\/?',
         Projects
     ), (
         r'/themes\/?',

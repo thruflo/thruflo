@@ -1,0 +1,81 @@
+<%inherit file="account.tmpl"/>
+
+<%def name="sub_title()">
+  ${handler.account.slug} :: Projects :: ${handler.project.display_name}
+</%def>
+
+${self.page_content()}
+
+<%def name="page_content()">
+  <h4>
+    ${handler.project.display_name}
+  </h4>
+  <div class="tabs">
+    <ul>
+      <li>
+        <a href="#tabs-brief">
+          Brief</a>
+      </li>
+      <li>
+        <a href="#tabs-solution">
+          Solution</a>
+        </li>
+      <li>
+        <a href="#tabs-results">
+          Results</a>
+      </li>
+    </ul>
+    % for section_type in ['brief', 'solution', 'results']:
+      <div id="tabs-${section_type}">
+        % if handler.project_sections.has_key(section_type):
+          % for item in handler.project_sections[section_type]:
+            <form name="${item.id}"
+                action="/projects/${handler.project.slug}/save/${section_type}"
+                method="post"
+                class="ajax">
+              ${xsrf_form_html()}
+              <input type="hidden" 
+                  name="project_section_id" 
+                  value="${item.id}"
+              />
+              <div class="form-container">
+                <h4>
+                  ...
+                </h4>
+                <div class="form-row">
+                  <div class="error">
+                  </div>
+                  <textarea name="content">${item.content}</textarea>
+                </div>
+                <div class="form-row">
+                  <input type="submit" value="Save" />
+                  <input type="submit" value="Fork" />
+                </div>
+              </div>
+            </form>
+          % endfor
+        % else:
+          <form name="${section_type}"
+              action="/projects/${handler.project.slug}/save/${section_type}"
+              method="post"
+              class="ajax">
+            ${xsrf_form_html()}
+            <div class="form-container">
+              <h4>
+                ...
+              </h4>
+              <div class="form-row">
+                <div class="error">
+                </div>
+                <textarea name="content"></textarea>
+              </div>
+              <div class="form-row">
+                <input type="submit" value="Save" />
+              </div>
+            </div>
+          </form>
+        % endif
+      </div>
+    % endfor
+  </div>
+</%def>

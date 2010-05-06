@@ -5,8 +5,8 @@
 """
 
 __all__ = [
-    'Registration', 'Login',
-    'Project', 
+    'RequiredSlug', 'Registration', 'Login', 
+    'Project', 'ProjectSection',
 ]
 
 import re
@@ -240,6 +240,10 @@ class UniqueAccountSlug(Slug):
     
 
 
+class RequiredSlug(formencode.Schema):
+    slug = Slug(not_empty=True)
+
+
 class Registration(formencode.Schema):
     """
     """
@@ -276,4 +280,14 @@ class Login(formencode.Schema):
 
 class Project(formencode.Schema):
     display_name = validators.UnicodeString(not_empty=True)
+
+class ProjectSection(formencode.Schema):
+    section_type = validators.OneOf([u'brief', u'solution', u'results'])
+    content = validators.UnicodeString()
+    
+
+
+deliverable_section_types = [
+    'budget', 'process', 'time'
+]
 

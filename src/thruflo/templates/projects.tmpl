@@ -8,7 +8,39 @@ ${self.page_content()}
   <h4>
     Projects
   </h4>
-  <p>
-    ... tbc ...
-  </p>
+  <ul>
+    <li>
+      <form name="add-project" action="/projects/add" method="post">
+        ${xsrf_form_html()}
+        <div class="form-container">
+          <h4>
+            Create New Project
+          </h4>
+          <div class="form-row">
+            <div class="error">
+              % if errors.has_key('display_name'):
+                ${errors['display_name']}
+              % endif
+            </div>
+            <input type="text" name="display_name"
+                value="${handler.get_argument('display_name', '')}"
+            />
+            <label for="display_name">
+              Project name
+            </label>
+          </div>
+          <div class="form-row">
+            <input type="submit" value="Create Project" />
+          </div>
+        </div>
+      </form>
+    </li>
+    % for item in handler.projects:
+      <li>
+        <a href="/projects/${item.slug}" title="${item.display_name}">
+          ${item.display_name}
+        </a>
+      </li>
+    % endfor
+  </ul>
 </%def>

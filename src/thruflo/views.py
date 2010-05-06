@@ -310,20 +310,21 @@ class SlugMixin(object):
         
     
     def get_from_slug(self, slug, document_class):
-        db = model.couchdbs[self.account.slug]
         docs = document_class.view(
             'all/type_slug_mod',
             startkey=[
+                self.account.id,
                 document_class._doc_type,
                 slug,
                 False
             ],
             endkey=[
+                self.account.id,
                 document_class._doc_type,
                 slug,
                 []
             ],
-            db=db
+            include_docs=True
         ).all()
         if len(docs) == 0:
             return None
@@ -332,8 +333,22 @@ class SlugMixin(object):
             newer.reverse()
             for doc in newer:
                 doc.slug = self.generate_slug()
-                db.save_doc(doc)
+                doc.save()
         return docs[0]
+        
+    
+    def get_unique_slug(self, document_class, max_tries=5):
+        i = 1
+        while True:
+            if i > max_tries:
+                raise Exception('Can\'t generate unique slug')
+            else:
+                slug = self.generate_slug()
+                if not self.get_from_slug(slug, document_class):
+                    break
+                else:
+                    i += 1
+        return slug
         
     
     
@@ -365,57 +380,202 @@ class Projects(RequestHandler, SlugMixin):
     """
     
     def add(self):
-        """Add a new project.
+        """Add a new project:
+            
+            #. ``/projects/:slug/add``
+          
         """
         
-        # @@ add and check the slug thang
+        params = {
+            'display_name': self.get_argument('display_name', None)
+        }
+        try:
+            params = schema.Project.to_python(params)
+        except formencode.Invalid, err:
+            return err.error_dict
+        else:
+            params['account_id'] = self.account.id
+            params['slug'] = self.get_unique_slug(model.Project)
+            project = model.Project(**params)
+            project.save()
+            self.redirect('/projects/%s' % project.slug)
+            
         
-        raise NotImplementedError
-        
-    
     
     def edit(self):
-        """Edit project metadata.
+        """Edit project metadata:
+            
+              #. ``/projects/:slug/edit?display_name=...``
+            
         """
         
-        raise NotImplementedError
+        params = {
+            'display_name': self.get_argument('display_name', None)
+        }
+        try:
+            params = schema.Project.to_python(params)
+        except formencode.Invalid, err:
+            return {'status': 500, 'errors': err.error_dict}
+        else:
+            self.project.display_name = params['display_name']
+            self.project.save()
+            return {'status': 200, 'doc': self.project.to_json()}
+            
         
     
-    
-    def save(self):
+    def save(self, section_type):
         """Overwrite a project section.
-        """
-        
-        raise NotImplementedError
-        
-    
-    
-    def fork(self):
-        """Duplicate a project section.
-        """
-        
-        raise NotImplementedError
-        
-    
-    
-    @members_only
-    def post(self, action):
-        """Dispatches ``/projects/:action`` to ``self.action()``. 
           
-          All actions are called via an XMLHTTPRequest and 
-          return json.
+            #. ``/projects/:slug/save/solution?content=...``
+            #. ``...save/solution?project_section_id=...&content=...``
         """
         
-        self.set_header('Content-Type', 'application/json; charset=UTF-8')
+        params = {
+            'section_type': section_type,
+            'content': self.get_argument('content', None)
+        }
+        try:
+            params = schema.ProjectSection.to_python(params)
+        except formencode.Invalid, err:
+            return {'status': 500, 'errors': err.error_dict}
+        else:
+            psid = self.get_argument('project_section_id', None)
+            if psid:
+                try:
+                    psid = schema.Slug.to_python(psid)
+                except formencode.Invalid, err:
+                    return {
+                        'status': 500, 
+                        'errors': {'project_section_id': unicode(err)}
+                    }
+                else:
+                    doc = model.ProjectSection.get(psid)
+                    check_one = doc.section_type == section_type
+                    check_two = doc.project_id == self.project.id
+                    if check_one and check_two:
+                        doc.content = params['content']
+                    else:
+                        return {
+                            'status': 500, 
+                            'errors': {'project_section_id': u'Invalid'}
+                        }
+            else:
+                doc = model.ProjectSection(
+                    account_id=self.account.id,
+                    project_id=self.project.id,
+                    **params
+                )
+            doc.save()
+            return {'status': 200, 'doc': doc.to_json()}
         
-        method = getattr(self, action)
-        method()
+    
+    def fork(self, section_type):
+        """Duplicate a project section.
+          
+            #. ``/projects/:slug/fork/solution?project_section_id=...
+        """
+        
+        psid = self.get_argument('project_section_id', None)
+        if psid:
+            try:
+                psid = schema.Slug.to_python(psid)
+            except formencode.Invalid, err:
+                return {
+                    'status': 500, 
+                    'errors': {'project_section_id': unicode(err)}
+                }
+            else:
+                doc = model.ProjectSection.get(psid)
+                check_one = doc.section_type == section_type
+                check_two = doc.project_id == self.project.id
+                if check_one and check_two:
+                    duplicate = mode.ProjectSection(
+                        account_id=self.account.id,
+                        project_id=self.project.id,
+                        section_type=doc.section_type,
+                        content=doc.content
+                    )
+                    duplicate.save()
+                    return {'status': 200, 'doc': duplicate.to_json()}
+                else:
+                    return {
+                        'status': 500, 
+                        'errors': {'project_section_id': u'Invalid'}
+                    }
+                
+            
+        
+    
+    
+    @property
+    def projects(self):
+        return model.Project.view(
+            'all/type_slug_mod',
+            startkey=[self.account.id, 'Project', False, False],
+            endkey=[self.account.id, 'Project', [], []],
+            include_docs=True
+        ).all()
+    
+    
+    @property
+    def project_sections(self):
+        results = model.Project.view(
+            'project/all',
+            startkey=[
+                self.account.id, 
+                self.project.id, 
+                False, 
+                False
+            ],
+            endkey=[self.account.id, self.project.id, [], []],
+            include_docs=True
+        )
+        sections_by_type = {}
+        for item in results:
+            k = item.section_type
+            if sections_by_type.has_key():
+                sections_by_type[k].append(item)
+            else:
+                sections_by_type[k] = [item]
+        return sections_by_type
         
     
     
     @members_only
-    def get(self, *args):
-        self.render_tmpl('projects.tmpl')
+    def post(self, *args):
+        """Dispatches ``/projects/add`` to ``self.add()`` and
+          ``/projects/:slug/:action`` to ``self.action()``, passing
+          through any addtional args.
+        """
+        
+        if args[0] == 'add':
+            error_dict = self.add()
+            self.render_tmpl('projects.tmpl', errors=error_dict)
+        else:
+            slug = args[0]
+            self.project = self.get_from_slug(slug, model.Project)
+            if self.project:
+                method = getattr(self, args[1])
+                data = method(*args[2:])
+            self.set_header(
+                'Content-Type', 
+                'application/json; charset=UTF-8'
+            )
+            self.response.out.write(json_encode(data))
+        
+    
+    
+    @members_only
+    def get(self, slug=None):
+        project = None
+        if slug:
+            self.project = self.get_from_slug(slug, model.Project)
+            if self.project:
+                self.render_tmpl('project.tmpl')
+            else:
+                self.render_tmpl('404.tmpl')
+        else:
+            self.render_tmpl('projects.tmpl', errors={})
         
     
     

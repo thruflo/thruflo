@@ -68,12 +68,26 @@
 <%def name="headers()" cached="True">
   <meta name="description" content="..." />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <link type="text/css" rel="stylesheet" href="${static_url('css/reset.css')}" />
-  <link type="text/css" rel="stylesheet" href="${static_url('css/style.css')}" />
-  <link type="image/ico" rel="icon" href="${static_url('img/favicon.ico')}" />
-  <script type="text/javascript" src="${static_url('js/jquery.ui.min.js')}">
+  <link type="text/css" rel="stylesheet"
+      href="${static_url('css/reset.css')}"
+  />
+  <link type="text/css" rel="stylesheet"
+      href="${static_url('css/jquery-ui-1.8.1.custom.css')}"
+  />
+  <link type="text/css" rel="stylesheet"
+      href="${static_url('css/style.css')}"
+  />
+  <link type="image/ico" rel="icon"
+      href="${static_url('img/favicon.ico')}"
+  />
+  <script type="text/javascript"
+      src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js">
   </script>
-  <script type="text/javascript" src="${static_url('js/client.js')}">
+  <script type="text/javascript"
+      src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.1/jquery-ui.min.js">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/client.js')}">
   </script>
 </%def>
 

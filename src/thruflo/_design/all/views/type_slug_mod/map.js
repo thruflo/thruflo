@@ -1,5 +1,5 @@
 function (doc) {
   if (doc.slug) {
-    emit([doc.doc_type, doc.slug, doc.mod], null);
+    emit([doc.account_id, doc.doc_type, doc.slug, doc.mod], null);
   }
 }
