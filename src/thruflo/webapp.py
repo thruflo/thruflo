@@ -20,34 +20,34 @@ from views import *
 define('port', default=8888, help='bind to port')
 
 mapping = [(
-        r'/', 
+        r'^/$', 
         Index,
     ), (
-        r'/login\/?',
+        r'^/login\/?$',
         Login
     ), (
-        r'/logout\/?',
+        r'^/logout\/?$',
         Logout
     ), (
-        r'/register\/?',
+        r'^/register\/?$',
         Register
     ), (
-        r'/dashboard\/?',
+        r'^/dashboard\/?$',
         Dashboard
     ), (
-        r'/documents\/?',
+        r'^/documents\/?$',
         Documents
     ), (
-        r'/projects\/?([\w]*)\/?',
+        r'^/projects(\/([\w]*))?(\/([\w]*))?(\/([\w]*))?\/?$',
         Projects
     ), (
-        r'/themes\/?',
+        r'^/themes\/?$',
         Themes
     ), (
-        r'/deliverables\/?',
+        r'^/deliverables\/?$',
         Deliverables
     ), (
-        r'/.*',
+        r'^/.*$',
         NotFound
     )
 ]

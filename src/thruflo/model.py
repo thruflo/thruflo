@@ -280,6 +280,7 @@ class ProjectSection(CouchDBModel):
     
     project_id = StringProperty(required=True)
     section_type = StringProperty(required=True)
+    branch_name = StringProperty(default=u'master')
     content = StringProperty()
     
 

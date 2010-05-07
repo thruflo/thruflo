@@ -36,11 +36,15 @@ ${self.page_content()}
               ${xsrf_form_html()}
               <input type="hidden" 
                   name="project_section_id" 
-                  value="${item.id}"
+                  value="${item.id}" 
+              />
+              <input type="hidden" 
+                  name="branch_name" 
+                  value="${item.branch_name}" 
               />
               <div class="form-container">
                 <h4>
-                  ...
+                  ${item.branch_name}
                 </h4>
                 <div class="form-row">
                   <div class="error">
@@ -49,7 +53,12 @@ ${self.page_content()}
                 </div>
                 <div class="form-row">
                   <input type="submit" value="Save" />
+                </div>
+                <div class="form-row">
                   <input type="submit" value="Fork" />
+                  <input type="text" name="fork_name"
+                      value="${handler.get_argument('fork_name', '')}"
+                  />
                 </div>
               </div>
             </form>
@@ -60,9 +69,10 @@ ${self.page_content()}
               method="post"
               class="ajax">
             ${xsrf_form_html()}
+            <input type="hidden" name="branch_name" value="master" />
             <div class="form-container">
               <h4>
-                ...
+                master
               </h4>
               <div class="form-row">
                 <div class="error">

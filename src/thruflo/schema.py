@@ -6,7 +6,7 @@
 
 __all__ = [
     'RequiredSlug', 'Registration', 'Login', 
-    'Project', 'ProjectSection',
+    'Project', 'ProjectSection'
 ]
 
 import re
@@ -19,6 +19,10 @@ from utils import get_timezones
 
 slug_pattern = r'\w{3,18}'
 valid_slug = re.compile(r'^%s$' % slug_pattern, re.U)
+
+document_id_pattern = r'[a-z0-9]{32}'
+valid_document_id = re.compile(r'^%s$' % document_id_pattern, re.U)
+
 class Slug(validators.UnicodeString):
     """Lowercase, no spaces, no funny chars, between 3 and 18 long.
     """
@@ -36,6 +40,32 @@ class Slug(validators.UnicodeString):
     def validate_python(self, value, state):
         super(Slug, self).validate_python(value, state)
         if not valid_slug.match(value):
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        
+    
+    
+
+class CouchDocumentId(validators.UnicodeString):
+    """``uuid.uuid4``
+    """
+    
+    messages = {
+        'invalid': 'Invalid document id'
+    }
+    
+    def _to_python(self, value, state):
+        value = super(CouchDocumentId, self)._to_python(value, state)
+        return value.strip().lower()
+        
+    
+    
+    def validate_python(self, value, state):
+        super(CouchDocumentId, self).validate_python(value, state)
+        if not valid_document_id.match(value):
             raise validators.Invalid(
                 self.message("invalid", state),
                 value,
@@ -283,6 +313,7 @@ class Project(formencode.Schema):
 
 class ProjectSection(formencode.Schema):
     section_type = validators.OneOf([u'brief', u'solution', u'results'])
+    branch_name = Slug(not_empty=True)
     content = validators.UnicodeString()
     
 

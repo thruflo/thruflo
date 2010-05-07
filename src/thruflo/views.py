@@ -432,6 +432,7 @@ class Projects(RequestHandler, SlugMixin):
         
         params = {
             'section_type': section_type,
+            'branch_name': self.get_argument('branch_name', None),
             'content': self.get_argument('content', None)
         }
         try:
@@ -442,7 +443,7 @@ class Projects(RequestHandler, SlugMixin):
             psid = self.get_argument('project_section_id', None)
             if psid:
                 try:
-                    psid = schema.Slug.to_python(psid)
+                    psid = schema.CouchDocumentId.to_python(psid)
                 except formencode.Invalid, err:
                     return {
                         'status': 500, 
@@ -450,15 +451,23 @@ class Projects(RequestHandler, SlugMixin):
                     }
                 else:
                     doc = model.ProjectSection.get(psid)
-                    check_one = doc.section_type == section_type
-                    check_two = doc.project_id == self.project.id
-                    if check_one and check_two:
-                        doc.content = params['content']
-                    else:
+                    if not doc.section_type == params['section_type']:
                         return {
                             'status': 500, 
-                            'errors': {'project_section_id': u'Invalid'}
+                            'errors': {'section_type': u'Doesn\'t match'}
                         }
+                    elif not doc.branch_name == params['branch_name']:
+                        return {
+                            'status': 500, 
+                            'errors': {'branch_name': u'Doesn\'t match'}
+                        }
+                    elif not doc.project_id == self.project.id:
+                        return {
+                            'status': 500, 
+                            'errors': {'project_section_id': u'Doesn\'t match'}
+                        }
+                    else:
+                        doc.content = params['content']
             else:
                 doc = model.ProjectSection(
                     account_id=self.account.id,
@@ -476,34 +485,69 @@ class Projects(RequestHandler, SlugMixin):
         """
         
         psid = self.get_argument('project_section_id', None)
+        branch_name = self.get_argument('branch_name', None)
+        fork_name = self.get_argument('fork_name', None)
         if psid:
             try:
-                psid = schema.Slug.to_python(psid)
+                psid = schema.CouchDocumentId.to_python(psid)
             except formencode.Invalid, err:
                 return {
                     'status': 500, 
                     'errors': {'project_section_id': unicode(err)}
                 }
             else:
-                doc = model.ProjectSection.get(psid)
-                check_one = doc.section_type == section_type
-                check_two = doc.project_id == self.project.id
-                if check_one and check_two:
-                    duplicate = mode.ProjectSection(
-                        account_id=self.account.id,
-                        project_id=self.project.id,
-                        section_type=doc.section_type,
-                        content=doc.content
-                    )
-                    duplicate.save()
-                    return {'status': 200, 'doc': duplicate.to_json()}
-                else:
+                if not branch_name:
                     return {
                         'status': 500, 
-                        'errors': {'project_section_id': u'Invalid'}
+                        'errors': {'branch_name': u'Required'}
                     }
+                elif not fork_name:
+                    return {
+                        'status': 500, 
+                        'errors': {'branch_name': u'Required'}
+                    }
+                else:
+                    try:
+                        fork_name = schema.Slug.to_python(fork_name)
+                    except formencode.Invalid, err:
+                        return {
+                            'status': 500, 
+                            'errors': {'fork_name': unicode(err)}
+                        }
+                    else:
+                        doc = model.ProjectSection.get(psid)
+                        if not doc.section_type == section_type:
+                            return {
+                                'status': 500, 
+                                'errors': {'section_type': u'Doesn\'t match'}
+                            }
+                        elif not doc.branch_name == branch_name:
+                            return {
+                                'status': 500, 
+                                'errors': {'branch_name': u'Doesn\'t match'}
+                            }
+                        elif not doc.project_id == self.project.id:
+                            return {
+                                'status': 500, 
+                                'errors': {
+                                    'project_section_id': u'Doesn\'t match'
+                                }
+                            }
+                        else:
+                            duplicate = model.ProjectSection(
+                                account_id=self.account.id,
+                                project_id=self.project.id,
+                                branch_name=fork_name,
+                                section_type=doc.section_type,
+                                content=doc.content
+                            )
+                            duplicate.save()
+                            return {'status': 200, 'doc': duplicate.to_json()}
+                        
+                    
                 
             
+        
         
     
     
@@ -533,11 +577,27 @@ class Projects(RequestHandler, SlugMixin):
         sections_by_type = {}
         for item in results:
             k = item.section_type
-            if sections_by_type.has_key():
+            if sections_by_type.has_key(k):
                 sections_by_type[k].append(item)
             else:
                 sections_by_type[k] = [item]
         return sections_by_type
+        
+    
+    
+    def _convert_args(self, *args):
+        """Convert ``('/3002092', '3002092', '/save', 'save', ...)``
+          to ``('3002092', 'save', ...)``
+        """
+        
+        _args = []
+        
+        logging.info(args)
+        
+        for i in range(1, 6, 2):
+            _args.append(args[i])
+        
+        return tuple(_args)
         
     
     
@@ -547,6 +607,8 @@ class Projects(RequestHandler, SlugMixin):
           ``/projects/:slug/:action`` to ``self.action()``, passing
           through any addtional args.
         """
+        
+        args = self._convert_args(*args)
         
         if args[0] == 'add':
             error_dict = self.add()
@@ -561,12 +623,15 @@ class Projects(RequestHandler, SlugMixin):
                 'Content-Type', 
                 'application/json; charset=UTF-8'
             )
-            self.response.out.write(json_encode(data))
+            self.set_status(data.pop('status'))
+            self.write(json_encode(data))
         
     
     
     @members_only
-    def get(self, slug=None):
+    def get(self, *args):
+        args = self._convert_args(*args)
+        slug = args[0]
         project = None
         if slug:
             self.project = self.get_from_slug(slug, model.Project)
@@ -606,6 +671,12 @@ class Deliverables(RequestHandler):
 class NotFound(RequestHandler):
     """
     """
+    
+    def post(self):
+        logging.warning('NotFound')
+        raise web.HTTPError(405)
+        
+    
     
     def get(self):
         self.render_tmpl('404.tmpl')
