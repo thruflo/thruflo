@@ -15,7 +15,7 @@ import formencode
 from formencode import validators
 
 from model import db, User, Account
-from utils import get_timezones
+from utils import get_timezones, generate_hash
 
 slug_pattern = r'\w{3,18}'
 valid_slug = re.compile(r'^%s$' % slug_pattern, re.U)
@@ -93,8 +93,12 @@ class SecurePassword(validators.UnicodeString):
     }
     
     def _to_python(self, value, state):
+        """Hashes the user input before we do anything with it.
+          Means we don't store raw passwords.
+        """
+        
         value = super(SecurePassword, self)._to_python(value, state)
-        return value.strip().lower()
+        return generate_hash(s=value.strip().lower())
         
     
     
