@@ -76,55 +76,13 @@ class CouchDocumentId(validators.UnicodeString):
     
 
 class SecurePassword(validators.UnicodeString):
-    """Passwords must be at least 6 chars long and contain at least
-      one non letter.
+    """Hashes the user input before we do anything with it.
+      Means we don't store raw passwords.
     """
     
-    min = 6
-    non_letter = 1
-    
-    letter_regex = re.compile(r'[a-zA-Z]')
-    
-    messages = {
-        'too_few': 'Your password must be at least %(min)i '
-                   'characters long',
-        'non_letter': 'You must include at least %(non_letter)i '
-                      'number or other character in your password'
-    }
-    
     def _to_python(self, value, state):
-        """Hashes the user input before we do anything with it.
-          Means we don't store raw passwords.
-        """
-        
         value = super(SecurePassword, self)._to_python(value, state)
         return generate_hash(s=value.strip().lower())
-        
-    
-    
-    def validate_python(self, value, state):
-        super(SecurePassword, self).validate_python(value, state)
-        if len(value) < self.min:
-            raise validators.Invalid(
-                self.message(
-                    "too_few",
-                    state,
-                    min=self.min
-                ),
-                value, 
-                state
-            )
-        non_letters = self.letter_regex.sub('', value)
-        if len(non_letters) < self.non_letter:
-            raise validators.Invalid(
-                self.message(
-                    "non_letter",
-                    state,
-                    non_letter=self.non_letter
-                ),
-                value, 
-                state
-            )
         
     
     
