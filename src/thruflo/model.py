@@ -224,6 +224,8 @@ class CouchDBModel(Document):
     
     account_id = IntegerProperty(required=True)
     
+    archived = BooleanProperty(default=False)
+    
     def __getattr__(self, key):
         """We like using ``doc.id``.
         """
@@ -274,18 +276,6 @@ class Project(CouchDBModel):
 
 Project.set_db(couch.db)
 
-class ProjectSection(CouchDBModel):
-    """
-    """
-    
-    project_id = StringProperty(required=True)
-    section_type = StringProperty(required=True)
-    branch_name = StringProperty(default=u'master')
-    content = StringProperty()
-    
-
-ProjectSection.set_db(couch.db)
-
 class Theme(CouchDBModel):
     """"""
     
@@ -307,16 +297,17 @@ class Deliverable(CouchDBModel):
 
 Deliverable.set_db(couch.db)
 
-class DeliverableSection(CouchDBModel):
+class Section(CouchDBModel):
     """
     """
     
-    project_id = StringProperty(required=True)
+    parent_id = StringProperty(required=True)
     section_type = StringProperty(required=True)
+    branch_name = StringProperty(default=u'master')
     content = StringProperty()
     
 
-DeliverableSection.set_db(couch.db)
+Section.set_db(couch.db)
 
 def main():
     """Sync the couch db views.

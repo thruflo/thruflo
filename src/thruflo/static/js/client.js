@@ -29,7 +29,7 @@ jQuery(document).ready(
         var textarea = target.find('textarea');
         var fork_button = target.find('input[type=submit][value=Fork]');
         var save_button = target.find('input[type=submit][value=Save]');
-        var psid_input = target.find('input[name=project_section_id]');
+        var psid_input = target.find('input[name=section_id]');
         $.ajax({
             'url': url,
             'type': 'POST',
@@ -60,11 +60,11 @@ jQuery(document).ready(
                   log('inserting psid_input...');
                   target.append(
                     '<input type="hidden" \
-                        name="project_section_id" \
+                        name="section_id" \
                         value="' + data['doc']['_id'] + '" \
                     />'
                   );
-                  psid_input = target.find('input[name=project_section_id]');
+                  psid_input = target.find('input[name=section_id]');
                 }
                 if (!fork_button.length) {
                   log('inserting fork_button...');

@@ -6,7 +6,7 @@
 
 __all__ = [
     'RequiredSlug', 'Registration', 'Login', 
-    'Project', 'ProjectSection'
+    'Document', 'ProjectSection'
 ]
 
 import re
@@ -270,17 +270,13 @@ class Login(formencode.Schema):
     
 
 
-class Project(formencode.Schema):
+class Document(formencode.Schema):
     display_name = validators.UnicodeString(not_empty=True)
 
-class ProjectSection(formencode.Schema):
-    section_type = validators.OneOf([u'brief', u'solution', u'results'])
+class Section(formencode.Schema):
+    section_type = Slug(not_empty=True)
     branch_name = Slug(not_empty=True)
     content = validators.UnicodeString()
     
 
-
-deliverable_section_types = [
-    'budget', 'process', 'time'
-]
 

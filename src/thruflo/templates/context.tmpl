@@ -1,0 +1,104 @@
+<%inherit file="account.tmpl"/>
+
+<%def name="sub_title()">
+  ${handler.account.slug} :: 
+  ${handler.context_title} :: 
+  ${handler.context.display_name}
+</%def>
+
+${self.page_content()}
+
+<%def name="page_content()">
+  <h4>
+    <a href="/${handler.context_type}s" 
+        title="${handler.context_title}s">
+      ${handler.context_title}s</a>
+    / 
+    <a href="/${handler.context_type}s/${handler.context.slug}" 
+        title="${handler.context_title}s :: ${handler.context.display_name}">
+      ${handler.context.display_name}</a>
+  </h4>
+  ${self.manage()}
+  % if getattr(handler, 'section_types', None):
+    ${self.tabs()}
+  % endif
+</%def>
+
+<%def name="manage()">
+  ... manage form ...
+</%def>
+
+<%def name="tabs()">
+  <div class="tabs">
+    <ul>
+      % for section_type in handler.section_types:
+        <li>
+          <a href="#tabs-${section_type}">
+            ${section_type.title()}</a>
+        </li>
+      % endfor
+    </ul>
+    % for section_type in handler.section_types:
+      <div id="tabs-${section_type}">
+        % if handler.sections.has_key(section_type):
+          % for item in handler.sections[section_type]:
+            <form name="${item.id}"
+                action="/${handler.context_type}s/${handler.context.slug}/save/${section_type}"
+                method="post"
+                class="ajax">
+              ${xsrf_form_html()}
+              <input type="hidden" 
+                  name="section_id" 
+                  value="${item.id}" 
+              />
+              <input type="hidden" 
+                  name="branch_name" 
+                  value="${item.branch_name}" 
+              />
+              <div class="form-container">
+                <h4>
+                  ${item.branch_name}
+                </h4>
+                <div class="form-row">
+                  <div class="error">
+                  </div>
+                  <textarea name="content">${item.content}</textarea>
+                </div>
+                <div class="form-row">
+                  <input type="submit" value="Save" />
+                </div>
+                <div class="form-row">
+                  <input type="submit" value="Fork" />
+                  <input type="text" name="fork_name"
+                      value="${handler.get_argument('fork_name', '')}"
+                  />
+                </div>
+              </div>
+            </form>
+          % endfor
+        % else:
+          <form name="${section_type}"
+              action="/${handler.context_type}s/${handler.context.slug}/save/${section_type}"
+              method="post"
+              class="ajax">
+            ${xsrf_form_html()}
+            <input type="hidden" name="branch_name" value="master" />
+            <div class="form-container">
+              <h4>
+                master
+              </h4>
+              <div class="form-row">
+                <div class="error">
+                </div>
+                <textarea name="content"></textarea>
+              </div>
+              <div class="form-row">
+                <input type="submit" value="Save" />
+              </div>
+            </div>
+          </form>
+        % endif
+      </div>
+    % endfor
+  </div>
+</%def>

@@ -1,20 +1,23 @@
 <%inherit file="account.tmpl"/>
 
-<%def name="sub_title()">${handler.account.slug} :: Projects</%def>
+<%def name="sub_title()">
+  ${handler.account.slug} :: ${handler.context_title}</%def>
 
 ${self.page_content()}
 
 <%def name="page_content()">
   <h4>
-    Projects
+    ${handler.context_title}
   </h4>
   <ul>
     <li>
-      <form name="add-project" action="/projects/add" method="post">
+      <form name="add-${handler.context_type}"
+          action="/${handler.context_type}s/add" 
+          method="post">
         ${xsrf_form_html()}
         <div class="form-container">
           <h4>
-            Create New Project
+            Create New ${handler.context_title}
           </h4>
           <div class="form-row">
             <div class="error">
@@ -26,18 +29,21 @@ ${self.page_content()}
                 value="${handler.get_argument('display_name', '')}"
             />
             <label for="display_name">
-              Project name
+              ${handler.context_title} name
             </label>
           </div>
           <div class="form-row">
-            <input type="submit" value="Create Project" />
+            <input type="submit" 
+                value="Create ${handler.context_title}"
+            />
           </div>
         </div>
       </form>
     </li>
-    % for item in handler.projects:
+    % for item in handler.contexts:
       <li>
-        <a href="/projects/${item.slug}" title="${item.display_name}">
+        <a href="/${handler.context_type}s/${item.slug}"
+            title="${item.display_name}">
           ${item.display_name}
         </a>
       </li>

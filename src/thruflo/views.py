@@ -66,6 +66,20 @@ class RequestHandler(web.RequestHandler):
         
     
     
+    def _compress_args(self, *args):
+        """Convert ``('/3002092', '3002092', '/save', 'save', ...)``
+          to ``('3002092', 'save', ...)``
+        """
+        
+        _args = []
+        
+        for i in range(1, len(args), 2):
+            _args.append(args[i])
+            
+        return tuple(_args)
+        
+    
+    
     def redirect_to_dashboard(self, user):
         """If we're not on an account page, redirect to 
           the user's first account
@@ -280,6 +294,18 @@ def members_only(method):
     
 
 
+class Dashboard(RequestHandler):
+    """
+    """
+    
+    @members_only
+    def get(self):
+        self.render_tmpl('dashboard.tmpl')
+        
+    
+    
+
+
 class SlugMixin(object):
     """Couchdb ``doc._id``s are long ``uuid4``s which is great
       for avoiding conflicts but too long to feature nicely in
@@ -353,36 +379,35 @@ class SlugMixin(object):
     
     
 
-
-class Dashboard(RequestHandler):
-    """
-    """
-    
-    @members_only
-    def get(self):
-        self.render_tmpl('dashboard.tmpl')
-    
-    
-
-class Documents(RequestHandler):
-    """
+class DocumentHandler(RequestHandler, SlugMixin):
+    """Abstract class that handles document management 
+      boilerpate.
     """
     
-    @members_only
-    def get(self):
-        self.render_tmpl('documents.tmpl')
+    # a ``model.CouchDBModel`` impl, e.g.: ``model.Project``
+    document_type = NotImplemented 
+    
+    context = None
+    
+    @property
+    def context_type(self):
+        if not hasattr(self, '_context_type'):
+            self._context_type = self.document_type._doc_type.lower()
+        return self._context_type
+        
+    
+    @property
+    def context_title(self):
+        if not hasattr(self, '_context_title'):
+            self._context_title = self.context_type.title()
+        return self._context_title
         
     
     
-
-class Projects(RequestHandler, SlugMixin):
-    """
-    """
-    
     def add(self):
-        """Add a new project:
+        """Add a new document:
             
-            #. ``/projects/:slug/add``
+            #. ``/:contexts/:slug/add``
           
         """
         
@@ -390,22 +415,22 @@ class Projects(RequestHandler, SlugMixin):
             'display_name': self.get_argument('display_name', None)
         }
         try:
-            params = schema.Project.to_python(params)
+            params = schema.Document.to_python(params)
         except formencode.Invalid, err:
             return err.error_dict
         else:
             params['account_id'] = self.account.id
-            params['slug'] = self.get_unique_slug(model.Project)
-            project = model.Project(**params)
-            project.save()
-            self.redirect('/projects/%s' % project.slug)
+            params['slug'] = self.get_unique_slug(self.document_type)
+            doc = self.document_type(**params)
+            doc.save()
+            self.redirect('/%ss/%s' % (self.context_type, doc.slug))
             
         
     
     def edit(self):
-        """Edit project metadata:
+        """Edit context metadata:
             
-              #. ``/projects/:slug/edit?display_name=...``
+              #. ``/:contexts/:slug/edit?display_name=...``
             
         """
         
@@ -413,21 +438,103 @@ class Projects(RequestHandler, SlugMixin):
             'display_name': self.get_argument('display_name', None)
         }
         try:
-            params = schema.Project.to_python(params)
+            params = schema.Document.to_python(params)
         except formencode.Invalid, err:
             return {'status': 500, 'errors': err.error_dict}
         else:
-            self.project.display_name = params['display_name']
-            self.project.save()
-            return {'status': 200, 'doc': self.project.to_json()}
+            self.context.display_name = params['display_name']
+            self.context.save()
+            return {'status': 200, 'doc': self.context.to_json()}
             
         
     
-    def save(self, section_type):
-        """Overwrite a project section.
+    def archive(self):
+        """Archive context:
           
-            #. ``/projects/:slug/save/solution?content=...``
-            #. ``...save/solution?project_section_id=...&content=...``
+            #. ``/:contexts/:slug/archive``
+          
+        """
+        
+        self.context.archived = True
+        self.context.save()
+        return {'status': 200, 'doc': self.context.to_json()}
+        
+    
+    
+    @property
+    def contexts(self):
+        if not hasattr(self, '_contexts'):
+            doc_type = self.document_type._doc_type
+            self._contexts = self.document_type.view(
+                'all/type_slug_mod',
+                startkey=[self.account.id, doc_type, False, False],
+                endkey=[self.account.id, doc_type, [], []],
+                include_docs=True
+            ).all()
+        return self._contexts
+        
+    
+    
+    @members_only
+    def post(self, *args):
+        """Dispatches ``/:contexts/add`` to ``self.add()`` and
+          ``/:contexts/:slug/:action`` to ``self.action()``, 
+          passing through any additional args.
+        """
+        
+        args = self._compress_args(*args)
+        
+        if args[0] == 'add':
+            error_dict = self.add()
+            self.render_tmpl(
+                '%ss.tmpl' % self.context_type, 
+                errors=error_dict
+            )
+        else:
+            slug = args[0]
+            self.context = self.get_from_slug(slug, self.document_type)
+            if self.context:
+                method = getattr(self, args[1])
+                data = method(*args[2:])
+            self.set_header(
+                'Content-Type', 
+                'application/json; charset=UTF-8'
+            )
+            self.set_status(data.pop('status'))
+            self.write(json_encode(data))
+        
+        
+    
+    
+    @members_only
+    def get(self, *args):
+        args = self._compress_args(*args)
+        slug = args[0]
+        content = None
+        if slug:
+            self.context = self.get_from_slug(slug, self.document_type)
+            if self.context:
+                self.render_tmpl('%s.tmpl' % self.context_type)
+            else:
+                raise web.HTTPError(404)
+        else:
+            self.render_tmpl('contexts.tmpl', errors={})
+        
+    
+    
+
+class SectionContainingDocumentHandler(DocumentHandler):
+    """Extends ``DocumentHandler`` with boilerpate for
+      managing subsections.
+    """
+    
+    section_types = NotImplemented
+    
+    def save(self, section_type):
+        """Overwrite a section.
+          
+            #. ``/:contexts/:slug/save/solution?content=...``
+            #. ``...save/solution?section_id=...&content=...``
         """
         
         params = {
@@ -436,21 +543,26 @@ class Projects(RequestHandler, SlugMixin):
             'content': self.get_argument('content', None)
         }
         try:
-            params = schema.ProjectSection.to_python(params)
+            params = schema.Section.to_python(params)
         except formencode.Invalid, err:
             return {'status': 500, 'errors': err.error_dict}
         else:
-            psid = self.get_argument('project_section_id', None)
-            if psid:
+            if section_type not in self.section_types:
+                return {
+                    'status': 500, 
+                    'errors': {'section_type': u'Not supported'}
+                }
+            section_id = self.get_argument('section_id', None)
+            if section_id:
                 try:
-                    psid = schema.CouchDocumentId.to_python(psid)
+                    section_id = schema.CouchDocumentId.to_python(section_id)
                 except formencode.Invalid, err:
                     return {
                         'status': 500, 
-                        'errors': {'project_section_id': unicode(err)}
+                        'errors': {'section_id': unicode(err)}
                     }
                 else:
-                    doc = model.ProjectSection.get(psid)
+                    doc = model.Section.get(section_id)
                     if not doc.section_type == params['section_type']:
                         return {
                             'status': 500, 
@@ -461,17 +573,17 @@ class Projects(RequestHandler, SlugMixin):
                             'status': 500, 
                             'errors': {'branch_name': u'Doesn\'t match'}
                         }
-                    elif not doc.project_id == self.project.id:
+                    elif not doc.parent_id == self.context.id:
                         return {
                             'status': 500, 
-                            'errors': {'project_section_id': u'Doesn\'t match'}
+                            'errors': {'section_id': u'Doesn\'t match'}
                         }
                     else:
                         doc.content = params['content']
             else:
-                doc = model.ProjectSection(
+                doc = model.Section(
                     account_id=self.account.id,
-                    project_id=self.project.id,
+                    parent_id=self.context.id,
                     **params
                 )
             doc.save()
@@ -479,24 +591,29 @@ class Projects(RequestHandler, SlugMixin):
         
     
     def fork(self, section_type):
-        """Duplicate a project section.
+        """Duplicate a section.
           
-            #. ``/projects/:slug/fork/solution?project_section_id=...
+            #. ``/:contexts/:slug/fork/solution?section_id=...
         """
         
-        psid = self.get_argument('project_section_id', None)
+        section_id = self.get_argument('section_id', None)
         branch_name = self.get_argument('branch_name', None)
         fork_name = self.get_argument('fork_name', None)
-        if psid:
+        if section_id:
             try:
-                psid = schema.CouchDocumentId.to_python(psid)
+                section_id = schema.CouchDocumentId.to_python(section_id)
             except formencode.Invalid, err:
                 return {
                     'status': 500, 
-                    'errors': {'project_section_id': unicode(err)}
+                    'errors': {'section_id': unicode(err)}
                 }
             else:
-                if not branch_name:
+                if section_type not in self.section_types:
+                    return {
+                        'status': 500, 
+                        'errors': {'section_type': u'Not supported'}
+                    }
+                elif not branch_name:
                     return {
                         'status': 500, 
                         'errors': {'branch_name': u'Required'}
@@ -515,7 +632,7 @@ class Projects(RequestHandler, SlugMixin):
                             'errors': {'fork_name': unicode(err)}
                         }
                     else:
-                        doc = model.ProjectSection.get(psid)
+                        doc = model.Section.get(section_id)
                         if not doc.section_type == section_type:
                             return {
                                 'status': 500, 
@@ -526,17 +643,17 @@ class Projects(RequestHandler, SlugMixin):
                                 'status': 500, 
                                 'errors': {'branch_name': u'Doesn\'t match'}
                             }
-                        elif not doc.project_id == self.project.id:
+                        elif not doc.parent_id == self.context.id:
                             return {
                                 'status': 500, 
                                 'errors': {
-                                    'project_section_id': u'Doesn\'t match'
+                                    'parent_id': u'Doesn\'t match'
                                 }
                             }
                         else:
-                            duplicate = model.ProjectSection(
+                            duplicate = model.Section(
                                 account_id=self.account.id,
-                                project_id=self.project.id,
+                                parent_id=self.context.id,
                                 branch_name=fork_name,
                                 section_type=doc.section_type,
                                 content=doc.content
@@ -552,119 +669,58 @@ class Projects(RequestHandler, SlugMixin):
     
     
     @property
-    def projects(self):
-        return model.Project.view(
-            'all/type_slug_mod',
-            startkey=[self.account.id, 'Project', False, False],
-            endkey=[self.account.id, 'Project', [], []],
-            include_docs=True
-        ).all()
-    
-    
-    @property
-    def project_sections(self):
-        results = model.Project.view(
-            'project/all',
-            startkey=[
-                self.account.id, 
-                self.project.id, 
-                False, 
-                False
-            ],
-            endkey=[self.account.id, self.project.id, [], []],
-            include_docs=True
-        )
-        sections_by_type = {}
-        for item in results:
-            k = item.section_type
-            if sections_by_type.has_key(k):
-                sections_by_type[k].append(item)
-            else:
-                sections_by_type[k] = [item]
-        return sections_by_type
-        
-    
-    
-    def _convert_args(self, *args):
-        """Convert ``('/3002092', '3002092', '/save', 'save', ...)``
-          to ``('3002092', 'save', ...)``
-        """
-        
-        _args = []
-        
-        logging.info(args)
-        
-        for i in range(1, 6, 2):
-            _args.append(args[i])
-        
-        return tuple(_args)
-        
-    
-    
-    @members_only
-    def post(self, *args):
-        """Dispatches ``/projects/add`` to ``self.add()`` and
-          ``/projects/:slug/:action`` to ``self.action()``, passing
-          through any addtional args.
-        """
-        
-        args = self._convert_args(*args)
-        
-        if args[0] == 'add':
-            error_dict = self.add()
-            self.render_tmpl('projects.tmpl', errors=error_dict)
-        else:
-            slug = args[0]
-            self.project = self.get_from_slug(slug, model.Project)
-            if self.project:
-                method = getattr(self, args[1])
-                data = method(*args[2:])
-            self.set_header(
-                'Content-Type', 
-                'application/json; charset=UTF-8'
-            )
-            self.set_status(data.pop('status'))
-            self.write(json_encode(data))
-        
-    
-    
-    @members_only
-    def get(self, *args):
-        args = self._convert_args(*args)
-        slug = args[0]
-        project = None
-        if slug:
-            self.project = self.get_from_slug(slug, model.Project)
-            if self.project:
-                self.render_tmpl('project.tmpl')
-            else:
-                self.render_tmpl('404.tmpl')
-        else:
-            self.render_tmpl('projects.tmpl', errors={})
+    def sections(self):
+        if not hasattr(self, '_sections'):
+            logging.info(self.account.id)
+            logging.info(self.context.id)
+            results = self.document_type.view(
+                'section/all',
+                startkey=[
+                    self.account.id, 
+                    self.context.id, 
+                    False, 
+                    False
+                ],
+                endkey=[
+                    self.account.id, 
+                    self.context.id, 
+                    [], 
+                    []
+                ],
+                include_docs=True
+            ).all()
+            logging.info('**')
+            logging.info(results)
+            sections_by_type = {}
+            for item in results:
+                k = item.section_type
+                if sections_by_type.has_key(k):
+                    sections_by_type[k].append(item)
+                else:
+                    sections_by_type[k] = [item]
+            self._sections = sections_by_type
+        return self._sections
         
     
     
 
-class Themes(RequestHandler):
-    """
-    """
-    
-    @members_only
-    def get(self):
-        self.render_tmpl('themes.tmpl')
-        
-    
+
+class Documents(DocumentHandler):
+    document_type = model.Document
     
 
-class Deliverables(RequestHandler):
-    """
-    """
+class Themes(DocumentHandler):
+    document_type = model.Theme
     
-    @members_only
-    def get(self):
-        self.render_tmpl('deliverables.tmpl')
-        
+
+class Projects(SectionContainingDocumentHandler):
+    document_type = model.Project
+    section_types = [u'brief', u'solution', u'results', u'images']
     
+
+class Deliverables(SectionContainingDocumentHandler):
+    document_type = model.Deliverable
+    section_types = [u'budget', u'process', u'timeline']
     
 
 

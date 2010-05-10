@@ -35,16 +35,16 @@ mapping = [(
         r'^/dashboard\/?$',
         Dashboard
     ), (
-        r'^/documents\/?$',
+        r'^/documents(\/([\w]*))?(\/([\w]*))?\/?$',
         Documents
     ), (
         r'^/projects(\/([\w]*))?(\/([\w]*))?(\/([\w]*))?\/?$',
         Projects
     ), (
-        r'^/themes\/?$',
+        r'^/themes(\/([\w]*))?(\/([\w]*))?\/?$',
         Themes
     ), (
-        r'^/deliverables\/?$',
+        r'^/deliverables(\/([\w]*))?(\/([\w]*))?(\/([\w]*))?\/?$',
         Deliverables
     ), (
         r'^/.*$',
