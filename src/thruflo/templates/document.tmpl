@@ -1,1 +1,20 @@
 <%inherit file="context.tmpl"/>
+
+<%def name="manage()">
+  <div id="zoom-bar">
+    zoom
+  </div>
+  <div id="parts-container">
+    parts
+  </div>
+  <div id="inspector">
+    <ul>
+      % for item in handler.templates:
+        <li id="${item.id}" class="${item.slug.replace('_', '-')}">
+          <a href="${item.slug}" title="${item.display_name}">
+            ${item.display_name}</a>
+        </li>
+      % endfor
+    </ul>
+  </div>
+</%def>

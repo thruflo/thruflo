@@ -1,0 +1,19 @@
+${next.body()}
+
+<%def name="image(field_id)">
+  <div class="image-container" id="${field_id}">
+    <img src="/static/img/placeholder.png" alt="" />
+    <div class="caption">
+      Caption text
+    </div>
+  </div>
+</%def>
+
+<%def name="text(field_class, field_id)">
+  <div class="${field_class}-container" id="${field_id}">
+    <div class="${field_class}">
+      ${field_class.replace('-', ' ').title()}
+    </div>
+  </div>
+</%def>
+

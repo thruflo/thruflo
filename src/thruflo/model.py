@@ -17,6 +17,7 @@ __all__ = [
 
 import datetime
 import logging
+import os
 import re
 import sys
 
@@ -187,7 +188,8 @@ db = Session()
         
 ### we use couchdb for the documents within an account
 
-from couchdbkit import Document, Server, ResourceNotFound, ResourceConflict
+from couchdbkit import Server, ResourceNotFound, ResourceConflict
+from couchdbkit import Document as CouchDocument
 from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
@@ -215,14 +217,18 @@ class Couch(object):
 
 couch = Couch()
 
-class CouchDBModel(Document):
-    """Extensions to the couchdbkit base class.
+class BaseDocument(CouchDocument):
+    """Extends the couchdbkit base class with 
+      boilerplate for all managable documents.
     """
     
     ver = IntegerProperty(default=1)
     mod = DateTimeProperty(auto_now=True)
     
     account_id = IntegerProperty(required=True)
+    
+    slug = StringProperty(required=True)
+    display_name = StringProperty(required=True)
     
     archived = BooleanProperty(default=False)
     
@@ -232,7 +238,7 @@ class CouchDBModel(Document):
         
         if key == 'id':
             key = '_id'
-        return super(CouchDBModel, self).__getattr__(key)
+        return super(BaseDocument, self).__getattr__(key)
         
     
     
@@ -247,17 +253,17 @@ class CouchDBModel(Document):
     
     
 
-
-class Template(CouchDBModel):
-    """
-    """
-    
+class ContentDocument(BaseDocument):
     content = StringProperty()
+
+
+class Template(ContentDocument):
+    """
+    """
     
 
 Template.set_db(couch.db)
-
-class Document(CouchDBModel):
+class Document(BaseDocument):
     """
     """
     
@@ -266,48 +272,75 @@ class Document(CouchDBModel):
 
 Document.set_db(couch.db)
 
-class Project(CouchDBModel):
+class Project(BaseDocument):
     """
     """
-    
-    slug = StringProperty(required=True)
-    display_name = StringProperty()
     
 
 Project.set_db(couch.db)
-
-class Theme(CouchDBModel):
-    """"""
-    
-    slug = StringProperty(required=True)
-    display_name = StringProperty(required=True)
-    
-    content = StringProperty()
+class Theme(BaseDocument):
+    """
+    """
     
 
 Theme.set_db(couch.db)
-
-class Deliverable(CouchDBModel):
+class Deliverable(BaseDocument):
     """
     """
-    
-    slug = StringProperty(required=True)
-    display_name = StringProperty()
     
 
 Deliverable.set_db(couch.db)
 
-class Section(CouchDBModel):
+class Section(ContentDocument):
     """
     """
     
     parent_id = StringProperty(required=True)
     section_type = StringProperty(required=True)
     branch_name = StringProperty(default=u'master')
-    content = StringProperty()
     
 
 Section.set_db(couch.db)
+
+def rebuild_templates():
+    """Overwrite ``Template`` instance content.
+    """
+    
+    import tmpl
+    
+    template_docid_mapping = {
+        'text_and_image': 'df27151ca436d3919ca877913e19c972',
+        # '': '4822a744f45b40616a645a0308107ba2',
+        # '': 'a8a295cd0ed60d4b95e06a09e52f0926',
+        # '': 'a2c0d9bc9d09513d7d1e023181c31600',
+        # '': '8d34fa7a2321f24ea5ee27eecfbdb6b6',
+        # '': '01101881b1c368493b98275547c0d253',
+        # '': '45db8419948e69b89e3cfd9adca09433',
+        # '': 'dc671de04917cf8b236a6b73e23ddad8'
+    }
+    
+    docs = []
+    
+    layout_folder_path = join_path(dirname(__file__), 'templates', 'layouts')
+    for file_name in os.listdir(layout_folder_path):
+        k = file_name.split('.')[0]
+        docid = template_docid_mapping.get(k, None)
+        if docid:
+            try:
+                doc = Template.get(docid)
+            except ResourceNotFound:
+                doc = Template(
+                    _id=docid,
+                    slug=k,
+                    display_name=k.replace('_', ' ').title().replace('And', '&')
+                )
+            content = tmpl.render_tmpl('layouts/%s' % file_name)
+            doc.content = ''.join(line.strip() for line in content.split('\n'))
+            docs.append(doc)
+    
+    Template.bulk_save(docs)
+    
+
 
 def main():
     """Sync the couch db views.

@@ -671,8 +671,6 @@ class SectionContainingDocumentHandler(DocumentHandler):
     @property
     def sections(self):
         if not hasattr(self, '_sections'):
-            logging.info(self.account.id)
-            logging.info(self.context.id)
             results = self.document_type.view(
                 'section/all',
                 startkey=[
@@ -688,9 +686,7 @@ class SectionContainingDocumentHandler(DocumentHandler):
                     []
                 ],
                 include_docs=True
-            ).all()
-            logging.info('**')
-            logging.info(results)
+            )
             sections_by_type = {}
             for item in results:
                 k = item.section_type
@@ -707,6 +703,17 @@ class SectionContainingDocumentHandler(DocumentHandler):
 
 class Documents(DocumentHandler):
     document_type = model.Document
+    
+    @property
+    def templates(self):
+        if not hasattr(self, '_templates'):
+            self._templates = model.Template.view(
+                'all/template',
+                include_docs=True
+            ).all()
+        return self._templates
+        
+    
     
 
 class Themes(DocumentHandler):

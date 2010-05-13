@@ -41,7 +41,8 @@ setup(
         'console_scripts': [
             'daemonize = thruflo.daemonize:main',
             'thruflo = thruflo.webapp:main',
-            'sync = thruflo.model:main'
+            'sync = thruflo.model:main',
+            'rebuild = thruflo.model:rebuild_templates'
         ]
     }
 )
