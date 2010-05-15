@@ -218,18 +218,13 @@ class Couch(object):
 couch = Couch()
 
 class BaseDocument(CouchDocument):
-    """Extends the couchdbkit base class with 
-      boilerplate for all managable documents.
+    """Extends the couchdbkit base class.
     """
     
     ver = IntegerProperty(default=1)
     mod = DateTimeProperty(auto_now=True)
     
     account_id = IntegerProperty(required=True)
-    
-    slug = StringProperty(required=True)
-    display_name = StringProperty(required=True)
-    
     archived = BooleanProperty(default=False)
     
     def __getattr__(self, key):
@@ -253,54 +248,221 @@ class BaseDocument(CouchDocument):
     
     
 
-class ContentDocument(BaseDocument):
-    content = StringProperty()
+BaseDocument.set_db(couch.db)
 
-
-class Template(ContentDocument):
-    """
+class Container(BaseDocument):
+    """Couchdb ``doc._id``s are long ``uuid4``s which is great
+      for avoiding conflicts but too long to feature nicely in
+      a user friendly URL.
+      
+      Equally, there's no reason we need to ask users to provide
+      a slug when creating something.
+      
+      So, we need a mechanism to generate shorter, more user 
+      friendly identifiers that can be used as the value of the 
+      an instance's ``slug`` property.  
+      
+      Whilst we check when generating a slug that it's unique,
+      they need to be fairly  unique, so it's very rare they 
+      would clash within a document type, within an account.
+      
+      We also need a sensible approach to conflicts, which is to
+      manually re-slug the newer instance until there is only one.
     """
     
-
-Template.set_db(couch.db)
-class Document(BaseDocument):
-    """
-    """
+    @classmethod
+    def generate_slug(cls):
+        """Generates a random eight digit string.
+        """
+        
+        return str(uuid.uuid4().int)[:8]
+        
     
-    parts = StringListProperty()
+    @classmethod
+    def get_from_slug(cls, account_id, slug):
+        docs = cls.view(
+            'all/type_slug_mod',
+            startkey=[account_id, cls._doc_type, slug, False],
+            endkey=[account_id, cls._doc_type, slug, []],
+            include_docs=True
+        ).all()
+        if len(docs) == 0:
+            return None
+        elif len(docs) > 1:
+            newer = docs[1:]
+            newer.reverse()
+            for doc in newer:
+                doc.slug = self.generate_slug()
+                doc.save()
+        return docs[0]
+        
+    
+    @classmethod
+    def get_unique_slug(cls, account_id, max_tries=5):
+        i = 1
+        while True:
+            if i > max_tries:
+                raise Exception('Can\'t generate unique slug')
+            else:
+                slug = cls.generate_slug()
+                if not cls.get_from_slug(account_id, slug):
+                    break
+                else:
+                    i += 1
+        return slug
+        
+    
+    
+    slug = StringProperty(required=True)
+    display_name = StringProperty()
     
 
-Document.set_db(couch.db)
-
-class Project(BaseDocument):
-    """
-    """
-    
-
-Project.set_db(couch.db)
-class Theme(BaseDocument):
-    """
-    """
-    
-
-Theme.set_db(couch.db)
-class Deliverable(BaseDocument):
-    """
-    """
-    
-
-Deliverable.set_db(couch.db)
-
-class Section(ContentDocument):
+class Contained(Container):
     """
     """
     
     parent_id = StringProperty(required=True)
-    section_type = StringProperty(required=True)
-    branch_name = StringProperty(default=u'master')
     
 
-Section.set_db(couch.db)
+
+document_types = [
+    'proposal', 
+    'presentation', 
+    'release', 
+    'post'
+]
+class Document(Container):
+    """We output ``Document``s, which contain a list of
+      ``DocumentSection``s.
+    """
+    
+    document_type = StringProperty(required=True, choices=document_types)
+    sections = StringListProperty()
+    
+
+class DocumentSection(Contained):
+    """``DocumentSection``s are just boxes to put 
+      ``DocumentUnit``s in.
+    """
+    
+    units = StringListProperty()
+    
+
+class DocumentUnit(Contained):
+    """Each ``DocumentUnit`` has a ``unit_type``.  This, when 
+      combined with its parent's parent's ``document_type``, 
+      denormalised here for convienience, provides 
+      ``self.template_slug``.
+      
+      Each ``Template`` has a number of fields to map content to.  
+      This is stored in ``slots``, where the field id is mapped to 
+      the content ala::
+          
+          slots[field_id] = {
+              'doc_type': ,
+              'slug': ,
+              'branch': 
+          }
+      
+    """
+    
+    __types__ = [
+        'about', 
+        'clientlist', 
+        'casestudy', 
+        'quote', 
+        'image', 
+        'generic'
+    ]
+    
+    document_type = StringProperty() # choices=Document.__types__
+    unit_type = StringProperty() # choices=Unit.__types__
+    
+    @property
+    def template_slug():
+        return '%s:%s' % (self.document_type, self.unit_type)
+        
+    
+    
+    slots = DictProperty()
+    
+
+
+class ContentContainer(Container):
+    """
+    """
+    
+    __types__ = NotImplemented
+    
+
+class ContentSection(Contained):
+    """
+    """
+    
+    section_type = NotImplemented # StringProperty(required=True, choices=__types__)
+    branch_name = StringProperty(default=u'master')
+    content = StringProperty()
+
+
+class Company(ContentContainer):
+    """
+    """
+    
+    __types__ = [
+        'about',
+        'clients',
+        'contact',
+        'logo'
+    ]
+    
+
+class CompanySection(ContentSection):
+    """
+    """
+    
+    section_type = StringProperty(required=True, choices=Company.__types__)
+    
+
+
+class Project(ContentContainer):
+    """
+    """
+    
+    __types__ = [
+        'brief',
+        'solution',
+        'results',
+        'images',
+        'videos'
+    ]
+    
+
+class ProjectSection(ContentSection):
+    """
+    """
+    
+    section_type = StringProperty(required=True, choices=Project.__types__)
+    
+
+
+class Theme(ContentContainer):
+    """
+    """
+    
+
+class Deliverable(ContentContainer):
+    """
+    """
+    
+
+
+class Template(BaseDocument):
+    """
+    """
+    
+    content = StringProperty()
+    
+
 
 def rebuild_templates():
     """Overwrite ``Template`` instance content.

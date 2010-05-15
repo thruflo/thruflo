@@ -270,10 +270,11 @@ class Login(formencode.Schema):
     
 
 
-class Document(formencode.Schema):
+class DisplayNamed(formencode.Schema):
     display_name = validators.UnicodeString(not_empty=True)
 
-class Section(formencode.Schema):
+class ContentSection(formencode.Schema):
+    slug = Slug(not_empty=True)
     section_type = Slug(not_empty=True)
     branch_name = Slug(not_empty=True)
     content = validators.UnicodeString()

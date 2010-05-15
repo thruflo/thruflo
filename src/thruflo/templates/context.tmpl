@@ -19,7 +19,7 @@ ${self.page_content()}
       ${handler.context.display_name}</a>
   </h4>
   ${self.manage()}
-  % if getattr(handler, 'section_types', None):
+  % if hasattr(handler.container_type, '__types__'):
     ${self.tabs()}
   % endif
 </%def>
@@ -31,17 +31,17 @@ ${self.page_content()}
 <%def name="tabs()">
   <div class="tabs">
     <ul>
-      % for section_type in handler.section_types:
+      % for section_type in handler.container_type.__types__:
         <li>
           <a href="#tabs-${section_type}">
             ${section_type.title()}</a>
         </li>
       % endfor
     </ul>
-    % for section_type in handler.section_types:
+    % for section_type in handler.container_type.__types__:
       <div id="tabs-${section_type}">
-        % if handler.sections.has_key(section_type):
-          % for item in handler.sections[section_type]:
+        % if handler.content_sections.has_key(section_type):
+          % for item in handler.content_sections[section_type]:
             <form name="${item.id}"
                 action="/${handler.context_type}s/${handler.context.slug}/save/${section_type}"
                 method="post"

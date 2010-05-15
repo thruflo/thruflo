@@ -38,17 +38,20 @@ mapping = [(
         r'^/documents(\/([\w]*))?(\/([\w]*))?\/?$',
         Documents
     ), (
-        r'^/projects(\/([\w]*))?(\/([\w]*))?(\/([\w]*))?\/?$',
+        r'^/projects(\/([\w]*))?(\/([\w]*))?\/?$',
         Projects
     ), (
-        r'^/themes(\/([\w]*))?(\/([\w]*))?\/?$',
-        Themes
-    ), (
-        r'^/deliverables(\/([\w]*))?(\/([\w]*))?(\/([\w]*))?\/?$',
-        Deliverables
-    ), (
-        r'^/.*$',
-        NotFound
+        r'^/projects(\/([\w]*))(\/([\w]*))(\/([\w]*))\/?$',
+        ProjectSection
+    #), (
+    #    r'^/themes(\/([\w]*))?(\/([\w]*))?\/?$',
+    #    Themes
+    #), (
+    #    r'^/deliverables(\/([\w]*))?(\/([\w]*))?(\/([\w]*))?\/?$',
+    #    Deliverables
+    #), (
+    #    r'^/.*$',
+    #    NotFound
     )
 ]
 
