@@ -640,6 +640,11 @@ class Documents(ContainerHandler):
     section_types = model.section_types
     unit_types = model.section_types
     
+    def map(self):
+        logging.info('a')
+        
+    
+    
     @property
     def projects(self):
         if not hasattr(self, '_projects'):

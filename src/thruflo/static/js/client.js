@@ -1,13 +1,37 @@
+String.prototype.endsWith = function (pattern) {
+  var d = this.length - pattern.length;
+  return d >= 0 && this.lastIndexOf(pattern) === d;
+};
 var log = function (what) {
-  try { console.log(what); }
-  catch (err) {}
+  try { 
+    console.log(what); 
+  }
+  catch (err) {
+    // pass
+  }
 };
 jQuery(document).ready(
   function ($) {
-    
+    var templates = {
+      'section': $.template(
+        '<div id="${id}" class="section ${type}">${type}</div>'
+      )
+    };
+    var draggable_options = {
+        'appendTo': 'body', 
+        'helper': 'clone',
+        'cursor': 'crosshair',
+        'containment': 'document',
+        'delay': 250,
+        'distance': 20,
+        'scroll': true
+        // 'revert': true
+    };
+    // initialise UI components
     $('.tabs').tabs();
     $('.accordion').accordion();
-    
+    $('.ui-draggable').draggable(draggable_options);
+    // setup one size fits all content object editing
     $('input[type=submit]').live(
       'click dblclick', 
       function () {
@@ -16,7 +40,6 @@ jQuery(document).ready(
         form.attr('submit_value', target.attr('value'));
       }
     );
-    
     $('form.ajax').submit(
       function () {
         var target = $(this);
@@ -85,36 +108,115 @@ jQuery(document).ready(
         return false;
       }
     );
-    
-    $('#inspector .ui-draggable').draggable({
-        'appendTo': 'body', 
-        'helper': 'clone',
-        'cursor': 'crosshair',
-        'containment': 'document',
-        'delay': 250,
-        'distance': 20,
-        'scroll': true
-        // 'revert': true
-    });
-    $('#sections-container').droppable({
+    // setup document UI behaviour
+    var inspector_tabs = $('#inspector > .tabs');
+    var sections_tab = $('#tabs-sections');
+    var sections_tab_sections = sections_tab.find('div.section-type');
+    var sections_container = $('#sections-container');
+    var insert_units = function (section, content_type, content_id) {
+      var section_type = section.data('section_type');
+      var current_path = window.location.pathname;
+      if (current_path.endsWith('/')) {
+        current_path = current_path.slice(0, -1);
+      }
+      $.ajax({
+          'url': current_path + '/map',
+          'type': 'POST',
+          'dataType': 'json',
+          'data': {
+            'section_type': section_type,
+            'content_type': content_type,
+            'content_id': content_id
+          },
+          'beforeSend': function () {},
+          'error': function (transport) {
+            log(transport.responseText);
+            // data = $.parseJSON();
+          },
+          'success': function (data) {
+            log(data);
+            // @@ ...
+            
+            
+          }
+        }
+      );
+    };
+    var select_section = function (section) {
+      var section_type = section.data('section_type');
+      sections_container.find('div.section').removeClass('selected');
+      section.addClass('selected');
+      sections_tab.find('div.section-type').hide();
+      sections_tab.find('div.section-type.' + section_type).show();
+      inspector_tabs.tabs("select", "sections");
+    };
+    var insert_new_section = function (section_type) { 
+      var section_id = Math.uuid();
+      sections_container.append(
+        templates['section'], {
+          'type': section_type, 'id': section_id
+        }
+      );
+      var section = $('#' + section_id);
+      section.data('section_type', section_type);
+      // make the section droppable
+      section.droppable({
+          'activeClass': 'ui-state-default',
+          'hoverClass': 'ui-state-hover',
+          'accept': 'li.content-type',
+          'drop': function (event, ui) {
+            var parts = ui.draggable.attr('id').split('--');
+            insert_units(section, parts[0], parts[1]);
+          }
+        }
+      ).sortable({
+          'items': 'div.unit',
+          'sort': function() {
+            $(this).removeClass('ui-state-default');
+          }
+        }
+      );
+      // make it selectable
+      section.bind(
+        'click dblclick', 
+        function (event) {
+          select_section($(this));
+        }
+      );
+      $(document).bind(
+        'keyup', 
+        function (event) {
+          if (event.keyCode == 74) {
+            // select down
+            var current_section = container.find('div.section.selected');
+            current_section.next('div.section').click();
+          }
+          else if (event.keyCode == 75) {
+            // select up
+            var current_section = container.find('div.section.selected');
+            current_section.prev('div.section').click();
+          }
+        }
+      );
+      // select it
+      section.click();
+    };
+    sections_tab.find('div.section-type').hide();
+    sections_container.droppable({
         'activeClass': 'ui-state-default',
         'hoverClass': 'ui-state-hover',
-        'accept': ':not(.ui-sortable-helper)',
+        'accept': 'li.section-type',
         'drop': function (event, ui) {
-          // $(this).find('.placeholder').remove();
-          // $('<li></li>').text(ui.draggable.text()).appendTo(this);
-          log(ui.draggable);
+          var section_type = ui.draggable.attr('id');
+          insert_new_section(section_type);
         }
-    });
-    /*.sortable({
-        items: 'li:not(.placeholder)',
-        sort: function() {
-          // gets added unintentionally by droppable interacting with sortable
-          // using connectWithSortable fixes this, but doesn't allow you to customize active/hoverClass options
+      }
+    ).sortable({
+        'items': 'div.section',
+        'sort': function() {
           $(this).removeClass('ui-state-default');
         }
-      });
-    });
-    */
+      }
+    );
   }
 );
