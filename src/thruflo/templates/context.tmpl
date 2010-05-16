@@ -19,7 +19,7 @@ ${self.page_content()}
       ${handler.context.display_name}</a>
   </h4>
   ${self.manage()}
-  % if hasattr(handler.container_type, '__types__'):
+  % if hasattr(handler.container_type, 'section_types'):
     ${self.tabs()}
   % endif
 </%def>
@@ -31,14 +31,14 @@ ${self.page_content()}
 <%def name="tabs()">
   <div class="tabs">
     <ul>
-      % for section_type in handler.container_type.__types__:
+      % for section_type in handler.container_type.section_types:
         <li>
           <a href="#tabs-${section_type}">
             ${section_type.title()}</a>
         </li>
       % endfor
     </ul>
-    % for section_type in handler.container_type.__types__:
+    % for section_type in handler.container_type.section_types:
       <div id="tabs-${section_type}">
         % if handler.content_sections.has_key(section_type):
           % for item in handler.content_sections[section_type]:

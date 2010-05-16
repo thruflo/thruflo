@@ -326,34 +326,18 @@ class Contained(Container):
     
 
 
-document_types = [
-    #'proposal', 
-    'presentation', 
-    #'release', 
-    #'post'
-]
-section_type_mapping = [
-    # 'executive_summary',
-    # 'introduction',
-    # 'about',
-    {'casestudies': ['projects']}, 
-    {'brief': ['projects']}
-    # 'context',
-    # 'approach',
-    # 'implementation',
-    # 'conclusion'
-]
-section_types = [item.keys()[0] for item in section_type_mapping]
-unit_types = [
-    'generic',
-    'image', 
-    'casestudy',
-    # 'quote',
-    # ...
-]
+from mapping import document_types_mapping
+
+document_types = document_types_mapping.keys()
+section_types = []
+content_types = []
+for wrapper in document_types_mapping.values():
+    for item in wrapper:
+        section_types.append(item.keys()[0])
+        content_types.append(item.values()[0])
+
 class Document(Container):
-    """We output ``Document``s, which contain a list of
-      ``DocumentSection``s.
+    """``Document``s contain ``DocumentSection``s.
     """
     
     document_type = StringProperty(required=True, choices=document_types)
@@ -365,34 +349,21 @@ class Section(Contained):
     """``Section``s are boxes to put ``Unit``s in.
     """
     
+    document_type = StringProperty(required=True, choices=document_types)
     section_type = StringProperty(required=True, choices=section_types)
     
     units = StringListProperty()
     
 
 class Unit(Contained):
-    """...
-      
-      Each ``Template`` has a number of fields to map content to.  
-      This is stored in ``slots``, where the field id is mapped to 
-      the content ala::
-          
-          slots[field_id] = {
-              'doc_type': ,
-              'slug': ,
-              'branch': 
-          }
-      
+    """``Unit``s store a mapping between ``slots[slot_name]`` and 
+      ``content_id:branch`` and have an implict template based on 
+      their document, section and content types.
     """
     
     document_type = StringProperty(required=True, choices=document_types)
-    unit_type = StringProperty(required=True, choices=unit_types)
-    
-    @property
-    def template_slug():
-        return '%s%s' % (self.document_type, self.unit_type)
-        
-    
+    section_type = StringProperty(required=True, choices=section_types)
+    content_type = StringProperty(required=True, choices=content_types)
     
     slots = DictProperty()
     
@@ -402,14 +373,14 @@ class ContentContainer(Container):
     """
     """
     
-    __types__ = NotImplemented
+    section_types = NotImplemented
     
 
 class ContentSection(Contained):
     """
     """
     
-    section_type = NotImplemented # StringProperty(required=True, choices=__types__)
+    section_type = NotImplemented # StringProperty(required=True, choices=section_types)
     branch_name = StringProperty(default=u'master')
     content = StringProperty()
 
@@ -418,7 +389,7 @@ class Company(ContentContainer):
     """
     """
     
-    __types__ = [
+    section_types = [
         'about',
         'clients',
         'contact',
@@ -430,7 +401,7 @@ class CompanySection(ContentSection):
     """
     """
     
-    section_type = StringProperty(required=True, choices=Company.__types__)
+    section_type = StringProperty(required=True, choices=Company.section_types)
     
 
 
@@ -438,7 +409,7 @@ class Project(ContentContainer):
     """
     """
     
-    __types__ = [
+    section_types = [
         'brief',
         'solution',
         'results',
@@ -446,12 +417,50 @@ class Project(ContentContainer):
         'videos'
     ]
     
+    @classmethod
+    def get_slots(cls, doc_id, document_type, section_type):
+        """Hacking some logic in here for now.
+        """
+        
+        slots = []
+        
+        if document_type == 'presentation':
+            if section_type == 'casestudies':
+                project = cls.get(doc_id)
+                slots = [[
+                        'title', 
+                        'text',
+                        '/projects/%s.title' % project.id
+                    ], [
+                        'brief',
+                        'text',
+                        '/projects/%s/brief:master.content' % project.id
+                    ], [
+                        'solution',
+                        'text',
+                        '/projects/%s/solution:master.content' % project.id
+                    ], [
+                        'results',
+                        'text',
+                        '/projects/%s/results:master.content' % project.id
+                    ]
+                ]
+            elif section_type == 'brief':
+                raise NotImplementedError
+            else:
+                raise NotImplementedError
+        else:
+            raise NotImplementedError
+        
+        return slots
+    
+    
 
 class ProjectSection(ContentSection):
     """
     """
     
-    section_type = StringProperty(required=True, choices=Project.__types__)
+    section_type = StringProperty(required=True, choices=Project.section_types)
     
 
 

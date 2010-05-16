@@ -34,36 +34,40 @@
         </ul>
       </div>
       <div id="tabs-sections">
-        % for item in handler.section_type_mapping:
-          <%
-            section_type = item.keys()[0]
-            content_types = item.values()[0]
-          %>
-          <div class="section-type ${section_type}">
-            <h3 id="${section_type.replace('_', '-')}">
-              <a href="#${section_type}">
-                ${section_type.replace('_', ' ').title()}</a>
-            </h3>
-            <div>
-              % for content_type in content_types:
-                <h4>
-                  ${content_type.replace('_', ' ').title()}
-                </h4>
-                <ul>
-                  <%
-                    items = getattr(handler, content_type)
-                  %>
-                  % for item in items:
-                    <li id="${item.doc_type.lower()}--${item.id}"
-                        class="content-type ${item.doc_type.lower()} ui-draggable">
-                      <a href="/${content_type}/${item.slug}" title="${item.display_name}">
-                        ${item.display_name}</a>
-                    </li>
+        % for document_type in handler.document_types_mapping:
+          % if document_type == handler.context.document_type:
+            % for item in handler.document_types_mapping[document_type]:
+              <%
+                section_type = item.keys()[0]
+                content_types = item.values()
+              %>
+              <div class="section-type ${section_type}">
+                <h3 id="${section_type.replace('_', '-')}">
+                  <a href="#${section_type}">
+                    ${section_type.replace('_', ' ').title()}</a>
+                </h3>
+                <div>
+                  % for content_type in content_types:
+                    <h4>
+                      ${content_type.replace('_', ' ').title()}
+                    </h4>
+                    <ul>
+                      <%
+                        items = getattr(handler, '%ss' % content_type)
+                      %>
+                      % for item in items:
+                        <li id="${item.doc_type.lower()}--${item.id}"
+                            class="content-type ${item.doc_type.lower()} ui-draggable">
+                          <a href="/${content_type}/${item.slug}" title="${item.display_name}">
+                            ${item.display_name}</a>
+                        </li>
+                      % endfor
+                    </ul>
                   % endfor
-                </ul>
-              % endfor
-            </div>
-          </div>
+                </div>
+              </div>
+            % endfor
+          % endif
         % endfor
       </div>
       <div id="tabs-units">

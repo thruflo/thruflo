@@ -511,7 +511,7 @@ class ContentSectionHandler(ContentContainerHandler):
         except formencode.Invalid, err:
             return {'status': 500, 'errors': err.error_dict}
         else:
-            if section_type not in self.container_type.__types__:
+            if section_type not in self.container_type.section_types:
                 return {
                     'status': 500, 
                     'errors': {'section_type': u'Not supported'}
@@ -636,12 +636,84 @@ class Documents(ContainerHandler):
     schema = schema.Document
     
     document_types = model.document_types
-    section_type_mapping = model.section_type_mapping
+    document_types_mapping = model.document_types_mapping
     section_types = model.section_types
     unit_types = model.section_types
     
     def map(self):
-        logging.info('a')
+        """We get sent a content and a section_type.  We then need
+          to map the content to the section type:
+            
+            * we're going to create one or more units
+            * to work out how, we need something to say "right, if you're"
+              dropping a project into casestudies, that means you want to
+              spit out a casestudy and map the project data to its fields"
+            
+            How could this be done?
+            
+            * it could be we have a literal mapping per... per what?  Well,
+              for every combination of content-type and section_type.
+            
+            * is there a more dynamic way?  probably but let's start with
+              a static impl and see what emerges.
+              
+            So how do we store this mapping?  Using something along the lines
+            of our existing ``model.build_templates`` layouts hack?  This atm
+            yields a ``model.Template`` instance for each file in 
+            ``./templates/layouts``.  What we actually need though, is a list
+            per combo like::
+                
+                mapping = [{
+                    'slot': 'title', 
+                    'type', 'text', 
+                    'source': 'Project::ProjectSection.section_type:brief'
+                  }
+                ]
+            
+            We can generate the markup from this, using the placeholder macros
+            in ``./templates/layouts/base.tmpl``.  So, for now, I've just stuck 
+            the data in .py files in the layouts folder.
+        """
+        
+        params = {
+            'content_id': self.get_argument('content_id', None),
+            'content_type': self.get_argument('content_type', None),
+            'section_type': self.get_argument('section_type', None)
+        }
+        try:
+            params = schema.DocumentMap.to_python(params)
+        except formencode.Invalid, err:
+            return {'status': 500, 'errors': err.error_dict}
+        else:
+            content_type = getattr(model, params['content_type'].title())
+            slots = content_type.get_slots(
+                params['content_id'], 
+                self.context.document_type, 
+                params['section_type']
+            )
+            
+            raise NotImplementedError(
+                """
+                  
+                  @@ the idea at this point is to:
+                    
+                    * save a section
+                    * save a unit, with the slots
+                    * read the unit and send back the slots data and the
+                      resulting rendered template fragment
+                    
+                    * n.b.: extend the document template to render the section(s)
+                      and their units... presumably we need a universal unit 
+                      unpacker or some such?
+                    
+                  
+                """
+            )
+            
+            # ...
+            
+            
+            return {'status': 200, '...': '...'}
         
     
     

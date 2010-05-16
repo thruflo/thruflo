@@ -1,4 +1,6 @@
 
+[n.b.: idea: sbp's post: want something to record you decision making bc that's what's important wen deconstructing / improving something: we all have these decision trees and it's the sliding doors moments that are important, not the grunt implementation]
+
 * create accordion with drag drop boxes UI
 * handle drop of a content object:
   * need a template per ``document-type:source-type``

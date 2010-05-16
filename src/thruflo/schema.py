@@ -4,11 +4,6 @@
 """Form schemas for validation, independent of the models.
 """
 
-__all__ = [
-    'RequiredSlug', 'Registration', 'Login', 
-    'Document', 'ProjectSection'
-]
-
 import re
 
 import formencode
@@ -291,5 +286,16 @@ class Section(formencode.Schema):
 
 class Unit(formencode.Schema):
     """"""
+    
+
+
+class DocumentMap(formencode.Schema):
+    """Form input when mapping a content_type to a section_type,
+      e.g.: a project to a casestudy.
+    """
+    
+    content_id = CouchDocumentId(not_empty=True)
+    content_type = validators.OneOf(model.content_types)
+    section_type = validators.OneOf(model.section_types)
     
 

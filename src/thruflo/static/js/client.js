@@ -126,7 +126,8 @@ jQuery(document).ready(
           'data': {
             'section_type': section_type,
             'content_type': content_type,
-            'content_id': content_id
+            'content_id': content_id,
+            '_xsrf': $.cookie('_xsrf')
           },
           'beforeSend': function () {},
           'error': function (transport) {
