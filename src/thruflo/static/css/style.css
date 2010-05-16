@@ -4,6 +4,9 @@
 .clear {
   clear: both;
 }
+.hidden {
+  display: none;
+}
 
 
 /*
@@ -60,4 +63,31 @@ body {
   color: #ffffff; 
   background-color: #333333; 
   border-top: 1px solid #000000;
+}
+
+
+/*
+  
+  minimal layout for document maker
+  
+  
+*/
+
+#zoom-bar {
+  float: right;
+  width: 10%;
+}
+#inspector {
+  float: left;
+  width: 30%;
+  font-size: 80%;
+}
+#sections-container {
+  float: left;
+  width: 50%;
+  margin: 0 5%;
+  border: 1px solid green;
+  min-height:300px;
+  height:auto !important;
+  height:300px;
 }

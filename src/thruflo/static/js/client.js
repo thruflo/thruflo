@@ -6,6 +6,7 @@ jQuery(document).ready(
   function ($) {
     
     $('.tabs').tabs();
+    $('.accordion').accordion();
     
     $('input[type=submit]').live(
       'click dblclick', 
@@ -84,5 +85,36 @@ jQuery(document).ready(
         return false;
       }
     );
+    
+    $('#inspector .ui-draggable').draggable({
+        'appendTo': 'body', 
+        'helper': 'clone',
+        'cursor': 'crosshair',
+        'containment': 'document',
+        'delay': 250,
+        'distance': 20,
+        'scroll': true
+        // 'revert': true
+    });
+    $('#sections-container').droppable({
+        'activeClass': 'ui-state-default',
+        'hoverClass': 'ui-state-hover',
+        'accept': ':not(.ui-sortable-helper)',
+        'drop': function (event, ui) {
+          // $(this).find('.placeholder').remove();
+          // $('<li></li>').text(ui.draggable.text()).appendTo(this);
+          log(ui.draggable);
+        }
+    });
+    /*.sortable({
+        items: 'li:not(.placeholder)',
+        sort: function() {
+          // gets added unintentionally by droppable interacting with sortable
+          // using connectWithSortable fixes this, but doesn't allow you to customize active/hoverClass options
+          $(this).removeClass('ui-state-default');
+        }
+      });
+    });
+    */
   }
 );

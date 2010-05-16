@@ -1,9 +1,10 @@
 <%inherit file="account.tmpl"/>
 
 <%def name="sub_title()">
-  ${handler.account.slug} :: ${handler.context_title}</%def>
+  ${handler.account.slug} :: ${handler.context_title}
+</%def>
 
-${self.page_content()}
+<%def name="add_fields()"></%def>
 
 <%def name="page_content()">
   <h4>
@@ -32,6 +33,7 @@ ${self.page_content()}
               ${handler.context_title} name
             </label>
           </div>
+          ${self.add_fields()}
           <div class="form-row">
             <input type="submit" 
                 value="Create ${handler.context_title}"
@@ -50,3 +52,5 @@ ${self.page_content()}
     % endfor
   </ul>
 </%def>
+
+${self.page_content()}

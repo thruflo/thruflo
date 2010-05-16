@@ -1,14 +1,27 @@
-<%inherit file="account.tmpl"/>
+<%inherit file="contexts.tmpl"/>
 
-<%def name="sub_title()">${handler.account.slug} :: Documents</%def>
-
-${self.page_content()}
-
-<%def name="page_content()">
-  <h4>
-    Documents
-  </h4>
-  <p>
-    ... tbc ...
-  </p>
+<%def name="add_fields()">
+  <div class="form-row">
+    <div class="error">
+      % if errors.has_key('document_type'):
+        ${errors['document_type']}
+      % endif
+    </div>
+    <select name="document_type">
+      % for item in handler.document_types:
+        % if item == handler.get_argument('document_type', None):
+          <option value="${item}" selected="true">
+            ${item.replace('_', ' ').title()}
+          </option>
+        % else:
+          <option value="${item}">
+            ${item.replace('_', ' ').title()}
+          </option>
+        % endif
+      % endfor
+    </select>
+    <label for="display_name">
+      Document type
+    </label>
+  </div>
 </%def>

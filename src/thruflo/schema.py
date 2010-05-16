@@ -14,7 +14,7 @@ import re
 import formencode
 from formencode import validators
 
-from model import db, User, Account
+import model
 from utils import get_timezones, generate_hash
 
 slug_pattern = r'\w{3,18}'
@@ -173,7 +173,7 @@ class UniqueUsername(Slug):
     
     def validate_python(self, value, state):
         super(UniqueUsername, self).validate_python(value, state)
-        if db.query(User).filter_by(username=value).first():
+        if model.db.query(model.User).filter_by(username=value).first():
             raise validators.Invalid(
                 self.message("taken", state, username=value),
                 value, 
@@ -200,7 +200,7 @@ class UniqueEmail(UnicodeEmail):
     
     def validate_python(self, value, state):
         super(UniqueEmail, self).validate_python(value, state)
-        if db.query(User).filter_by(email_address=value).first():
+        if model.db.query(model.User).filter_by(email_address=value).first():
             raise validators.Invalid(
                 self.message("taken", state, email_address=value),
                 value, 
@@ -221,7 +221,7 @@ class UniqueAccountSlug(Slug):
     
     def validate_python(self, value, state):
         super(UniqueAccountSlug, self).validate_python(value, state)
-        if db.query(Account).filter_by(slug=value).first():
+        if model.db.query(model.Account).filter_by(slug=value).first():
             raise validators.Invalid(
                 self.message("taken", state, slug=value),
                 value, 
@@ -280,4 +280,16 @@ class ContentSection(formencode.Schema):
     content = validators.UnicodeString()
     
 
+
+class Document(formencode.Schema):
+    display_name = validators.UnicodeString(not_empty=True)
+    document_type = validators.OneOf(model.document_types)
+
+class Section(formencode.Schema):
+    """"""
+    
+
+class Unit(formencode.Schema):
+    """"""
+    
 

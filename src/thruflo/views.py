@@ -7,7 +7,6 @@
 import functools
 import logging
 import time
-import uuid
 
 from datetime import datetime, timedelta
 from operator import itemgetter
@@ -24,7 +23,8 @@ from utils import unicode_urlencode, json_encode, json_decode, get_timezones
 
 __all__ = [
     'Index', 'Login', 'Logout', 'Register', 'NotFound',
-    'Dashboard', 'Documents', 'Projects', 'ProjectSection',
+    'Dashboard', 'Documents', 'DocumentSection', 'DocumentSectionUnit',
+    'Projects', 'ProjectSection',
     # 'Themes', 'Deliverables'
 ]
 
@@ -315,6 +315,9 @@ class ContainerHandler(RequestHandler):
     
     context = None
     
+    params = ['display_name']
+    schema = schema.DisplayNamed
+    
     @property
     def context_type(self):
         if not hasattr(self, '_context_type'):
@@ -337,11 +340,11 @@ class ContainerHandler(RequestHandler):
           
         """
         
-        params = {
-            'display_name': self.get_argument('display_name', None)
-        }
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
         try:
-            params = schema.DisplayNamed.to_python(params)
+            params = self.schema.to_python(params)
         except formencode.Invalid, err:
             return err.error_dict
         else:
@@ -360,11 +363,11 @@ class ContainerHandler(RequestHandler):
             
         """
         
-        params = {
-            'display_name': self.get_argument('display_name', None)
-        }
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
         try:
-            params = schema.DisplayNamed.to_python(params)
+            params = self.schema.to_python(params)
         except formencode.Invalid, err:
             return {'status': 500, 'errors': err.error_dict}
         else:
@@ -445,7 +448,7 @@ class ContainerHandler(RequestHandler):
             else:
                 raise web.HTTPError(404)
         else:
-            self.render_tmpl('contexts.tmpl', errors={})
+            self.render_tmpl('%ss.tmpl' % self.context_type, errors={})
         
     
     
@@ -629,17 +632,37 @@ class ContentSectionHandler(ContentContainerHandler):
 class Documents(ContainerHandler):
     container_type = model.Document
     
+    params = ['display_name', 'document_type']
+    schema = schema.Document
+    
+    document_types = model.document_types
+    section_type_mapping = model.section_type_mapping
+    section_types = model.section_types
+    unit_types = model.section_types
+    
     @property
-    def templates(self):
-        if not hasattr(self, '_templates'):
-            self._templates = model.Template.view(
-                'template/all',
+    def projects(self):
+        if not hasattr(self, '_projects'):
+            self._projects = model.Project.view(
+                'all/type_slug_mod',
+                startkey=[self.account.id, 'Project', False, False],
+                endkey=[self.account.id, 'Project', [], []],
                 include_docs=True
             ).all()
-        return self._templates
+        return self._projects
         
     
     
+
+class DocumentSection(ContentSectionHandler):
+    container_type = model.Document
+    content_section_type = model.Section
+    
+
+class DocumentSectionUnit(ContentSectionHandler):
+    container_type = model.Section
+    content_section_type = model.Unit
+
 
 class Projects(ContentContainerHandler):
     """

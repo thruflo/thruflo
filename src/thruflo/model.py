@@ -20,6 +20,7 @@ import logging
 import os
 import re
 import sys
+import uuid
 
 from os.path import dirname, join as join_path
 
@@ -326,10 +327,29 @@ class Contained(Container):
 
 
 document_types = [
-    'proposal', 
+    #'proposal', 
     'presentation', 
-    'release', 
-    'post'
+    #'release', 
+    #'post'
+]
+section_type_mapping = [
+    # 'executive_summary',
+    # 'introduction',
+    # 'about',
+    {'casestudies': ['projects']}, 
+    {'brief': ['projects']}
+    # 'context',
+    # 'approach',
+    # 'implementation',
+    # 'conclusion'
+]
+section_types = [item.keys()[0] for item in section_type_mapping]
+unit_types = [
+    'generic',
+    'image', 
+    'casestudy',
+    # 'quote',
+    # ...
 ]
 class Document(Container):
     """We output ``Document``s, which contain a list of
@@ -337,22 +357,21 @@ class Document(Container):
     """
     
     document_type = StringProperty(required=True, choices=document_types)
+    
     sections = StringListProperty()
     
 
-class DocumentSection(Contained):
-    """``DocumentSection``s are just boxes to put 
-      ``DocumentUnit``s in.
+class Section(Contained):
+    """``Section``s are boxes to put ``Unit``s in.
     """
+    
+    section_type = StringProperty(required=True, choices=section_types)
     
     units = StringListProperty()
     
 
-class DocumentUnit(Contained):
-    """Each ``DocumentUnit`` has a ``unit_type``.  This, when 
-      combined with its parent's parent's ``document_type``, 
-      denormalised here for convienience, provides 
-      ``self.template_slug``.
+class Unit(Contained):
+    """...
       
       Each ``Template`` has a number of fields to map content to.  
       This is stored in ``slots``, where the field id is mapped to 
@@ -366,21 +385,12 @@ class DocumentUnit(Contained):
       
     """
     
-    __types__ = [
-        'about', 
-        'clientlist', 
-        'casestudy', 
-        'quote', 
-        'image', 
-        'generic'
-    ]
-    
-    document_type = StringProperty() # choices=Document.__types__
-    unit_type = StringProperty() # choices=Unit.__types__
+    document_type = StringProperty(required=True, choices=document_types)
+    unit_type = StringProperty(required=True, choices=unit_types)
     
     @property
     def template_slug():
-        return '%s:%s' % (self.document_type, self.unit_type)
+        return '%s%s' % (self.document_type, self.unit_type)
         
     
     

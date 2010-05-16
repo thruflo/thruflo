@@ -3,6 +3,22 @@
 * handle drop of a content object:
   * need a template per ``document-type:source-type``
   * need to map the content object to the template
+
+^^^ qu: is this really delivering "click click done" as in you specify:
+  * the brief
+  * what the project involves:
+    * e.g.: design, social media, etc.
+  * voila: it's done...
+  ?
+  
+  e.g.: work back from the deliverables
+        - the system can match tags and deliverables
+        - suggest what to include
+        - then auto creates doc
+        - *then* you go into edit mode
+        
+        ^^^ think it through from this perspective -- what are the deliverables, how do you create them?  can it be product focused?  i.e.: enter products, then say which company delivers them, who leads that work, what themes are potentially relevant & register projects against product on an ongoing basis; then, when you get a new project in, you specify the deliverables and voila, it auto populates a big chunk of proposal?
+
 * select document section with google reader keys
 
 * need to persist the mapping

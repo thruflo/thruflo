@@ -38,6 +38,12 @@ mapping = [(
         r'^/documents(\/([\w]*))?(\/([\w]*))?\/?$',
         Documents
     ), (
+        r'^/documents(\/([\w]*))(\/([\w]*))(\/([\w]*))\/?$',
+        DocumentSection
+    ), (
+        r'^/documents\/[\w]*(\/([\w]*))(\/([\w]*))(\/([\w]*))\/?$',
+        DocumentSectionUnit
+    ), (
         r'^/projects(\/([\w]*))?(\/([\w]*))?\/?$',
         Projects
     ), (
