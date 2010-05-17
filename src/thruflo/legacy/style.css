@@ -64,3 +64,52 @@ body {
   background-color: #333333; 
   border-top: 1px solid #000000;
 }
+
+
+/*
+  
+  minimal layout for document maker
+  
+  
+*/
+
+#zoom-bar {
+  float: right;
+  width: 10%;
+}
+#inspector {
+  float: left;
+  width: 30%;
+  font-size: 80%;
+}
+#sections-container {
+  float: left;
+  width: 50%;
+  margin-left: 5%;
+  border: 1px solid green;
+  min-height:300px;
+  height:auto !important;
+  height:300px;
+}
+#sections-container .section {
+  margin: 5%;
+  padding: 5%;
+  border: 1px dashed black;
+}
+
+#sections-container .section.selected {
+  background-color: yellow;
+}
+
+#sections-container .section .unit {
+  margin: 5%;
+  padding: 5%;
+  border-top: 1px dashed black;
+}
+#sections-container .section.selected .unit {
+  background-color: #ddaaff;
+}
+
+#sections-container .section.selected .unit.selected {
+  background-color: blue;
+}

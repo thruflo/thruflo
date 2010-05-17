@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'thruflo',
-    version = '0.1',
-    description = 'Document generation system',
-    # long_description = open('README.rst').read(),
+    version = '0.2',
+    description = 'Generate documents from markdown files in a github repository',
+    long_description = open('README.rst').read(),
     author = 'James Arthur',
     author_email = 'thruflo@googlemail.com',
     url = 'http://github.com/thruflo/thruflo',
@@ -21,17 +21,17 @@ setup(
     install_requires=[
         'setuptools_git==0.3.4',
         'simplejson>=2.0.9',
-        'grizzled>=0.9.3',
         'Mako>=0.3.2',
         'Beaker>=1.5.3',
-        'couchdbkit>=0.4.6',
+        #'couchdbkit>=0.4.6',
         'SQLAlchemy>=0.6.0',
-        #'greenlet>=0.2',
-        #'gevent>=0.12.2',
+        'greenlet>=0.2',
+        'gevent>=0.12.2',
         #'redis>=0.6.1',
         'FormEncode>=1.2.2',
         'pyDNS>=2.3.4',
-        'pytz',
+        'pytz>=2010',
+        'bobo>=0.2.2',
         #'BeautifulSoup==3.0.8',
     ],
     entry_points = {
@@ -39,10 +39,7 @@ setup(
             "foobar = setuptools_git:gitlsfiles"
         ],
         'console_scripts': [
-            'daemonize = thruflo.daemonize:main',
-            'thruflo = thruflo.webapp:main',
-            'sync = thruflo.model:main',
-            'rebuild = thruflo.model:rebuild_templates'
+            'thruflo = thruflo.main:main'
         ]
     }
 )

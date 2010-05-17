@@ -264,3 +264,38 @@ class Login(formencode.Schema):
     password = SecurePassword(not_empty=True)
     
 
+
+class DisplayNamed(formencode.Schema):
+    display_name = validators.UnicodeString(not_empty=True)
+
+class ContentSection(formencode.Schema):
+    slug = Slug(not_empty=True)
+    section_type = Slug(not_empty=True)
+    branch_name = Slug(not_empty=True)
+    content = validators.UnicodeString()
+    
+
+
+class Document(formencode.Schema):
+    display_name = validators.UnicodeString(not_empty=True)
+    document_type = validators.OneOf(model.document_types)
+
+class Section(formencode.Schema):
+    """"""
+    
+
+class Unit(formencode.Schema):
+    """"""
+    
+
+
+class DocumentMap(formencode.Schema):
+    """Form input when mapping a content_type to a section_type,
+      e.g.: a project to a casestudy.
+    """
+    
+    content_id = CouchDocumentId(not_empty=True)
+    content_type = validators.OneOf(model.content_types)
+    section_type = validators.OneOf(model.section_types)
+    
+
