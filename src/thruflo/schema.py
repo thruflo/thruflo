@@ -238,16 +238,23 @@ class Registration(formencode.Schema):
     first_name = validators.UnicodeString(not_empty=True)
     last_name = validators.UnicodeString(not_empty=True)
     email_address = UniqueEmail(resolve_domain=True, not_empty=True)
-    company = validators.UnicodeString()
     time_zone = Timezone(not_empty=True)
+    
+    github_username = Slug(not_empty=True)
+    github_token = validators.UnicodeString(not_empty=True)
     
     username = UniqueUsername(not_empty=True)
     password = SecurePassword(not_empty=True)
     confirm = SecurePassword(not_empty=True)
+    
     chained_validators = [
         validators.FieldsMatch(
             'password', 
             'confirm'
+        ), 
+        validators.FieldsMatch(
+            'username', 
+            'account'
         )
     ]
     

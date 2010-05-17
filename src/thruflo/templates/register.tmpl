@@ -61,19 +61,6 @@ ${self.page_content()}
         </div>
         <div class="form-row">
           <div class="error">
-            % if errors.has_key('company'):
-              ${errors['company']}
-            % endif
-          </div>
-          <input type="text" name="company"
-              value="${handler.get_argument('company', '')}"
-          />
-          <label for="company">
-            Company / organisation
-          </label>
-        </div>
-        <div class="form-row">
-          <div class="error">
             % if errors.has_key('time_zone'):
               ${errors['time_zone']}
             % endif
@@ -147,20 +134,33 @@ ${self.page_content()}
       </div>
       <div class="form-container">
         <h4>
-          Create your site address
+          Connect your github account:
         </h4>
-        <p>
-          Every site has its own web address. For example, if you want your site to be at http://mysite.${handler.settings['domain']} you’d enter <em>mysite</em> in the field below. Letters &amp; numbers only.
-        </p>
         <div class="form-row">
           <div class="error">
-            % if errors.has_key('account'):
-              ${errors['account']}
+            % if errors.has_key('github_username'):
+              ${errors['github_username']}
             % endif
           </div>
-          http://<input type="text" name="account" 
-              value="${handler.get_argument('account', '')}"
-          />.${handler.settings['domain']}
+          <input type="text" name="github_username" 
+              value="${handler.get_argument('github_username', '')}"
+          />
+          <label for="github_username">
+            Github username
+          </label>
+        </div>
+        <div class="form-row">
+          <div class="error">
+            % if errors.has_key('github_token'):
+              ${errors['github_token']}
+            % endif
+          </div>
+          <input type="text" name="github_token" 
+              value="${handler.get_argument('github_token', '')}"
+          />
+          <label for="github_token">
+            Github API token
+          </label>
         </div>
       </div>
       <div class="form-row">

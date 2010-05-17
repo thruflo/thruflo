@@ -7,6 +7,7 @@
 import functools
 import sys
 import time
+import urllib2
 
 import logging
 if sys.platform=='darwin':
@@ -238,9 +239,10 @@ class Register(RequestHandler):
             'email_address': self.get_argument('email_address', None),
             'first_name': self.get_argument('first_name', None),
             'last_name': self.get_argument('last_name', None),
-            'company': self.get_argument('company', None),
+            'github_username': self.get_argument('github_username', None),
+            'github_token': self.get_argument('github_token', None),
             'time_zone': self.get_argument('time_zone', None),
-            'account': self.get_argument('account', None)
+            'account': self.get_argument('username', None)
         }
         try:
             params = schema.Registration.to_python(params)
@@ -251,6 +253,7 @@ class Register(RequestHandler):
             account = model.Account(slug)
             model.db.add(account)
             logging.warning('@@ not bothering with email confirmation yet')
+            logging.warning('@@ not bothering to check github creds pending oauth...')
             params.pop('account')
             params.pop('confirm')
             user = model.User(
@@ -297,3 +300,28 @@ class Dashboard(RequestHandler):
     
     
 
+
+"""
+
+@bobo.subroute('/repositories', scan=True)
+class Repositories(RequestHandler):
+    @property
+    def repositories(self):
+        r = urllib2.Request(
+        
+        )
+        sock = urllib2.urlopen
+        http://github.com/api/v2/yaml/repos/show/schacon
+        
+    
+    
+    @bobo.query('', check=members_only)
+    @bobo.query('/', check=members_only)
+    def get(self):
+        return self.render_template('repositories.tmpl')
+        
+    
+
+
+
+"""

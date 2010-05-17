@@ -68,8 +68,10 @@ class User(SQLModel):
     
     first_name = Column(Unicode)
     last_name = Column(Unicode)
-    company = Column(Unicode)
     time_zone = Column(Integer)
+    
+    github_username = Column(Unicode)
+    github_token = Column(Unicode)
     
     is_suspended = Column(Boolean, default=False)
     has_confirmed = Column(Boolean, default=False)
@@ -86,8 +88,9 @@ class User(SQLModel):
             password,
             first_name=None, 
             last_name=None, 
-            company=None, 
             time_zone=None, 
+            github_username=None, 
+            github_token=None,
             is_suspended=False, 
             has_confirmed=False, 
             confirmation_hash=None,
@@ -101,10 +104,12 @@ class User(SQLModel):
             self.first_name = first_name
         if last_name:
             self.last_name = last_name
-        if company:
-            self.company = company
         if time_zone:
             self.time_zone = time_zone
+        if github_username:
+            self.github_username = github_username
+        if github_token:
+            self.github_token = github_token
         self.is_suspended = is_suspended
         self.has_confirmed = has_confirmed
         if confirmation_hash:
