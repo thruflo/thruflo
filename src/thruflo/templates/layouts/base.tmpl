@@ -1,26 +1,20 @@
-<%def name="image(field_id)">
-  <div class="image-container" id="${field_id}">
-    <img src="/static/img/placeholder.png" alt="" />
+<%def name="image(name, value)">
+  <div class="image-container ${name}">
+    <img src="${value}" alt="..." />
     <div class="caption">
-      Caption text
+      ... caption ...
     </div>
   </div>
 </%def>
 
-<%def name="text(field_class, field_id)">
-  <div class="${field_class}-container" id="${field_id}">
-    <div class="${field_class}">
-      ${field_class.replace('-', ' ').title()}
-    </div>
+<%def name="text(name, value)">
+  <div class="text-container ${name}">
+    ${value}
   </div>
 </%def>
 
-% for unit in units:
-  <div class="${unit.unit_type}">
-    % for slot in unit.slots:
-      
-      ## render getattr(self, slot.type)(*args)
-      
-    % endfor
-  </div>
-% endfor
+<div class="unit-container ${unit.content_type}" id="${unit.id}">
+  % for slot in unit.slots:
+    ${getattr(self, slot['type'])(slot['name'], slot['value'])}
+  % endfor
+</div>

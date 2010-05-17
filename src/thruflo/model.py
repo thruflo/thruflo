@@ -342,7 +342,18 @@ class Document(Container):
     
     document_type = StringProperty(required=True, choices=document_types)
     
-    sections = StringListProperty()
+    @property
+    def sections(self):
+        if not hasattr(self, '_sections'):
+            self._sections = Section.view(
+                'all/parent_type_mod',
+                startkey=[self.account_id, self.id, False, False],
+                endkey=[self.account_id, self.id, [], []],
+                include_docs=True
+            ).all()
+        return self._sections
+        
+    
     
 
 class Section(Contained):
@@ -352,7 +363,18 @@ class Section(Contained):
     document_type = StringProperty(required=True, choices=document_types)
     section_type = StringProperty(required=True, choices=section_types)
     
-    units = StringListProperty()
+    @property
+    def units(self):
+        if not hasattr(self, '_units'):
+            self._units = Unit.view(
+                'all/parent_type_mod',
+                startkey=[self.account_id, self.id, False, False],
+                endkey=[self.account_id, self.id, [], []],
+                include_docs=True
+            ).all()
+        return self._units
+        
+    
     
 
 class Unit(Contained):
@@ -365,7 +387,64 @@ class Unit(Contained):
     section_type = StringProperty(required=True, choices=section_types)
     content_type = StringProperty(required=True, choices=content_types)
     
-    slots = DictProperty()
+    slots = ListProperty()
+    
+    @classmethod
+    def get_with_values_generated(cls, account_id, unit_id):
+        """Takes a list of dicts like::
+          
+              {
+                  'name': 'title',
+                  'type': 'text',
+                  'model_class': 'Project',
+                  'id': project.id,
+                  'property': 'display_name'
+              }, {
+                  'name': 'brief',
+                  'type': 'text',
+                  'model_class': 'ProjectSection',
+                  'view': 'projectsection',
+                  'key': [project.id, 'master', 'brief'],
+                  'property': 'content'
+              }
+          
+          Appends a value to each of them, e.g.::
+              
+              {
+                  'name': 'title',
+                  'type': 'text',
+                  'model_class': 'Project',
+                  'id': project.id,
+                  'property': 'title',
+                  'value': 'Dummy Project'
+              }
+          
+          
+        """
+        
+        slots = []
+        
+        unit = isinstance(unit_id, cls) and unit_id or cls.get(unit_id)
+        for item in unit.slots:
+            model_class = globals()[item['model_class']]
+            if item.has_key('id'):
+                instance = model_class.get(item['id'])
+            else:
+                instance = model_class.view(
+                    item['view'],
+                    key=[account_id] + item['key'],
+                    include_docs=True
+                ).one()
+            if instance:
+                item['value'] = getattr(instance, item['property'])
+            else:
+                item['value'] = ''
+            slots.append(item)
+        unit.slots = slots
+        
+        return unit
+        
+    
     
 
 
@@ -427,23 +506,34 @@ class Project(ContentContainer):
         if document_type == 'presentation':
             if section_type == 'casestudies':
                 project = cls.get(doc_id)
-                slots = [[
-                        'title', 
-                        'text',
-                        '/projects/%s.title' % project.id
-                    ], [
-                        'brief',
-                        'text',
-                        '/projects/%s/brief:master.content' % project.id
-                    ], [
-                        'solution',
-                        'text',
-                        '/projects/%s/solution:master.content' % project.id
-                    ], [
-                        'results',
-                        'text',
-                        '/projects/%s/results:master.content' % project.id
-                    ]
+                slots = [{
+                        'name': 'title',
+                        'type': 'text',
+                        'model_class': 'Project',
+                        'id': project.id,
+                        'property': 'display_name'
+                    }, {
+                        'name': 'brief',
+                        'type': 'text',
+                        'model_class': 'ProjectSection',
+                        'view': 'projectsection/parent_branch_type',
+                        'key': [project.id, 'master', 'brief'],
+                        'property': 'content'
+                    }, {
+                        'name': 'solution',
+                        'type': 'text',
+                        'model_class': 'ProjectSection',
+                        'view': 'projectsection/parent_branch_type',
+                        'key': [project.id, 'master', 'solution'],
+                        'property': 'content'
+                    }, {
+                        'name': 'results',
+                        'type': 'text',
+                        'model_class': 'ProjectSection',
+                        'view': 'projectsection/parent_branch_type',
+                        'key': [project.id, 'master', 'results'],
+                        'property': 'content'
+                    }
                 ]
             elif section_type == 'brief':
                 raise NotImplementedError

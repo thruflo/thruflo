@@ -12,9 +12,15 @@ var log = function (what) {
 };
 jQuery(document).ready(
   function ($) {
+    var _xsrf = '', get_xsrf = function () {
+      if (!_xsrf) {
+        _xsrf = $.cookie('_xsrf');
+      }
+      return _xsrf;
+    };
     var templates = {
       'section': $.template(
-        '<div id="${id}" class="section ${type}">${type}</div>'
+        '<div id="${id}" class="section ${type}" section_type="${type}">${type}</div>'
       )
     };
     var draggable_options = {
@@ -108,6 +114,13 @@ jQuery(document).ready(
         return false;
       }
     );
+    /*
+      
+      @@ no doubt this can all be refactored into a 
+      jQuery plugin at some point
+      
+      
+    */
     // setup document UI behaviour
     var inspector_tabs = $('#inspector > .tabs');
     var sections_tab = $('#tabs-sections');
@@ -125,9 +138,10 @@ jQuery(document).ready(
           'dataType': 'json',
           'data': {
             'section_type': section_type,
+            'section_id': section.attr('id'),
             'content_type': content_type,
             'content_id': content_id,
-            '_xsrf': $.cookie('_xsrf')
+            '_xsrf': get_xsrf()
           },
           'beforeSend': function () {},
           'error': function (transport) {
@@ -135,32 +149,14 @@ jQuery(document).ready(
             // data = $.parseJSON();
           },
           'success': function (data) {
-            log(data);
-            // @@ ...
-            
-            
+            section.update(data['template']);
           }
         }
       );
     };
-    var select_section = function (section) {
-      var section_type = section.data('section_type');
-      sections_container.find('div.section').removeClass('selected');
-      section.addClass('selected');
-      sections_tab.find('div.section-type').hide();
-      sections_tab.find('div.section-type.' + section_type).show();
-      inspector_tabs.tabs("select", "sections");
-    };
-    var insert_new_section = function (section_type) { 
-      var section_id = Math.uuid();
-      sections_container.append(
-        templates['section'], {
-          'type': section_type, 'id': section_id
-        }
-      );
-      var section = $('#' + section_id);
-      section.data('section_type', section_type);
-      // make the section droppable
+    var apply_behaviour_to_section = function (section) {
+      section.data('section_type', section.attr('section_type'));
+      section.removeAttr('section_type');
       section.droppable({
           'activeClass': 'ui-state-default',
           'hoverClass': 'ui-state-hover',
@@ -177,7 +173,6 @@ jQuery(document).ready(
           }
         }
       );
-      // make it selectable
       section.bind(
         'click dblclick', 
         function (event) {
@@ -199,8 +194,25 @@ jQuery(document).ready(
           }
         }
       );
-      // select it
-      section.click();
+    };
+    var select_section = function (section) {
+      var section_type = section.data('section_type');
+      sections_container.find('div.section').removeClass('selected');
+      section.addClass('selected');
+      sections_tab.find('div.section-type').hide();
+      sections_tab.find('div.section-type.' + section_type).show();
+      inspector_tabs.tabs("select", "sections");
+    };
+    var insert_new_section = function (section_type) { 
+      sections_container.append(
+        templates['section'], {
+          'type': section_type, 
+          'id': ''
+        }
+      );
+      var section = sections_container.find('div.section:last');
+      apply_behaviour_to_section(section);
+      select_section(section);
     };
     sections_tab.find('div.section-type').hide();
     sections_container.droppable({
@@ -219,5 +231,9 @@ jQuery(document).ready(
         }
       }
     );
+    var i, sections = sections_container.find('div.section');
+    for (i = 0; i < sections.length; i++) {
+      apply_behaviour_to_section($(sections[i]));
+    }
   }
 );

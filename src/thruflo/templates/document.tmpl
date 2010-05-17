@@ -75,5 +75,22 @@
       </div>
     </div>
   </div>
-  <div id="sections-container" class="ui-droppable"></div>
+  <div id="sections-container" class="ui-droppable">
+    % for section in handler.context.sections:
+      <div id="${section.id}" 
+          class="section ${section.section_type}" 
+          section_type="${section.section_type}">
+        <div class="section-title">
+          ${section.section_type}
+        </div>
+        <ul class="units">
+          % for unit in section.units:
+            <li>
+              ${handler.render_unit(unit)}
+            </li>
+          % endfor
+        </ul>
+      </div>
+    % endfor
+  </div>
 </%def>

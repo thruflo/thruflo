@@ -129,7 +129,7 @@ class RequestHandler(web.RequestHandler):
         
     
     
-    def render_tmpl(self, tmpl_name, **kwargs):
+    def render_tmpl_string(self, tmpl_name, **kwargs):
         params = dict(
             handler=self,
             request=self.request,
@@ -141,7 +141,11 @@ class RequestHandler(web.RequestHandler):
             reverse_url=self.application.reverse_url
         )
         kwargs.update(params)
-        self.finish(render_tmpl(tmpl_name, **kwargs))
+        return render_tmpl(tmpl_name, **kwargs)
+        
+    
+    def render_tmpl(self, tmpl_name, **kwargs):
+        self.finish(self.render_tmpl_string(tmpl_name, **kwargs))
         
     
     
@@ -640,6 +644,14 @@ class Documents(ContainerHandler):
     section_types = model.section_types
     unit_types = model.section_types
     
+    def render_unit(self, unit, generate_values=True):
+        if generate_values:
+            unit = model.Unit.get_with_values_generated(self.account.id, unit)
+        tmpl = self.render_tmpl_string('layouts/base.tmpl', unit=unit)
+        return ''.join(line.strip() for line in tmpl.split('\n'))
+        
+    
+    
     def map(self):
         """We get sent a content and a section_type.  We then need
           to map the content to the section type:
@@ -691,29 +703,45 @@ class Documents(ContainerHandler):
                 self.context.document_type, 
                 params['section_type']
             )
-            
-            raise NotImplementedError(
-                """
-                  
-                  @@ the idea at this point is to:
-                    
-                    * save a section
-                    * save a unit, with the slots
-                    * read the unit and send back the slots data and the
-                      resulting rendered template fragment
-                    
-                    * n.b.: extend the document template to render the section(s)
-                      and their units... presumably we need a universal unit 
-                      unpacker or some such?
-                    
-                  
-                """
+            # if not provided, save section
+            section = None
+            section_id = self.get_argument('section_id', None)
+            if section_id:
+                try:
+                    section_id = schema.CouchDocumentId.to_python(section_id)
+                except formencode.Invalid, err:
+                    return {'status': 500, 'errors': {'section_id': 'Invalid'}}
+                else:
+                    section = model.Section.get(section_id)
+            if not section:
+                section = model.Section(
+                    slug=model.Section.get_unique_slug(self.account.id),
+                    account_id=self.account.id,
+                    parent_id=self.context.id,
+                    document_type=self.context.document_type,
+                    section_type = params['section_type']
+                )
+                section.save()
+            # save a unit, with the slots
+            unit = model.Unit(
+                slug=model.Unit.get_unique_slug(self.account.id),
+                account_id=self.account.id,
+                parent_id=section.id,
+                document_type=self.context.document_type,
+                section_type=params['section_type'],
+                content_type=params['content_type'],
+                slots=slots
             )
+            unit.save()
+            # read the unit and send back the slots data and the
+            # resulting rendered template fragment
+            unit = model.Unit.get_with_values_generated(self.account.id, unit)
+            return {
+                'status': 200,
+                'template': self.render_unit(unit, generate_values=False),
+                'unit': unit.to_json()
+            }
             
-            # ...
-            
-            
-            return {'status': 200, '...': '...'}
         
     
     
