@@ -404,11 +404,12 @@ class Unit(Contained):
                   'type': 'text',
                   'model_class': 'ProjectSection',
                   'view': 'projectsection',
-                  'key': [project.id, 'master', 'brief'],
+                  'key': [project.id, 'brief', 'master'],
                   'property': 'content'
               }
           
-          Appends a value to each of them, e.g.::
+          Appends a value and potentially a alt_branches list to 
+          each of them, e.g.::
               
               {
                   'name': 'title',
@@ -417,6 +418,16 @@ class Unit(Contained):
                   'id': project.id,
                   'property': 'title',
                   'value': 'Dummy Project'
+              }, {
+                  'name': 'brief',
+                  'type': 'text',
+                  'model_class': 'ProjectSection',
+                  'view': 'projectsection',
+                  'key': [project.id, 'brief'],
+                  'branch': 'master',
+                  'property': 'content',
+                  'alt_branches': ['foo', 'bar'], # alternative branch slugs
+                  'value': '... lorum ipsum ...'
               }
           
           
@@ -430,12 +441,21 @@ class Unit(Contained):
             if item.has_key('id'):
                 instance = model_class.get(item['id'])
             else:
-                instance = model_class.view(
+                instance = None
+                branches = model_class.view(
                     item['view'],
                     key=[account_id] + item['key'],
                     include_docs=True
-                ).one()
+                ).all()
+                alt_branches = []
+                for item in branches:
+                    if item['branch_name'] == item.branch_name:
+                        instance = item
+                    else:
+                        alt_branches.append(item.branch_name)
+                item['alt_branches'] = list(set(alt_branches))
             if instance:
+                logging.info(instance)
                 item['value'] = getattr(instance, item['property'])
             else:
                 item['value'] = ''
@@ -516,22 +536,22 @@ class Project(ContentContainer):
                         'name': 'brief',
                         'type': 'text',
                         'model_class': 'ProjectSection',
-                        'view': 'projectsection/parent_branch_type',
-                        'key': [project.id, 'master', 'brief'],
+                        'view': 'projectsection/parent_type_branch',
+                        'key': [project.id, 'brief', 'master'],
                         'property': 'content'
                     }, {
                         'name': 'solution',
                         'type': 'text',
                         'model_class': 'ProjectSection',
-                        'view': 'projectsection/parent_branch_type',
-                        'key': [project.id, 'master', 'solution'],
+                        'view': 'projectsection/parent_type_branch',
+                        'key': [project.id, 'solution', 'master'],
                         'property': 'content'
                     }, {
                         'name': 'results',
                         'type': 'text',
                         'model_class': 'ProjectSection',
-                        'view': 'projectsection/parent_branch_type',
-                        'key': [project.id, 'master', 'results'],
+                        'view': 'projectsection/parent_type_branch',
+                        'key': [project.id, 'results', 'master'],
                         'property': 'content'
                     }
                 ]

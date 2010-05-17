@@ -13,7 +13,9 @@
   </div>
 </%def>
 
-<div class="unit-container ${unit.content_type}" id="${unit.id}">
+<div class="unit ${unit.content_type}"
+    content_type="${unit.content_type}"
+    id="${unit.id}">
   % for slot in unit.slots:
     ${getattr(self, slot['type'])(slot['name'], slot['value'])}
   % endfor

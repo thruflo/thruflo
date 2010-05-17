@@ -21,6 +21,9 @@ jQuery(document).ready(
     var templates = {
       'section': $.template(
         '<div id="${id}" class="section ${type}" section_type="${type}">${type}</div>'
+      ), 
+      'branches_ui': $.template(
+        '<li>...</div>'
       )
     };
     var draggable_options = {
@@ -116,17 +119,76 @@ jQuery(document).ready(
     );
     /*
       
-      @@ no doubt this can all be refactored into a 
-      jQuery plugin at some point
+      @@ no doubt this can all be refactored jQuery plugin 
+      styleeey at some point
       
       
     */
-    // setup document UI behaviour
     var inspector_tabs = $('#inspector > .tabs');
     var sections_tab = $('#tabs-sections');
     var sections_tab_sections = sections_tab.find('div.section-type');
     var sections_container = $('#sections-container');
-    var insert_units = function (section, content_type, content_id) {
+    var apply_behaviour_to_unit = function (section, unit) {
+      unit.data('content_type', unit.attr('content_type'));
+      unit.removeAttr('content_type');
+      unit.bind(
+        'click dblclick', 
+        function (event) {
+          if (section.hasClass('selected')) {
+            select_unit(section, $(this));
+            event.stopPropagation();
+          }
+        }
+      );
+      $(document).bind(
+        'keyup', 
+        function (event) {
+          if (event.keyCode == 76) { // l
+            // select down
+            var current_unit = section.find('div.unit.selected');
+            current_unit.next('div.unit').click();
+          }
+          else if (event.keyCode == 80) { // p
+            // select up
+            var current_unit = section.find('div.unit.selected');
+            current_unit.prev('div.unit').click();
+          }
+        }
+      );
+    };
+    var select_unit = function (section, unit) {
+      var content_type = unit.data('content_type');
+      section.find('div.unit').each(deselect_unit);
+      unit.addClass('selected');
+      unit.find('.edit').show();
+      unit.find('.display').hide();
+      
+      var slots = unit.data('unit')['slots'];
+      $.each(
+        slots, 
+        function (i, slot) {
+          log(slot);
+          
+          // branches_ui
+        }
+      );
+      
+      // units_tab.find('div.unit').hide();
+      // units_tab.find('div.unit.' + unit.attr('id')).show();
+      
+    };
+    var deselect_unit = function () {
+      var unit = $(this);
+      unit.removeClass('selected');
+      
+      unit.find('.edit').hide();
+      
+      log('@@ handle edits');
+      
+      unit.find('.display').show();
+      
+    };
+    var insert_new_unit = function (section, content_type, content_id) {
       var section_type = section.data('section_type');
       var current_path = window.location.pathname;
       if (current_path.endsWith('/')) {
@@ -149,7 +211,11 @@ jQuery(document).ready(
             // data = $.parseJSON();
           },
           'success': function (data) {
-            section.update(data['template']);
+            section.append(data['template']);
+            var unit = section.find('.unit:last');
+            unit.data('unit', data['unit']);
+            apply_behaviour_to_unit(section, unit);
+            select_unit(section, unit);
           }
         }
       );
@@ -163,7 +229,7 @@ jQuery(document).ready(
           'accept': 'li.content-type',
           'drop': function (event, ui) {
             var parts = ui.draggable.attr('id').split('--');
-            insert_units(section, parts[0], parts[1]);
+            insert_new_unit(section, parts[0], parts[1]);
           }
         }
       ).sortable({
@@ -182,14 +248,14 @@ jQuery(document).ready(
       $(document).bind(
         'keyup', 
         function (event) {
-          if (event.keyCode == 74) {
+          if (event.keyCode == 74) { // j
             // select down
-            var current_section = container.find('div.section.selected');
+            var current_section = sections_container.find('div.section.selected');
             current_section.next('div.section').click();
           }
-          else if (event.keyCode == 75) {
+          else if (event.keyCode == 75) {  // k
             // select up
-            var current_section = container.find('div.section.selected');
+            var current_section = sections_container.find('div.section.selected');
             current_section.prev('div.section').click();
           }
         }
@@ -198,6 +264,7 @@ jQuery(document).ready(
     var select_section = function (section) {
       var section_type = section.data('section_type');
       sections_container.find('div.section').removeClass('selected');
+      section.find('div.unit').each(deselect_unit);
       section.addClass('selected');
       sections_tab.find('div.section-type').hide();
       sections_tab.find('div.section-type.' + section_type).show();
@@ -231,9 +298,22 @@ jQuery(document).ready(
         }
       }
     );
-    var i, sections = sections_container.find('div.section');
-    for (i = 0; i < sections.length; i++) {
-      apply_behaviour_to_section($(sections[i]));
-    }
+    var unit, 
+        units, 
+        section, 
+        sections = sections_container.find('div.section');
+    sections.each(
+      function () {
+        section = $(this);
+        apply_behaviour_to_section(section);
+        units = section.find('div.unit');
+        units.each(
+          function () {
+            unit = $(this);
+            apply_behaviour_to_unit(section, unit);
+          }
+        );
+      }
+    );
   }
 );

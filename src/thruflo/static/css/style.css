@@ -85,7 +85,7 @@ body {
 #sections-container {
   float: left;
   width: 50%;
-  margin: 0 5%;
+  margin-left: 5%;
   border: 1px solid green;
   min-height:300px;
   height:auto !important;
@@ -101,4 +101,15 @@ body {
   background-color: yellow;
 }
 
+#sections-container .section .unit {
+  margin: 5%;
+  padding: 5%;
+  border-top: 1px dashed black;
+}
+#sections-container .section.selected .unit {
+  background-color: #ddaaff;
+}
+
+#sections-container .section.selected .unit.selected {
+  background-color: blue;
 }
