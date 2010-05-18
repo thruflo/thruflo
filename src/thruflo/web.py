@@ -1,13 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Simplified version of `Tornado <http://www.tornadoweb.org/>`_s 
-  ``web.RequestHandler``.
+"""Yet another WSGI framework::
+  
+      import web
+      
+      class MainPage(web.RequestHandler):
+          def get(self):
+              return 'hello world'
+              
+          
+      
+      mapping = [('/.*', MainPage)]
+      application = web.WSGIApplication(mapping)
+      
+    
+  Based on WebOb.  RegExp URL mapping ala app engine's webapp.
+  Some RequestHandler methods borrowed from Tornado.
 """
 
 import base64
 import binascii
 import calendar
+import cgi
 import Cookie
 import datetime
 import email.utils
@@ -19,7 +34,6 @@ import logging
 import os.path
 import re
 import time
-import urlparse
 import uuid
 
 import webob
@@ -28,15 +42,131 @@ import config
 import template
 import utils
 
-class BaseRequestHandler(object):
+RE_FIND_GROUPS = re.compile('\(.*?\)')
+_CHARSET_RE = re.compile(r';\s*charset=([^;\s]*)', re.I)
+
+SUPPORTED_METHODS = ['HEAD', 'GET', 'PUT', 'POST', 'DELETE']
+
+class WSGIApplication(object):
+    """Wraps a set of RequestHandlers in a WSGI-compatible application.
+    """
+    
+    def __init__(self, url_mapping):
+        """Initializes with the given URL mapping.
+        """
+        
+        self._init_url_mappings(url_mapping)
+        self.current_request_args = ()
+        
+    
+    
+    def __call__(self, environ, start_response):
+        """Called when a request comes in.
+        """
+        
+        request = webob.Request(environ)
+        response = webob.Response(
+            status=200, 
+            content_type='text/html; charset=UTF-8'
+        )
+        
+        handler = None
+        groups = ()
+        for regexp, handler_class in self._url_mapping:
+            match = regexp.match(request.path)
+            if match:
+                handler = handler_class(request, response)
+                groups = match.groups()
+                break
+                
+        self.current_request_args = groups
+        
+        if handler:
+            method_name = environ['REQUEST_METHOD']
+            if method_name in SUPPORTED_METHODS:
+                method = getattr(handler, method_name.lower(), None)
+                if method:
+                    try:
+                        handler_response = method(*groups)
+                    except Exception, err:
+                        response = handler.handle_exception(err)
+                    else:
+                        if isinstance(handler_response, webob.Response):
+                            response = handler_response
+                        elif isinstance(handler_response, str):
+                            response.body = handler_response
+                        elif isinstance(handler_response, unicode):
+                            response.unicode_body = handler_response
+                        else: # assume it's data
+                            response.content_type = 'application/json; charset=UTF-8'
+                            response.unicode_body = utils.json_encode(handler_response)
+                else:
+                    response.status = 405
+            else:
+                response.status = 405
+        
+        return response(environ, start_response)
+        
+    
+    
+    def _init_url_mappings(self, handler_tuples):
+        """Initializes mapping urls to handlers and handlers to urls.
+        """
+        
+        handler_map = {}
+        pattern_map = {}
+        url_mapping = []
+        
+        for regexp, handler in handler_tuples:
+            try:
+                handler_name = handler.__name__
+            except AttributeError:
+                pass
+            else:
+                handler_map[handler_name] = handler
+            
+            if not regexp.startswith('^'):
+                regexp = '^' + regexp
+            if not regexp.endswith('$'):
+                regexp += '$'
+            
+            compiled = re.compile(regexp)
+            url_mapping.append((compiled, handler))
+            
+            num_groups = len(RE_FIND_GROUPS.findall(regexp))
+            handler_patterns = pattern_map.setdefault(handler, [])
+            handler_patterns.append((compiled, num_groups))
+        
+        self._handler_map = handler_map
+        self._pattern_map = pattern_map
+        self._url_mapping = url_mapping
+        
+    
+    
+    def get_registered_handler_by_name(self, handler_name):
+        """Returns the handler given the handler's name.
+        """
+        
+        try:
+            return self._handler_map[handler_name]
+        except Exception:
+            logging.error('Handler does not map to any urls: %s', handler_name)
+            raise
+        
+    
+    
+
+
+class RequestHandler(object):
     """Provides ``self.settings``, ``self.current_user``, ``self.account``, 
       secure cookies, ``static_url()`` and ``xsrf_form_html()``.
     """
     
-    response = webob.Response(
-        status=200, 
-        content_type='text/html; charset=UTF-8'
-    )
+    def __init__(self, request, response):
+        self.request = request
+        self.response = response
+        
+    
     
     @property
     def settings(self):
@@ -166,18 +296,6 @@ class BaseRequestHandler(object):
         
     
     
-    def _compress_args(self, *args):
-        """Convert ``('/3002092', '3002092', '/save', 'save', ...)``
-          to ``('3002092', 'save', ...)``
-        """
-        
-        _args = []
-        for i in range(1, len(args), 2):
-            _args.append(args[i])
-        return tuple(_args)
-        
-    
-    
     @property
     def current_user(self):
         """The authenticated user for this request.
@@ -194,7 +312,6 @@ class BaseRequestHandler(object):
         
         return None
         
-    
     
     @property
     def account(self):
@@ -240,7 +357,6 @@ class BaseRequestHandler(object):
             raise HTTPError(403, "XSRF cookie does not match POST argument")
         
     
-    
     def xsrf_form_html(self):
         """An HTML <input/> element to be included with all POST forms.
         """
@@ -253,9 +369,9 @@ class BaseRequestHandler(object):
         """Returns a static URL for the given relative static file path.
         """
         
-        if not hasattr(BaseRequestHandler, "_static_hashes"):
-            BaseRequestHandler._static_hashes = {}
-        hashes = BaseRequestHandler._static_hashes
+        if not hasattr(RequestHandler, "_static_hashes"):
+            RequestHandler._static_hashes = {}
+        hashes = RequestHandler._static_hashes
         if path not in hashes:
             file_path = os.path.join(self.settings["static_path"], path)
             try:
@@ -275,6 +391,25 @@ class BaseRequestHandler(object):
         
     
     
+    def error(self, status=500, body='System Error'):
+        """Clear response and return error.
+        """
+        
+        self.response = webob.Response(status=status)
+        self.response.body = body
+        
+        return self.response
+        
+    
+    def handle_exception(self, err):
+        """Override to handle errors nicely
+        """
+        
+        logging.error(err, exc_info=True)
+        return self.error()
+        
+    
+    
     def render_template(self, tmpl_name, **kwargs):
         params = dict(
             handler=self,
@@ -287,7 +422,6 @@ class BaseRequestHandler(object):
         kwargs.update(params)
         return template.render_tmpl(tmpl_name, **kwargs)
         
-    
     
     def redirect(self, url, status=302, content_type=None):
         """Handle redirecting.
@@ -302,25 +436,6 @@ class BaseRequestHandler(object):
         return self.response
         
     
-    def respond_with(self, what, status=200, content_type=None):
-        """Augment self.response and return it.
-        """
-        
-        if status:
-            self.response.status = status
-        if content_type:
-            self.response.content_type = content_type
-        
-        if isinstance(what, str):
-            self.response.body = what
-        elif isinstance(what, unicode):
-            self.response.unicode_body = what
-        else: # assume it's data
-            self.response.content_type = 'application/json; charset=UTF-8'
-            self.response.unicode_body = utils.json_encode(what)
-        
-        return self.response
-        
     
 
 

@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""We use a relational database for users and accounts.
+"""We use a relational database for users and accounts and couchdb_
+  (via Couchdbkit_) for the per-account document data.
+  
+  .. _couchdb: http://couchdb.apache.org/
+  .. _Couchdbkit: http://couchdbkit.org/
 """
 
 import datetime
@@ -173,3 +177,165 @@ class Account(SQLModel):
 SQLModel.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 db = Session()
+
+### we use couchdb for the documents within an account
+
+from couchdbkit import Server, ResourceNotFound, ResourceConflict
+from couchdbkit import Document as CouchDocument
+from couchdbkit.loaders import FileSystemDocsLoader
+from couchdbkit.schema.properties import *
+
+from utils import generate_hash
+
+class Couch(object):
+    """
+    """
+    
+    def sync(self):
+        path = join_path(dirname(__file__), '_design')
+        self.loader = FileSystemDocsLoader(path)
+        self.loader.sync(self.db)
+        
+    
+    
+    def __init__(self, sync=sys.platform == 'darwin'):
+        self.db = Server().get_or_create_db('thruflo')
+        if sync:
+            self.sync()
+        
+    
+    
+
+couch = Couch()
+
+class BaseDocument(CouchDocument):
+    """Extends the couchdbkit base class.
+    """
+    
+    ver = IntegerProperty(default=1)
+    mod = DateTimeProperty(auto_now=True)
+    
+    account_id = IntegerProperty(required=True)
+    archived = BooleanProperty(default=False)
+    
+    def __getattr__(self, key):
+        """We like using ``doc.id``.
+        """
+        
+        if key == 'id':
+            key = '_id'
+        return super(BaseDocument, self).__getattr__(key)
+        
+    
+    
+    def update(self, data):
+        """Convienience method for setting multiple properties.
+        """
+        
+        for k, v in data.iteritems():
+            setattr(self, k, v)
+            
+        
+    
+    
+
+BaseDocument.set_db(couch.db)
+
+class SluggedDocument(BaseDocument):
+    """Couchdb ``doc._id``s are long ``uuid4``s which is great
+      for avoiding conflicts but too long to feature nicely in
+      a user friendly URL.
+      
+      Equally, there's no reason we need to ask users to provide
+      a slug when creating something.
+      
+      So, we need a mechanism to generate shorter, more user 
+      friendly identifiers that can be used as the value of the 
+      an instance's ``slug`` property.  
+      
+      Whilst we check when generating a slug that it's unique,
+      they need to be fairly  unique, so it's very rare they 
+      would clash within a document type, within an account.
+      
+      We also need a sensible approach to conflicts, which is to
+      manually re-slug the newer instance until there is only one.
+    """
+    
+    @classmethod
+    def generate_slug(cls):
+        """Generates a random eight digit string.
+        """
+        
+        return str(uuid.uuid4().int)[:8]
+        
+    
+    @classmethod
+    def get_from_slug(cls, account_id, slug):
+        docs = cls.view(
+            'all/type_slug_mod',
+            startkey=[account_id, cls._doc_type, slug, False],
+            endkey=[account_id, cls._doc_type, slug, []],
+            include_docs=True
+        ).all()
+        if len(docs) == 0:
+            return None
+        elif len(docs) > 1:
+            newer = docs[1:]
+            newer.reverse()
+            for doc in newer:
+                doc.slug = self.generate_slug()
+                doc.save()
+        return docs[0]
+        
+    
+    @classmethod
+    def get_unique_slug(cls, account_id, max_tries=5):
+        i = 1
+        while True:
+            if i > max_tries:
+                raise Exception('Can\'t generate unique slug')
+            else:
+                slug = cls.generate_slug()
+                if not cls.get_from_slug(account_id, slug):
+                    break
+                else:
+                    i += 1
+        return slug
+        
+    
+    
+    slug = StringProperty(required=True)
+    
+
+
+class Repository(SluggedDocument):
+    """
+    """
+    
+    name = StringProperty(required=True)
+    owner = StringProperty(required=True)
+    url = StringProperty(required=True)
+    description = StringProperty()
+    branches = StringListProperty()
+    blobs = DictProperty()
+    
+
+
+class Document(SluggedDocument):
+    """
+    """
+    
+    sources = StringListProperty()
+    stylesheet = StringProperty()
+    content = StringProperty()
+    
+
+
+class Stylesheet(SluggedDocument):
+    """
+    """
+    
+    source = StringProperty()
+    content = StringProperty()
+    
+

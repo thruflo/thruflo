@@ -45,10 +45,10 @@ def generate_hash(algorithm='sha1', s=None):
     
 
 
-def json_encode(value, **kwargs):
+def json_encode(value, ensure_ascii=False, **kwargs):
     """JSON-encodes the given Python object."""
     
-    return json.dumps(value, **kwargs)
+    return json.dumps(value, ensure_ascii=ensure_ascii, **kwargs)
     
 
 def json_decode(value, **kwargs):

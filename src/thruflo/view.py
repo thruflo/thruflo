@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""`Bobo <http://bobo.digicool.com>`_ web application.
+"""Request handlers.
 """
 
 import functools
@@ -10,21 +10,11 @@ import time
 import urllib2
 
 import logging
-if sys.platform=='darwin':
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('beaker.container').setLevel(logging.INFO)
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-else:
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger('beaker.container').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
-
 
 from datetime import datetime, timedelta
 from operator import itemgetter
 from urllib import quote
 
-import bobo
 import formencode
 import webob
 
@@ -35,37 +25,40 @@ import schema
 import template
 import web
 import utils
+import urllib2
 
-def members_only(self, request, func):
-    authorised = False
-    if self.current_user:
-        account = self.account
-        if account and account in self.current_user.accounts:
-            authorised = True
-    if not authorised:
-        if request.method == "GET":
-            url = self.settings['login_url']
-            if "?" not in url:
-                url += "?" + utils.unicode_urlencode(
-                    dict(next=self.request.path)
-                )
-            return self.redirect(url)
-        return webob.Response(status=403)
+def members_only(method):
+    """Users accessing methods decorated with ``@members_only``
+      must be members of the current account.
+    """
     
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        authorised = False
+        if self.current_user:
+            account = self.account
+            if account and account in self.current_user.accounts:
+                authorised = True
+        if not authorised:
+            if self.request.method == "GET":
+                url = self.settings['login_url']
+                if "?" not in url:
+                    url += "?" + utils.unicode_urlencode(
+                        dict(next=self.request.path)
+                    )
+                self.redirect(url)
+                return
+            raise self.error(403)
+        return method(self, *args, **kwargs)
+    return wrapper
     
 
 
-class RequestHandler(web.BaseRequestHandler):
+class RequestHandler(web.RequestHandler):
     """Provides self.request, default implementations for ``self.account``
       and ``self.current_user``, ``self.redirect()`` and 
       ``self.redirect_to_dashboard()``.
     """
-    
-    def __init__(self, request, *args):
-        self.request = request
-        self.request.charset = 'utf8'
-        
-    
     
     def get_argument(self, name, default=None, strip=True):
         """Returns the value of the argument with the given name.
@@ -74,7 +67,7 @@ class RequestHandler(web.BaseRequestHandler):
         value = self.request.params.get(name, None)
         if value is None:
             if default is None:
-                raise bobo.NotFound("Missing argument %s" % name)
+                raise self.error(404, "Missing argument %s" % name)
             return default
         if strip: value = value.strip()
         return value
@@ -127,11 +120,11 @@ class RequestHandler(web.BaseRequestHandler):
     
 
 
-@bobo.subroute('/', scan=True)
 class Index(RequestHandler):
+    """
+    """
     
-    @bobo.query('')
-    def index(self):
+    def get(self):
         if self.account:
             return self.redirect('/dashboard')
         else:
@@ -141,15 +134,11 @@ class Index(RequestHandler):
     
     
 
-
-@bobo.subroute('/login', scan=True)
 class Login(RequestHandler):
     """Accepts either a username or an email address. 
       If authenticated, sets the user.id in a secure cookie.
     """
     
-    @bobo.post('')
-    @bobo.post('/')
     def post(self):
         login = self.get_argument('login', None)
         params = {
@@ -187,37 +176,25 @@ class Login(RequestHandler):
             
         
     
-    
-    @bobo.query('')
-    @bobo.query('/')
     def get(self):
         return self.render_template('login.tmpl', errors={})
         
     
     
 
-
-@bobo.subroute('/logout', scan=True)
 class Logout(RequestHandler):
     """Clear cookie and redirect.
     """
     
-    @bobo.query('')
-    @bobo.query('/')
     def get(self):
-        self.clear_cookie(
-            'user_id', 
-            domain='.%s' % self.settings['domain']
-        )
-        return self.redirect(
-            self.get_argument('next', '/')
-        )
+        domain = '.%s' % self.settings['domain']
+        next = self.get_argument('next', '/')
+        self.clear_cookie('user_id', domain=domain)
+        return self.redirect(next)
         
     
     
 
-
-@bobo.subroute('/register', scan=True)
 class Register(RequestHandler):
     """If we get valid form input, we create a user, store their 
       user.id in a secure cookie and redirect to their dashboard.
@@ -229,8 +206,6 @@ class Register(RequestHandler):
         
     
     
-    @bobo.post('')
-    @bobo.post('/')
     def post(self):
         params = {
             'username': self.get_argument('username', None),
@@ -277,23 +252,17 @@ class Register(RequestHandler):
             
         
     
-    
-    @bobo.query('')
-    @bobo.query('/')
     def get(self):
         return self.render_template('register.tmpl', errors={})
         
     
     
 
-
-@bobo.subroute('/dashboard', scan=True)
 class Dashboard(RequestHandler):
     """
     """
     
-    @bobo.query('', check=members_only)
-    @bobo.query('/', check=members_only)
+    @members_only
     def get(self):
         return self.render_template('dashboard.tmpl')
         
@@ -301,27 +270,187 @@ class Dashboard(RequestHandler):
     
 
 
-"""
-
-@bobo.subroute('/repositories', scan=True)
-class Repositories(RequestHandler):
+class SluggedBaseHandler(RequestHandler):
+    """Abstract class that handles adding, editing and archiving
+      ``model.SluggedDocuments``s.
+    """
+    
+    # a ``model.Container`` impl, e.g.: ``model.Project``
+    document_type = NotImplemented 
+    
+    params = NotImplemented
+    schema = NotImplemented
+    
+    context = None
+    
     @property
-    def repositories(self):
-        r = urllib2.Request(
+    def context_type(self):
+        if not hasattr(self, '_context_type'):
+            self._context_type = self.document_type._doc_type.lower()
+        return self._context_type
         
-        )
-        sock = urllib2.urlopen
-        http://github.com/api/v2/yaml/repos/show/schacon
+    
+    @property
+    def context_title(self):
+        if not hasattr(self, '_context_title'):
+            self._context_title = self.context_type.title()
+        return self._context_title
+        
+    
+    
+    @property
+    def contexts(self):
+        if not hasattr(self, '_contexts'):
+            doc_type = self.document_type._doc_type
+            self._contexts = self.document_type.view(
+                'all/type_slug_mod',
+                startkey=[self.account.id, doc_type, False, False],
+                endkey=[self.account.id, doc_type, [], []],
+                include_docs=True
+            ).all()
+        return self._contexts
         
     
     
-    @bobo.query('', check=members_only)
-    @bobo.query('/', check=members_only)
-    def get(self):
-        return self.render_template('repositories.tmpl')
+    def add(self):
+        """``/{document_type}s/add``
+        """
         
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
+        try:
+            params = self.schema.to_python(params)
+        except formencode.Invalid, err:
+            return err.error_dict
+        else:
+            params['account_id'] = self.account.id
+            params['slug'] = self.container_type.get_unique_slug(self.account.id)
+            doc = self.document_type(**params)
+            doc.save()
+            return doc
+        
+    
+    def edit(self):
+        """``/{document_type}s/{slug}/edit``
+        """
+        
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
+        try:
+            params = self.schema.to_python(params)
+        except formencode.Invalid, err:
+            return {'status': 500, 'errors': err.error_dict}
+        else:
+            self.context.update(**params)
+            self.context.save()
+            return {'status': 200, 'doc': self.context.to_json()}
+        
+    
+    def archive(self):
+        """``/{document_type}s/{slug}/archive``
+        """
+        
+        self.context.archived = True
+        self.context.save()
+        return {'status': 200, 'doc': self.context.to_json()}
+        
+    
+    
+    def _compress_args(self, *args):
+        """Convert ``('/3002092', '3002092', '/save', 'save', ...)``
+          to ``('3002092', 'save', ...)``
+        """
+        
+        _args = []
+        
+        for i in range(1, len(args), 2):
+            _args.append(args[i])
+        
+        return tuple(_args)
+        
+    
+    
+    @members_only
+    def post(self, *args):
+        """Dispatches ``/{document_type}/add`` to ``self.add()`` and
+          ``/{document_type}/{slug}/{action}`` to ``self.action()``.
+        """
+        
+        args = self._compress_args(*args)
+        
+        if args[0] == 'add':
+            response = self.add()
+            if isinstance(response, self.document_type):
+                # success, so redirect to the newly created instance
+                return self.redirect(
+                    '/%ss/%s' % (
+                        self.context_type, 
+                        response.slug
+                    )
+                )
+            else: # we got an error dict
+                return self.render_template(
+                    '%ss.tmpl' % self.context_type, 
+                    errors=error_dict
+                )
+        else:
+            slug = args[0]
+            self.context = self.container_type.get_from_slug(self.account.id, slug)
+            if self.context:
+                method = getattr(self, args[1])
+                data = method(*args[2:])
+            else:
+                data = {'status': 404, 'errors': {'context': 'Not found'}}
+            self.response.status = data.pop('status')
+            return data
+        
+    
+    
+    @members_only
+    def get(self, *args):
+        args = self._compress_args(*args)
+        slug = args[0]
+        if slug:
+            self.context = self.container_type.get_from_slug(self.account.id, slug)
+            if self.context:
+                return self.render_template('%s.tmpl' % self.context_type)
+            else:
+                return self.error(404)
+        else:
+            return self.render_template('%ss.tmpl' % self.context_type, errors={})
+        
+    
     
 
 
+class Repositories(SluggedBaseHandler):
+    """Add and edit repositories.
+    """
+    
+    document_type = model.Repository 
+    
+    params = ['name', 'owner', 'url']
+    schema = schema.Repository
+    
 
-"""
+class Documents(SluggedBaseHandler):
+    """Add and edit documents.
+    """
+    
+    document_type = model.Document 
+    
+    params = ['sources', 'stylesheet', 'content']
+    schema = schema.Document
+
+class Stylesheets(SluggedBaseHandler):
+    """Add and edit stylesheets.
+    """
+    
+    document_type = model.Stylesheet 
+    
+    params = ['source', 'content']
+    schema = schema.Stylesheet
+    
+

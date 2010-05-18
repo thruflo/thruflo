@@ -271,3 +271,31 @@ class Login(formencode.Schema):
     password = SecurePassword(not_empty=True)
     
 
+
+class Repository(formencode.Schema):
+    """
+    """
+    
+    name = validators.UnicodeString(not_empty=True)
+    owner = validators.UnicodeString(not_empty=True)
+    url = validators.UnicodeString(not_empty=True)
+    
+
+
+class Document(formencode.Schema):
+    """
+    """
+    
+    sources = validators.Set()
+    stylesheet = validators.UnicodeString()
+    content = validators.UnicodeString()
+
+
+class Stylesheet(formencode.Schema):
+    """
+    """
+    
+    source = validators.UnicodeString()
+    content = validators.UnicodeString()
+    
+

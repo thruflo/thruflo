@@ -23,7 +23,7 @@ setup(
         'simplejson>=2.0.9',
         'Mako>=0.3.2',
         'Beaker>=1.5.3',
-        #'couchdbkit>=0.4.6',
+        'couchdbkit>=0.4.6',
         'SQLAlchemy>=0.6.0',
         'greenlet>=0.2',
         'gevent>=0.12.2',
@@ -31,8 +31,7 @@ setup(
         'FormEncode>=1.2.2',
         'pyDNS>=2.3.4',
         'pytz>=2010',
-        'bobo>=0.2.2',
-        #'BeautifulSoup==3.0.8',
+        'webob>=0.9.8'
     ],
     entry_points = {
         'setuptools.file_finders': [

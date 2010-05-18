@@ -186,7 +186,7 @@ class Account(SQLModel):
 SQLModel.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 db = Session()
-        
+
 ### we use couchdb for the documents within an account
 
 from couchdbkit import Server, ResourceNotFound, ResourceConflict

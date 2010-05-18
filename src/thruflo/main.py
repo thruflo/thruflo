@@ -5,22 +5,63 @@
   stdlib with gevent.
 """
 
-import bobo
 import os
 import sys
 
-from gevent import fork, monkey, wsgi
+from gevent import monkey, wsgi
+monkey.patch_all()
+
+import logging
+if sys.platform=='darwin':
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger('beaker').setLevel(logging.INFO)
+    logging.getLogger('restkit').setLevel(logging.INFO)
+    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+else:
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger('beaker').setLevel(logging.WARNING)
+    logging.getLogger('restkit').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
+
+import view
+import web
+
+mapping = [(
+        r'^/$', 
+        view.Index,
+    ), (
+        r'^/login\/?$',
+        view.Login
+    ), (
+        r'^/logout\/?$',
+        view.Logout
+    ), (
+        r'^/register\/?$',
+        view.Register
+    ), (
+        r'^/dashboard\/?$',
+        view.Dashboard
+    ), (
+        r'^/repositories(\/([\w]*))?(\/([\w]*))?\/?$',
+        view.Repositories
+    ), (
+        r'^/documents(\/([\w]*))?(\/([\w]*))?\/?$',
+        view.Documents
+    ), (
+        r'^/stylesheets(\/([\w]*))?(\/([\w]*))?\/?$',
+        view.Stylesheets
+    )
+]
 
 def app_factory():
-    monkey.patch_all()
-    return bobo.Application(bobo_resources='thruflo.view')
+    return web.WSGIApplication(mapping)
     
 
 
 def main():
     num_processes = _cpu_count()
     for i in range(num_processes):
-        if fork() == 0:
+        if os.fork() == 0:
             try:
                 wsgi.WSGIServer(('', 6543 + i), app_factory()).serve_forever()
             except KeyboardInterrupt:
