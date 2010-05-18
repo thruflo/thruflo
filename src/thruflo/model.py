@@ -25,9 +25,8 @@ from sqlalchemy.orm import sessionmaker, relation
 
 if sys.platform == 'darwin': # use sqlite in development
     engine = create_engine('sqlite:////env/thruflo/var/dev.db')
-else: # use postgresql in production
-    import secret 
-    # with a pure-python driver so we take advantage of gevent
+else: # use postgresql in production with a
+    import secret # pure-python driver so we take advantage of gevent
     engine = create_engine( 
         'postgresql+pg8000://%s:%s@%s/%s' % (
             secret.username,
