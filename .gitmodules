@@ -4,3 +4,6 @@
 [submodule "vendor/tornado"]
 	path = vendor/tornado
 	url = git://github.com/facebook/tornado.git
+[submodule "vendor/py-github"]
+	path = vendor/py-github
+	url = git://github.com/dustin/py-github.git

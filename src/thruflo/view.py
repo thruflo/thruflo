@@ -10,6 +10,16 @@ import time
 import urllib2
 
 import logging
+if sys.platform=='darwin':
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger('beaker').setLevel(logging.INFO)
+    logging.getLogger('restkit').setLevel(logging.INFO)
+    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+else:
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger('beaker').setLevel(logging.WARNING)
+    logging.getLogger('restkit').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
 
 from datetime import datetime, timedelta
 from operator import itemgetter
@@ -18,6 +28,9 @@ from urllib import quote
 import formencode
 import webob
 
+from github import github
+
+from couchdbkit.exceptions import BulkSaveError
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 
 import model
@@ -25,7 +38,6 @@ import schema
 import template
 import web
 import utils
-import urllib2
 
 def members_only(method):
     """Users accessing methods decorated with ``@members_only``
@@ -304,7 +316,7 @@ class SluggedBaseHandler(RequestHandler):
             doc_type = self.document_type._doc_type
             self._contexts = self.document_type.view(
                 'all/type_slug_mod',
-                startkey=[self.account.id, doc_type, False, False],
+                startkey=[self.account.id, doc_type, None, None],
                 endkey=[self.account.id, doc_type, [], []],
                 include_docs=True
             ).all()
@@ -325,7 +337,7 @@ class SluggedBaseHandler(RequestHandler):
             return err.error_dict
         else:
             params['account_id'] = self.account.id
-            params['slug'] = self.container_type.get_unique_slug(self.account.id)
+            params['slug'] = self.document_type.get_unique_slug(self.account.id)
             doc = self.document_type(**params)
             doc.save()
             return doc
@@ -397,7 +409,7 @@ class SluggedBaseHandler(RequestHandler):
                 )
         else:
             slug = args[0]
-            self.context = self.container_type.get_from_slug(self.account.id, slug)
+            self.context = self.document_type.get_from_slug(self.account.id, slug)
             if self.context:
                 method = getattr(self, args[1])
                 data = method(*args[2:])
@@ -413,7 +425,7 @@ class SluggedBaseHandler(RequestHandler):
         args = self._compress_args(*args)
         slug = args[0]
         if slug:
-            self.context = self.container_type.get_from_slug(self.account.id, slug)
+            self.context = self.document_type.get_from_slug(self.account.id, slug)
             if self.context:
                 return self.render_template('%s.tmpl' % self.context_type)
             else:
@@ -434,6 +446,99 @@ class Repositories(SluggedBaseHandler):
     params = ['name', 'owner', 'url']
     schema = schema.Repository
     
+    @property
+    def repositories(self):
+        """repos/show/:user"
+        """
+        
+        if not hasattr(self, '_repositories'):
+            
+            repositories = {
+                'selected': [],
+                'unselected': []
+            }
+            
+            existing_repos = self.contexts
+            existing_repo_names = [item.name for item in existing_repos]
+            
+            username = self.current_user.github_username
+            agh = github.GitHub(username, self.current_user.github_token)
+            all_repos = agh.repos.forUser(username)
+            
+            for item in all_repos:
+                if item.name in existing_repo_names:
+                    repositories['selected'].append(item)
+                else:
+                    repositories['unselected'].append(item)
+                
+            self._repositories = repositories
+        
+        return self._repositories
+        
+    
+    
+    def select(self):
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
+        try:
+            params = self.schema.to_python(params)
+        except formencode.Invalid, err:
+            return {'status': 500, 'errors': err.error_dict}
+        else:
+            doc = model.Repository.view(
+                'repository/name',
+                key=[self.account.id, params['name']],
+                include_docs=True
+            ).first()
+            if not doc:
+                params['account_id'] = self.account.id
+                doc = model.Repository(**params)
+                doc.save()
+            return {'status': 200, 'doc': doc.to_json()}
+        
+    
+    def unselect(self):
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
+        try:
+            params = self.schema.to_python(params)
+        except formencode.Invalid, err:
+            return {'status': 500, 'errors': err.error_dict}
+        else:
+            docs = model.Repository.view(
+                'repository/name',
+                key=[self.account.id, params['name']],
+                include_docs=True
+            ).all()
+            try:
+                model.Repository.get_db().bulk_delete([doc.to_json() for doc in docs])
+            except BulkSaveError, err:
+                return {'status': 500, 'errors': err.errors}
+            else:
+                return {'status': 200}
+            
+        
+    
+    
+    @members_only
+    def post(self, *args):
+        """Exposes ``select`` and ``unselect``.
+        """
+        
+        args_ = self._compress_args(*args)
+        if args_[0] in ['select', 'unselect']:
+            method = getattr(self, args_[0])
+            data = method()
+            self.response.status = data.pop('status')
+            return data
+        else:
+            return super(Repositories, self).post(*args)
+        
+    
+    
+
 
 class Documents(SluggedBaseHandler):
     """Add and edit documents.

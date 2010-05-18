@@ -12,11 +12,9 @@ var log = function (what) {
 };
 jQuery(document).ready(
   function ($) {
-    var _xsrf = '', get_xsrf = function () {
-      if (!_xsrf) {
-        _xsrf = $.cookie('_xsrf');
-      }
-      return _xsrf;
+    var current_path = window.location.pathname;
+    if (current_path.endsWith('/')) {
+      current_path = current_path.slice(0, -1);
     };
     var draggable_options = {
       'appendTo': 'body', 
@@ -30,5 +28,39 @@ jQuery(document).ready(
     $('.tabs').tabs();
     $('.accordion').accordion();
     $('.ui-draggable').draggable(draggable_options);
+    $('#selected-container, #unselected-container').droppable({
+        'activeClass': 'ui-state-default',
+        'hoverClass': 'ui-state-hover',
+        'accept': 'li.ui-draggable',
+        'drop': function (event, ui) {
+          var container = $(this);
+          var target = ui.draggable;
+          var form = target.find('form');
+          var other, action;
+          if (container.attr('id') == 'selected-container') {
+            action = 'select';
+          }
+          else {
+            action = 'unselect';
+          }
+          $.ajax({
+              'url': current_path + '/' + action,
+              'type': 'POST',
+              'dataType': 'json',
+              'data': form.serialize(),
+              'success': function (data) {
+                container.find('ul.repositories-list').append(target.detach());
+              }
+            }
+          );
+        }
+      }
+    ).sortable({
+        'items': 'div.section',
+        'sort': function() {
+          $(this).removeClass('ui-state-default');
+        }
+      }
+    );
   }
 );

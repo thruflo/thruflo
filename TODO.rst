@@ -1,6 +1,9 @@
+Todo
+----
+
 * enable the version control repository
   + register user's details
-  * register one (or more) github repos
+  + register one (or more) github repos
   * method to read the whole document tree
   * method to invalidate / refresh when git updates
 * provide a document assembly UI
@@ -13,3 +16,9 @@
 * generate
   => html
   => pdf
+  
+
+Issues
+------
+
+http://code.google.com/p/gevent/issues/detail?id=25

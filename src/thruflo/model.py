@@ -272,7 +272,7 @@ class SluggedDocument(BaseDocument):
     def get_from_slug(cls, account_id, slug):
         docs = cls.view(
             'all/type_slug_mod',
-            startkey=[account_id, cls._doc_type, slug, False],
+            startkey=[account_id, cls._doc_type, slug, None],
             endkey=[account_id, cls._doc_type, slug, []],
             include_docs=True
         ).all()
@@ -307,7 +307,7 @@ class SluggedDocument(BaseDocument):
     
 
 
-class Repository(SluggedDocument):
+class Repository(BaseDocument):
     """
     """
     

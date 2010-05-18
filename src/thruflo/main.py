@@ -5,23 +5,13 @@
   stdlib with gevent.
 """
 
-import os
-import sys
-
-from gevent import monkey, wsgi
+from gevent import monkey
 monkey.patch_all()
 
-import logging
-if sys.platform=='darwin':
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('beaker').setLevel(logging.INFO)
-    logging.getLogger('restkit').setLevel(logging.INFO)
-    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
-else:
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger('beaker').setLevel(logging.WARNING)
-    logging.getLogger('restkit').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
+from gevent import fork, wsgi
+
+import os
+import sys
 
 import view
 import web
@@ -61,7 +51,7 @@ def app_factory():
 def main():
     num_processes = _cpu_count()
     for i in range(num_processes):
-        if os.fork() == 0:
+        if fork() == 0:
             try:
                 wsgi.WSGIServer(('', 6543 + i), app_factory()).serve_forever()
             except KeyboardInterrupt:

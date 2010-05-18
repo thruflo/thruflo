@@ -64,3 +64,36 @@ body {
   background-color: #333333; 
   border-top: 1px solid #000000;
 }
+
+/*
+  
+  repository UI
+  
+  
+*/
+#unselected-container, #selected-container {
+  width: 40%; 
+  min-height: 500px;
+  height:auto !important;
+  height:500px;
+  border: 1px dashed black;
+  padding: 0.5em;
+  margin: 1.5em;
+}
+#selected-container {
+  float: right;
+}
+.repositories-list li {
+  padding: 0.5em;
+  border: 1px dashed black;
+  padding: 0.5em;
+  margin: 1.5em;
+  text-align: center;
+  width: 200px;
+  cursor: pointer;
+}
+.repositories-list li label {
+  
+}
+
+
