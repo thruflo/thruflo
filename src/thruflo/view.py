@@ -28,11 +28,12 @@ from urllib import quote
 import formencode
 import webob
 
-from github import github
+from github2.client import Github
 
 from couchdbkit.exceptions import BulkSaveError
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 
+import config
 import model
 import schema
 import template
@@ -78,8 +79,6 @@ class RequestHandler(web.RequestHandler):
         
         value = self.request.params.get(name, None)
         if value is None:
-            if default is None:
-                raise self.error(404, "Missing argument %s" % name)
             return default
         if strip: value = value.strip()
         return value
@@ -462,8 +461,10 @@ class Repositories(SluggedBaseHandler):
             existing_repo_names = [item.name for item in existing_repos]
             
             username = self.current_user.github_username
-            agh = github.GitHub(username, self.current_user.github_token)
-            all_repos = agh.repos.forUser(username)
+            token = self.current_user.github_token
+            
+            github = Github(username=username, api_token=token)
+            all_repos = github.repos.list(username)
             
             for item in all_repos:
                 if item.name in existing_repo_names:
@@ -486,15 +487,22 @@ class Repositories(SluggedBaseHandler):
         except formencode.Invalid, err:
             return {'status': 500, 'errors': err.error_dict}
         else:
+            username = self.current_user.github_username
+            token = self.current_user.github_token
             doc = model.Repository.view(
-                'repository/name',
-                key=[self.account.id, params['name']],
+                'repository/owner_name',
+                key=[self.account.id, username, params['name']],
                 include_docs=True
             ).first()
             if not doc:
                 params['account_id'] = self.account.id
                 doc = model.Repository(**params)
-                doc.save()
+            github = Github(username=username, api_token=token)
+            branches = doc.update_branches(github)
+            for branch in branches:
+                doc.update_blobs(github, branch)
+            
+            doc.save()
             return {'status': 200, 'doc': doc.to_json()}
         
     
@@ -507,9 +515,10 @@ class Repositories(SluggedBaseHandler):
         except formencode.Invalid, err:
             return {'status': 500, 'errors': err.error_dict}
         else:
+            username = self.current_user.github_username
             docs = model.Repository.view(
-                'repository/name',
-                key=[self.account.id, params['name']],
+                'repository/owner_name',
+                key=[self.account.id, username, params['name']],
                 include_docs=True
             ).all()
             try:
@@ -539,15 +548,79 @@ class Repositories(SluggedBaseHandler):
     
     
 
-
 class Documents(SluggedBaseHandler):
     """Add and edit documents.
     """
     
     document_type = model.Document 
     
-    params = ['sources', 'stylesheet', 'content']
-    schema = schema.Document
+    params = ['display_name']
+    schema = schema.AddOrEditDocument
+    
+    @property
+    def repositories(self):
+        if not hasattr(self, '_repositories'):
+            self._repositories = model.Repository.view(
+                'all/type_slug_mod',
+                startkey=[self.account.id, 'Repository', None, None],
+                endkey=[self.account.id, 'Repository', [], []],
+                include_docs=True
+            ).all()
+        return self._repositories
+        
+    
+    
+    def insert(self):
+        """
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
+        try:
+            params = self.schema.to_python(params)
+        except formencode.Invalid, err:
+            return {'status': 500, 'errors': err.error_dict}
+        else:
+            username = self.current_user.github_username
+            token = self.current_user.github_token
+            doc = model.Repository.view(
+                'repository/owner_name',
+                key=[self.account.id, username, params['name']],
+                include_docs=True
+            ).first()
+            if not doc:
+                params['account_id'] = self.account.id
+                doc = model.Repository(**params)
+            github = Github(username=username, api_token=token)
+            branches = doc.update_branches(github)
+            for branch in branches:
+                doc.update_blobs(github, branch)
+            doc.save()
+            return {'status': 200, 'doc': doc.to_json()}
+        
+        """
+        
+        raise NotImplementedError
+        
+    
+    
+    @members_only
+    def post(self, *args):
+        """Exposes ``select`` and ``unselect``.
+        """
+        
+        args_ = self._compress_args(*args)
+        if args_[0] in ['insert', 'remove', 'reorder']:
+            method = getattr(self, args_[0])
+            data = method()
+            self.response.status = data.pop('status')
+            return data
+        else:
+            return super(Documents, self).post(*args)
+            
+        
+    
+    
+
 
 class Stylesheets(SluggedBaseHandler):
     """Add and edit stylesheets.
@@ -557,5 +630,122 @@ class Stylesheets(SluggedBaseHandler):
     
     params = ['source', 'content']
     schema = schema.Stylesheet
+    
+
+
+class PostCommitHook(web.RequestHandler):
+    """Posted to when a user pushes to github.
+    """
+    
+    def post(self):
+        """We get a payload like this::
+          
+              {
+                "after": "0df48053b961ad6f26956ea4bbcbe27c97b7a21b", 
+                "before": "ad9aeac5f80097660619349f5dd93fb07a2b2eb0", 
+                "commits": [
+                  {
+                    "added": [], 
+                    "author": {
+                      "email": "thruflo@googlemail.com", 
+                      "name": "James Arthur"
+                    }, 
+                    "id": "0df48053b961ad6f26956ea4bbcbe27c97b7a21b", 
+                    "message": "blah", 
+                    "modified": [
+                      "README.md"
+                    ], 
+                    "removed": [], 
+                    "timestamp": "2010-05-18T04:13:47-07:00", 
+                    "url": "http:\/\/github.com\/thruflo\/Dummy-Bus-Dev\/commit\/0df48053b961ad6f26956ea4bbcbe27c97b7a21b"
+                  }
+                ], 
+                "ref": "refs\/heads\/master", 
+                "repository": {
+                  "description": "Dummy user account to test github API", 
+                  "fork": false, 
+                  "forks": 0, 
+                  "has_downloads": false, 
+                  "has_issues": false, 
+                  "has_wiki": false, 
+                  "homepage": "http:\/\/dummy.thruflo.com", 
+                  "name": "Dummy-Bus-Dev", 
+                  "open_issues": 0, 
+                  "owner": {
+                    "email": "thruflo@googlemail.com", 
+                    "name": "thruflo"
+                  }, 
+                  "private": false, 
+                  "url": "http:\/\/github.com\/thruflo\/Dummy-Bus-Dev", 
+                  "watchers": 1
+                }
+              }
+          
+          
+        """
+        
+        data = utils.json_decode(self.request.body)
+        repo = data['repository']
+        
+        # first, are we actually interested in these changes?
+        bothered = False
+        try:
+            for commit in repo['commits']:
+                for k in ['added', 'modified', 'removed']:
+                    if commit.has_key(k):
+                        for item in commit[k]:
+                            if config.markdown_or_media.match(item):
+                                bothered = True
+                                raise StopIteration
+        except StopIteration:
+            pass
+        
+        if not bothered:
+            return ''
+        
+        # second is this actually a repo we have stored?
+        key = [repo['owner']['name'], repo['name']]
+        repos = model.Repository.view(
+            'repository/global_owner_name',
+            key=key,
+            include_docs=True
+        ).all()
+        if len(repos) > 1:
+            logging.warning('@@ race conditions on repo: %s/%s' % (key[0], key[1]))
+            for item in repos[1:]:
+                item.delete()
+        if len(repos) == 0:
+            return ''
+        
+        # thirdly, have we got a corresponding user?
+        user = model.db.query(model.User).filter_by(
+            github_username=repo['owner']['name']
+        ).first()
+        if not user:
+            return ''
+        
+        # ok, let's do this thang
+        doc = repos[0]
+        
+        username = self.current_user.github_username
+        token = self.current_user.github_token
+        github = Github(username=username, api_token=token)
+        
+        # update the branches if this is a new one
+        branch = repo["ref"].split('/')[-1]
+        if not branch in doc.branches:
+            doc.update_branches(github)
+        
+        # update the blobs stored for that branch
+        doc.update_blobs(github, branch)
+        
+        # brute forcing it rather than interpreting the add / rm / modify info
+        logging.warning('@@ brute force update_blobs is not v. efficient')
+        
+        # @@ and at this point we could do something with redis to
+        # trigger live updates :)
+        logging.info('@@ not doing any redis blocking pop foo *yet*')
+        
+    
     
 

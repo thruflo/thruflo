@@ -4,7 +4,10 @@
 """Application settings.
 """
 
+import re
+
 from os.path import dirname, join as join_path
+
 import secret
 
 settings = {
@@ -14,3 +17,6 @@ settings = {
     'xsrf_cookies': True,
     'domain': 'thruflo.com'
 }
+
+_exts_pattern = r'.*(\.md$)|(.png$)|(.jpg$)|(.jpeg$)|(.mp4$)'
+markdown_or_media = re.compile(_exts_pattern, re.U)

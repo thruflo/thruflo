@@ -8,6 +8,7 @@
   .. _Couchdbkit: http://couchdbkit.org/
 """
 
+import copy
 import datetime
 import logging
 import os
@@ -184,7 +185,8 @@ from couchdbkit import Document as CouchDocument
 from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
-from utils import generate_hash
+import config
+import utils
 
 class Couch(object):
     """
@@ -315,8 +317,93 @@ class Repository(BaseDocument):
     owner = StringProperty(required=True)
     url = StringProperty(required=True)
     description = StringProperty()
-    branches = StringListProperty()
-    blobs = DictProperty()
+    
+    branches = DictProperty()
+    
+    blob_tree = DictProperty()
+    blobs_by_sha = DictProperty()
+    
+    def update_branches(self, github):
+        """repos/show/:user/:repo/branches
+        """
+        
+        project = '%s/%s' % (self.owner, self.name)
+        self.branches = github.repos.branches(project)
+        return self.branches
+        
+    
+    def update_blobs(self, github, branch):
+        """tree/show/:user/:repo/:branch
+          
+          We parse::
+          
+              {
+                  "foo.md": "#...",
+                  "screenshots/photo.png": "#...",
+                  "screenshots/foo/error.png": "#..."
+              }
+          
+          Into::
+            
+              {
+                  'f': {'foo.md': '#...'},
+                  'fs: {
+                      'screenshots': {
+                          'f': {'photo.png', '#...'},
+                          'fs: {
+                              'foo': {
+                                  'f': {'error.png': '#...'}
+                              }
+                          }
+                      }
+                  }
+              }
+          
+          And also store::
+          
+              {
+                  "#...": "foo.md",
+                  ...
+              }
+          
+          
+        """
+        
+        tree_sha = self.branches[branch]
+        project = '%s/%s' % (self.owner, self.name)
+        
+        tree = github.request.get("blob/all", project, tree_sha).get('blobs')
+        
+        logging.debug(tree)
+        
+        reverse_tree = {}
+        for k, v in tree.items():
+            if not config.markdown_or_media.match(k):
+                tree.pop(k)
+                reverse_tree[k] = v
+            
+        logging.debug(tree)
+        
+        d = {'f': {}, 'fs': {}}
+        blobs = copy.deepcopy(d)
+        for item in tree:
+            parts = item.split('/')
+            # make sure the path exists in the dict structure
+            context = blobs
+            for k in parts[:-1]:
+                if not context['fs'].has_key(k):
+                    context['fs'][k] = copy.deepcopy(d)
+                context = context['fs'][k]
+            # insert / overwrite file
+            context['f'][parts[-1]] = tree[item]
+        
+        logging.debug(blobs)
+        
+        self.blobs_by_sha = reverse_tree
+        self.blob_tree[branch] = blobs
+        return self.blob_tree[branch]
+        
+    
     
 
 
@@ -324,6 +411,7 @@ class Document(SluggedDocument):
     """
     """
     
+    display_name = StringProperty()
     sources = StringListProperty()
     stylesheet = StringProperty()
     content = StringProperty()

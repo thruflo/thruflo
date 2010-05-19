@@ -9,6 +9,7 @@ import re
 import formencode
 from formencode import validators
 
+import config
 import model
 from utils import get_timezones, generate_hash
 
@@ -282,19 +283,28 @@ class Repository(formencode.Schema):
     
 
 
-class Document(formencode.Schema):
+class AddOrEditDocument(formencode.Schema):
+    """
+    """
+    
+    display_name = validators.UnicodeString(not_empty=True)
+    
+
+class UpdateDocument(formencode.Schema):
     """
     """
     
     sources = validators.Set()
     stylesheet = validators.UnicodeString()
     content = validators.UnicodeString()
+    
 
 
 class Stylesheet(formencode.Schema):
     """
     """
     
+    slug = Slug(not_empty=True)
     source = validators.UnicodeString()
     content = validators.UnicodeString()
     

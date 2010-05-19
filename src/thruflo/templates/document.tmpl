@@ -1,94 +1,66 @@
 <%inherit file="context.tmpl"/>
 
+<%def name="render_tree(data, master=False)">
+  % for folder_name, items in data.get('fs').items():
+    <li class="${master and 'open' or 'closed'}">
+      <span class="folder">${folder_name}</span>
+      % if items.has_key('fs'):
+        <ul>
+          ${self.render_tree(items)}
+        </ul>
+      % endif
+    </li>
+  % endfor
+  % for file_name, github_hash in data.get('f').items():
+    <li id="${github_hash}" class="file ui-draggable">
+      <span class="file">${file_name}</span>
+    </li>
+  % endfor
+</%def>
+
 <%def name="manage()">
   <div id="zoom-bar">
     zoom
   </div>
   <div id="inspector">
-    <div class="tabs">
-      <ul>
-        <li>
-          <a href="#tabs-document">
-            Document</a>
-        </li>
-        <li>
-          <a href="#tabs-sections">
-            Section</a>
-        </li>    
-        <li>
-          <a href="#tabs-units">
-            Unit</a>
-        </li>
-      </ul>
-      <div id="tabs-document">
-        <h4>
-          Add section:
-        </h4>
-        <ul>
-          % for item in handler.section_types:
-            <li id="${item}" class="section-type ui-draggable">
-              <a href="#${item}" title="${item.replace('_', ' ').title()}">
-                ${item.replace('_', ' ').title()}</a>
-            </li>
+    <div id="repository-browser" class="accordion filetree">
+      % for repository in handler.repositories:
+        <h3>
+          <a href="#">${repository.name}</a>
+        </h3>
+        <div class="accordion">
+          <%
+            branches = []
+            for item in repository.branches:
+                branches.append(item)
+            branches = sorted(branches)
+            if 'master' in branches:
+                branches.remove('master')
+                branches.insert(0, 'master')
+
+          %>
+          % for branch_name in branches:
+            <h3>
+              <a href="#">${branch_name}</a>
+            </h3>
+            <div>
+              <ul>
+                <%
+                  blob_tree = repository.blob_tree.get(branch_name, None)
+                %>
+                % if blob_tree:
+                  ${self.render_tree(blob_tree, master=bool(branch_name=='master'))}
+                % endif
+              </ul>
+            </div>
           % endfor
-        </ul>
-      </div>
-      <div id="tabs-sections">
-        % for document_type in handler.document_types_mapping:
-          % if document_type == handler.context.document_type:
-            % for item in handler.document_types_mapping[document_type]:
-              <%
-                section_type = item.keys()[0]
-                content_types = item.values()
-              %>
-              <div class="section-type ${section_type}">
-                <h3 id="${section_type.replace('_', '-')}">
-                  <a href="#${section_type}">
-                    ${section_type.replace('_', ' ').title()}</a>
-                </h3>
-                <div>
-                  % for content_type in content_types:
-                    <h4>
-                      ${content_type.replace('_', ' ').title()}
-                    </h4>
-                    <ul>
-                      <%
-                        items = getattr(handler, '%ss' % content_type)
-                      %>
-                      % for item in items:
-                        <li id="${item.doc_type.lower()}--${item.id}"
-                            class="content-type ${item.doc_type.lower()} ui-draggable">
-                          <a href="/${content_type}/${item.slug}" title="${item.display_name}">
-                            ${item.display_name}</a>
-                        </li>
-                      % endfor
-                    </ul>
-                  % endfor
-                </div>
-              </div>
-            % endfor
-          % endif
-        % endfor
-      </div>
-      <div id="tabs-units"></div>
+        </div>
+      % endfor
     </div>
   </div>
   <div id="sections-container" class="ui-droppable">
-    % for section in handler.context.sections:
-      <div id="${section.id}" 
-          class="section ${section.section_type}" 
-          section_type="${section.section_type}">
-        <div class="section-title">
-          ${section.section_type}
-        </div>
-        <ul class="units">
-          % for unit in section.units:
-            <li>
-              ${handler.render_unit(unit)}
-            </li>
-          % endfor
-        </ul>
-      </div>
+    % for source in handler.context.sources:
+      source
     % endfor
   </div>
 </%def>

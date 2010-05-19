@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Provide a WSGI app factory that monkey patches
-  stdlib with gevent.
+"""Provides a WSGI app factory as ``app_factory()`` and
+  ``main()`` which preforks one per detected cpu core.
 """
 
+# patch sockets, threading etc. so they don't block
 from gevent import monkey
 monkey.patch_all()
 
@@ -40,6 +41,9 @@ mapping = [(
     ), (
         r'^/stylesheets(\/([\w]*))?(\/([\w]*))?\/?$',
         view.Stylesheets
+    ), (
+        r'^/hooks/post_commit\/?$',
+        view.PostCommitHook
     )
 ]
 

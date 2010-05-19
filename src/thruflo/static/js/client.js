@@ -62,5 +62,49 @@ jQuery(document).ready(
         }
       }
     );
+    $("#repository-browser").treeview({
+        'animated': 'fast',
+        'collapsed': true,
+        'unique': true,
+        'persist': 'cookie',
+        'toggle': function () {
+          log(this);
+        }
+      }
+    );
+    $('#sections-container').droppable({
+        'activeClass': 'ui-state-default',
+        'hoverClass': 'ui-state-hover',
+        'accept': 'li.file',
+        'drop': function (event, ui) {
+          var container = $(this);
+          $.ajax({
+              'url': current_path + '/insert',
+              'type': 'POST',
+              'dataType': 'json',
+              'data': {
+                'blob_sha': ui.draggable.attr('id')
+              },
+              'success': function (data) {
+                
+                // @@ ...
+                
+                container.append(data);
+                
+                
+                
+              }
+            }
+          );
+          
+        }
+      }
+    ).sortable({
+        'items': 'div.section',
+        'sort': function() {
+          $(this).removeClass('ui-state-default');
+        }
+      }
+    );
   }
 );

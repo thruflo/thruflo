@@ -26,7 +26,7 @@ setup(
         'couchdbkit>=0.4.6',
         'SQLAlchemy>=0.6.0',
         'greenlet>=0.2',
-        'gevent==0.13.0dev',
+        'gevent', # '>=0.12.2',
         #'redis>=0.6.1',
         'FormEncode>=1.2.2',
         'pyDNS>=2.3.4',
@@ -38,7 +38,7 @@ setup(
             "foobar = setuptools_git:gitlsfiles"
         ],
         'console_scripts': [
-            'thruflo = thruflo.main:main'
+            'thruflo = thruflo.app:main'
         ]
     }
 )

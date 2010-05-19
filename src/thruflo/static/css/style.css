@@ -96,4 +96,28 @@ body {
   
 }
 
+/*
+  
+  document UI
+  
+  
+*/
+#zoom-bar {
+  float: right;
+  width: 10%;
+}
+#inspector {
+  float: left;
+  width: 30%;
+  font-size: 80%;
+}
+#sections-container {
+  float: left;
+  width: 50%;
+  margin-left: 5%;
+  border: 1px solid green;
+  min-height:300px;
+  height:auto !important;
+  height:300px;
+}
 
