@@ -120,4 +120,8 @@ body {
   height:auto !important;
   height:300px;
 }
-
+.blob {
+  margin: 6%;
+  padding: 4%;
+  border: 1px dashed black;
+}

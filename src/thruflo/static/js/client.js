@@ -16,6 +16,9 @@ jQuery(document).ready(
     if (current_path.endsWith('/')) {
       current_path = current_path.slice(0, -1);
     };
+    var templates = {
+      'blob': $.template('<div id="${id}" class="blob">${data}</div>')
+    };
     var draggable_options = {
       'appendTo': 'body', 
       'helper': 'clone',
@@ -78,19 +81,21 @@ jQuery(document).ready(
         'accept': 'li.file',
         'drop': function (event, ui) {
           var container = $(this);
+          var parts = ui.draggable.attr('id').split('/');
+          var params = {
+            'repo': parts.slice(0, 2).join('/'),
+            'branch': parts[2],
+            'path': parts.slice(3).join('/')
+          }
           $.ajax({
               'url': current_path + '/insert',
               'type': 'POST',
               'dataType': 'json',
-              'data': {
-                'blob_sha': ui.draggable.attr('id')
-              },
+              'data': params,
               'success': function (data) {
+                container.append(templates['blob'], data);
                 
-                // @@ ...
-                
-                container.append(data);
-                
+                // @@ apply beahviour
                 
                 
               }
@@ -100,7 +105,7 @@ jQuery(document).ready(
         }
       }
     ).sortable({
-        'items': 'div.section',
+        'items': 'div.blob',
         'sort': function() {
           $(this).removeClass('ui-state-default');
         }

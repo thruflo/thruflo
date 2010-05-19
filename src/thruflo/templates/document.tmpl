@@ -1,18 +1,18 @@
 <%inherit file="context.tmpl"/>
 
-<%def name="render_tree(data, master=False)">
+<%def name="render_tree(repo, branch, data)">
   % for folder_name, items in data.get('fs').items():
-    <li class="${master and 'open' or 'closed'}">
+    <li class="closed">
       <span class="folder">${folder_name}</span>
       % if items.has_key('fs'):
         <ul>
-          ${self.render_tree(items)}
+          ${self.render_tree(repo, branch, items)}
         </ul>
       % endif
     </li>
   % endfor
-  % for file_name, github_hash in data.get('f').items():
-    <li id="${github_hash}" class="file ui-draggable">
+  % for file_name, path in data.get('f').items():
+    <li id="${repo}/${branch}/${path}" class="file ui-draggable">
       <span class="file">${file_name}</span>
     </li>
   % endfor
@@ -25,6 +25,9 @@
   <div id="inspector">
     <div id="repository-browser" class="accordion filetree">
       % for repository in handler.repositories:
+        <%
+          repo = '/'.join([repository.owner, repository.name])
+        %>
         <h3>
           <a href="#">${repository.name}</a>
         </h3>
@@ -49,7 +52,7 @@
                   blob_tree = repository.blob_tree.get(branch_name, None)
                 %>
                 % if blob_tree:
-                  ${self.render_tree(blob_tree, master=bool(branch_name=='master'))}
+                  ${self.render_tree(repo, branch_name, blob_tree)}
                 % endif
               </ul>
             </div>
@@ -59,8 +62,10 @@
     </div>
   </div>
   <div id="sections-container" class="ui-droppable">
-    % for source in handler.context.sources:
-      source
+    % for blob in handler.context.get_blobs():
+      <div id="${blob.id}" class="blob">
+        ${blob.get_data(handler.github)}
+      </div>
     % endfor
   </div>
 </%def>

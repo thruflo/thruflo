@@ -233,7 +233,7 @@ class Register(RequestHandler):
         try:
             params = schema.Registration.to_python(params)
         except formencode.Invalid, err:
-            return self.render_template('register.tmpl', errors=err.error_dict)
+            return self.render_template('register.tmpl', errors=err.unpack_errors())
         else:
             slug = params['account']
             account = model.Account(slug)
@@ -323,6 +323,16 @@ class SluggedBaseHandler(RequestHandler):
         
     
     
+    @property
+    def github(self):
+        if not hasattr(self, '_github'):
+            username = self.current_user.github_username
+            token = self.current_user.github_token
+            self._github = Github(username=username, api_token=token)
+        return self._github
+        
+    
+    
     def add(self):
         """``/{document_type}s/add``
         """
@@ -333,7 +343,7 @@ class SluggedBaseHandler(RequestHandler):
         try:
             params = self.schema.to_python(params)
         except formencode.Invalid, err:
-            return err.error_dict
+            return err.unpack_errors()
         else:
             params['account_id'] = self.account.id
             params['slug'] = self.document_type.get_unique_slug(self.account.id)
@@ -352,7 +362,7 @@ class SluggedBaseHandler(RequestHandler):
         try:
             params = self.schema.to_python(params)
         except formencode.Invalid, err:
-            return {'status': 500, 'errors': err.error_dict}
+            return {'status': 400, 'errors': err.unpack_errors()}
         else:
             self.context.update(**params)
             self.context.save()
@@ -404,7 +414,7 @@ class SluggedBaseHandler(RequestHandler):
             else: # we got an error dict
                 return self.render_template(
                     '%ss.tmpl' % self.context_type, 
-                    errors=error_dict
+                    errors=response
                 )
         else:
             slug = args[0]
@@ -461,10 +471,7 @@ class Repositories(SluggedBaseHandler):
             existing_repo_names = [item.name for item in existing_repos]
             
             username = self.current_user.github_username
-            token = self.current_user.github_token
-            
-            github = Github(username=username, api_token=token)
-            all_repos = github.repos.list(username)
+            all_repos = self.github.repos.list(username)
             
             for item in all_repos:
                 if item.name in existing_repo_names:
@@ -485,10 +492,9 @@ class Repositories(SluggedBaseHandler):
         try:
             params = self.schema.to_python(params)
         except formencode.Invalid, err:
-            return {'status': 500, 'errors': err.error_dict}
+            return {'status': 400, 'errors': err.unpack_errors()}
         else:
             username = self.current_user.github_username
-            token = self.current_user.github_token
             doc = model.Repository.view(
                 'repository/owner_name',
                 key=[self.account.id, username, params['name']],
@@ -497,10 +503,9 @@ class Repositories(SluggedBaseHandler):
             if not doc:
                 params['account_id'] = self.account.id
                 doc = model.Repository(**params)
-            github = Github(username=username, api_token=token)
-            branches = doc.update_branches(github)
+            branches = doc.update_branches(self.github)
             for branch in branches:
-                doc.update_blobs(github, branch)
+                doc.update_blobs(self.github, branch)
             
             doc.save()
             return {'status': 200, 'doc': doc.to_json()}
@@ -513,7 +518,7 @@ class Repositories(SluggedBaseHandler):
         try:
             params = self.schema.to_python(params)
         except formencode.Invalid, err:
-            return {'status': 500, 'errors': err.error_dict}
+            return {'status': 400, 'errors': err.unpack_errors()}
         else:
             username = self.current_user.github_username
             docs = model.Repository.view(
@@ -524,7 +529,7 @@ class Repositories(SluggedBaseHandler):
             try:
                 model.Repository.get_db().bulk_delete([doc.to_json() for doc in docs])
             except BulkSaveError, err:
-                return {'status': 500, 'errors': err.errors}
+                return {'status': 400, 'errors': err.errors}
             else:
                 return {'status': 200}
             
@@ -571,52 +576,57 @@ class Documents(SluggedBaseHandler):
     
     
     def insert(self):
+        """Get or create a ``Blob``.  Save its position in
+          ``self.context.blobs`` and return ``blob.get_data()``.
         """
-        params = {}
-        for item in self.params:
-            params[item] = self.get_argument(item, None)
+        
+        params = {
+            'repo': self.get_argument('repo', None),
+            'branch': self.get_argument('branch', None),
+            'path': self.get_argument('path', None),
+            'index': self.get_argument('index', -1)
+        }
         try:
-            params = self.schema.to_python(params)
+            params = schema.Insert.to_python(params)
         except formencode.Invalid, err:
-            return {'status': 500, 'errors': err.error_dict}
+            return {'status': 400, 'errors': err.unpack_errors()}
         else:
-            username = self.current_user.github_username
-            token = self.current_user.github_token
-            doc = model.Repository.view(
-                'repository/owner_name',
-                key=[self.account.id, username, params['name']],
-                include_docs=True
+            # we get or create against key but first we have to
+            # validate to make sure that key is OK
+            owner, name = params['repo'].split('/')
+            exists = model.Repository.view(
+                'repository/repo_branch_path',
+                key=[owner, name, params['branch'], params['path']]
             ).first()
-            if not doc:
-                params['account_id'] = self.account.id
-                doc = model.Repository(**params)
-            github = Github(username=username, api_token=token)
-            branches = doc.update_branches(github)
-            for branch in branches:
-                doc.update_blobs(github, branch)
-            doc.save()
-            return {'status': 200, 'doc': doc.to_json()}
-        
-        """
-        
-        raise NotImplementedError
-        
-    
-    
-    @members_only
-    def post(self, *args):
-        """Exposes ``select`` and ``unselect``.
-        """
-        
-        args_ = self._compress_args(*args)
-        if args_[0] in ['insert', 'remove', 'reorder']:
-            method = getattr(self, args_[0])
-            data = method()
-            self.response.status = data.pop('status')
-            return data
-        else:
-            return super(Documents, self).post(*args)
+            if not exists:
+                return {
+                    'status': 400, 
+                    'errors': {
+                        'path': 'this path on this branch of this repo does not exist'
+                    }
+                }
+            else: 
+                blob = model.Blob.get_or_create_from(
+                    params['repo'],
+                    params['branch'],
+                    params['path']
+                )
+                try:
+                    blobs = self.context.blobs
+                    blobs.insert(params['index'], blob.id)
+                    self.context.blobs = blobs
+                except IndexError:
+                    return {'status': 400, 'errors': {'index': 'Out of range'}}
+                else:
+                    self.context.save()
+                    return {
+                        'status': 200, 
+                        'id': blob.id, 
+                        'data': blob.get_data(self.github)
+                    }
+                
             
+        
         
     
     

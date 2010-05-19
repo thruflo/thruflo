@@ -19,6 +19,9 @@ valid_slug = re.compile(r'^%s$' % slug_pattern, re.U)
 document_id_pattern = r'[a-z0-9]{32}'
 valid_document_id = re.compile(r'^%s$' % document_id_pattern, re.U)
 
+github_sha_pattern = r'[a-z0-9]{40}'
+valid_github_sha = re.compile(r'^%s$' % github_sha_pattern, re.U)
+
 class Slug(validators.UnicodeString):
     """Lowercase, no spaces, no funny chars, between 3 and 18 long.
     """
@@ -62,6 +65,30 @@ class CouchDocumentId(validators.UnicodeString):
     def validate_python(self, value, state):
         super(CouchDocumentId, self).validate_python(value, state)
         if not valid_document_id.match(value):
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        
+    
+    
+
+class GithubSha(validators.UnicodeString):
+    """``7deda716d140efd40f85f44f1fcef86c392ee5d7``
+    """
+    
+    messages = {'invalid': 'Invalid hash'}
+    
+    def _to_python(self, value, state):
+        value = super(GithubSha, self)._to_python(value, state)
+        return value.strip().lower()
+        
+    
+    
+    def validate_python(self, value, state):
+        super(GithubSha, self).validate_python(value, state)
+        if not valid_github_sha.match(value):
             raise validators.Invalid(
                 self.message("invalid", state),
                 value,
@@ -297,6 +324,18 @@ class UpdateDocument(formencode.Schema):
     sources = validators.Set()
     stylesheet = validators.UnicodeString()
     content = validators.UnicodeString()
+    
+
+
+class Insert(formencode.Schema):
+    
+    # what to insert
+    repo = validators.UnicodeString(not_empty=True)
+    branch = validators.UnicodeString(not_empty=True)
+    path = validators.UnicodeString(not_empty=True)
+    
+    # where to insert it (ooh err missus)
+    index = validators.Int(not_empty=True)
     
 
 

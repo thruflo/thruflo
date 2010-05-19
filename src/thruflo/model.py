@@ -185,6 +185,8 @@ from couchdbkit import Document as CouchDocument
 from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
+from github2.request import GithubError
+
 import config
 import utils
 
@@ -210,14 +212,42 @@ class Couch(object):
 couch = Couch()
 
 class BaseDocument(CouchDocument):
-    """Extends the couchdbkit base class.
+    """Fixes.
     """
     
-    ver = IntegerProperty(default=1)
-    mod = DateTimeProperty(auto_now=True)
+    @classmethod
+    def get_or_create(cls, docid=None, db=None, dynamic_properties=True, **params):
+        """There's a bug passing params to the original version 
+          of this method.  The only change made here is to not pass
+          ``**params`` to ``cls._db.get()``.
+        """
+        
+        if db is not None:
+            cls._db = db
+        
+        cls._allow_dynamic_properties = dynamic_properties
+        
+        if cls._db is None:
+            raise TypeError("doc database required to save document")
+            
+        if docid is None:
+            obj = cls()
+            obj.update(params)
+            obj.save()
+            return obj
+            
+        rev = params.pop('rev', None)
+        
+        try:
+            return cls._db.get(docid, rev=rev, wrapper=cls.wrap)
+        except ResourceNotFound:
+            obj = cls()
+            obj._id = docid
+            obj.update(params)
+            obj.save()
+            return obj
+        
     
-    account_id = IntegerProperty(required=True)
-    archived = BooleanProperty(default=False)
     
     def __getattr__(self, key):
         """We like using ``doc.id``.
@@ -240,9 +270,90 @@ class BaseDocument(CouchDocument):
     
     
 
+class AccountDocument(BaseDocument):
+    """Extends.
+    """
+    
+    ver = IntegerProperty(default=1)
+    mod = DateTimeProperty(auto_now=True)
+    
+    account_id = IntegerProperty(required=True)
+    archived = BooleanProperty(default=False)
+    
+
 BaseDocument.set_db(couch.db)
 
-class SluggedDocument(BaseDocument):
+class Blob(BaseDocument):
+    """Uses a hash of repo/:branch/:path as id.
+    """
+    
+    repo = StringProperty(required=True)
+    branch = StringProperty(required=True)
+    path = StringProperty(required=True)
+    
+    latest_commit = StringProperty()
+    data = StringProperty()
+    
+    @classmethod
+    def get_or_create_from(cls, repo, branch, path):
+        s = '/'.join([repo, branch, path])
+        docid = 'blob%s' % utils.generate_hash(s=s)
+        return cls.get_or_create(
+            docid=docid, 
+            repo=repo,
+            branch=branch, 
+            path=path
+        )
+    
+    
+    def get_data(self, github):
+        """This is where the magic happens.
+          
+          1.  ``Document`` lists ``:repo/:branch/:path``s
+          2.  ``Blob`` has ``repo/:branch/:path as id``, ``latest commit`` and ``data``
+          3.  in ``handle_commit`` (either via update hook, or against a commit list) we find all Blobs where ``latest commit`` matches a ``commit parent id``, set the ``latest commit`` to be the latest commit and clear the ``data``
+          4.  When a document renders it goes:
+              => bulk_get blobs
+              => for blob in blobs: if not data: get data [if not latest commit, get latest commit]
+          5.  When a blob is dropped on document:
+              => get or create blob
+              => if not data: get data [if not latest commit, get latest commit]
+          
+          
+        """
+        
+        if not self.data:
+            logging.debug('no data')
+            if not self.latest_commit:
+                logging.debug('no commit')
+                try:
+                    commits = github.commits.list(
+                        self.repo,
+                        self.branch,
+                        file=self.path
+                    )
+                except GithubError, err:
+                    logging.error(err)
+                    raise NotImplementedError('@@ handle this!')
+                self.latest_commit = commits[0].id
+            try:
+                blob = github.get_blob_info(
+                    self.repo, 
+                    self.latest_commit, 
+                    self.path
+                )
+            except GithubError, err:
+                logging.error(err)
+                raise NotImplementedError('@@ handle this!')
+            self.data = blob['data']
+            if not self.data:
+                self.data = ' ' # empty but evals to True
+            self.save()
+        return self.data
+    
+    
+
+class SluggedDocument(AccountDocument):
     """Couchdb ``doc._id``s are long ``uuid4``s which is great
       for avoiding conflicts but too long to feature nicely in
       a user friendly URL.
@@ -270,6 +381,7 @@ class SluggedDocument(BaseDocument):
         return str(uuid.uuid4().int)[:8]
         
     
+    
     @classmethod
     def get_from_slug(cls, account_id, slug):
         docs = cls.view(
@@ -288,6 +400,7 @@ class SluggedDocument(BaseDocument):
                 doc.save()
         return docs[0]
         
+    
     
     @classmethod
     def get_unique_slug(cls, account_id, max_tries=5):
@@ -308,8 +421,7 @@ class SluggedDocument(BaseDocument):
     slug = StringProperty(required=True)
     
 
-
-class Repository(BaseDocument):
+class Repository(AccountDocument):
     """
     """
     
@@ -319,9 +431,9 @@ class Repository(BaseDocument):
     description = StringProperty()
     
     branches = DictProperty()
-    
     blob_tree = DictProperty()
-    blobs_by_sha = DictProperty()
+    
+    branch_paths = DictProperty()
     
     def update_branches(self, github):
         """repos/show/:user/:repo/branches
@@ -346,24 +458,17 @@ class Repository(BaseDocument):
           Into::
             
               {
-                  'f': {'foo.md': '#...'},
+                  'f': {'foo.md': 'foo.md'},
                   'fs: {
                       'screenshots': {
-                          'f': {'photo.png', '#...'},
+                          'f': {'photo.png', 'screenshots/photo.png'},
                           'fs: {
                               'foo': {
-                                  'f': {'error.png': '#...'}
+                                  'f': {'error.png': 'screenshots/foo/error.png'}
                               }
                           }
                       }
                   }
-              }
-          
-          And also store::
-          
-              {
-                  "#...": "foo.md",
-                  ...
               }
           
           
@@ -371,18 +476,16 @@ class Repository(BaseDocument):
         
         tree_sha = self.branches[branch]
         project = '%s/%s' % (self.owner, self.name)
-        
         tree = github.request.get("blob/all", project, tree_sha).get('blobs')
         
-        logging.debug(tree)
-        
-        reverse_tree = {}
         for k, v in tree.items():
             if not config.markdown_or_media.match(k):
                 tree.pop(k)
-                reverse_tree[k] = v
-            
-        logging.debug(tree)
+        
+        # first save the paths -- used to validate blob inserts against
+        # could be removed if we bothered to write a couch view to unpack
+        # self.blob_tree
+        self.branch_paths[branch] = tree.keys()
         
         d = {'f': {}, 'fs': {}}
         blobs = copy.deepcopy(d)
@@ -395,28 +498,33 @@ class Repository(BaseDocument):
                     context['fs'][k] = copy.deepcopy(d)
                 context = context['fs'][k]
             # insert / overwrite file
-            context['f'][parts[-1]] = tree[item]
+            context['f'][parts[-1]] = item
         
-        logging.debug(blobs)
-        
-        self.blobs_by_sha = reverse_tree
         self.blob_tree[branch] = blobs
         return self.blob_tree[branch]
         
     
     
 
-
 class Document(SluggedDocument):
     """
     """
     
     display_name = StringProperty()
-    sources = StringListProperty()
     stylesheet = StringProperty()
-    content = StringProperty()
     
-
+    blobs = StringListProperty()
+    
+    def get_blobs(self):
+        logging.debug(self.blobs)
+        return Blob.view(
+            '_all_docs', 
+            keys=self.blobs,
+            include_docs=True
+        ).all()
+        
+    
+    
 
 class Stylesheet(SluggedDocument):
     """

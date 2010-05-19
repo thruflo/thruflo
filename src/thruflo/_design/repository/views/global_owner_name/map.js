@@ -1,8 +1,5 @@
 function (doc) {
-  emit([
-      doc.owner,
-      doc.name
-    ],
-    null
-  );
+  if (doc.doc_type == 'Repository') {
+    emit([doc.owner, doc.name], null);
+  }
 }
