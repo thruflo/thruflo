@@ -127,7 +127,7 @@ class UnicodeEmail(validators.Email):
             else:
                 value = str(value)
         try:
-            return unicode(value, self.inputEncoding)
+            return unicode(value, 'utf-8')
         except UnicodeDecodeError:
             raise validators.Invalid(
                 self.message('badEncoding', state), value, state

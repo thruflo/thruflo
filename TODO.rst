@@ -1,32 +1,42 @@
-Todo
-----
-
-+ enable the version control repository
-  + register user's details
-  + register one (or more) github repos
-  + method to read the whole document tree
-  + method to invalidate / refresh when git updates
-
-* provide a document assembly UI
-  + list the units
-  => simple drag and drop and reorder
-  => save the unit paths in order in a list attr on document
-  => n.b.: atm get_data displays raw image data...
+First Pass
+----------
 
 * handle commits
   => test the post handler fo real
-  => in ``handle_commit`` (either via update hook, or against a commit list) we find all Blobs where ``latest commit`` matches a ``commit parent id``, set the ``latest commit`` to be the latest commit and clear the ``data``
-  => when we handle a commit via the post hook, we store it against the repo
-  => then, when we do the check, trigged by ..., we check these against the full commits list, fetching any we missed since we last sanity checked
-  => github upate hook & merging: ***check the docs again*** - i.e.: what do you get in data after a merge?  how do you handle branches dissapearing?
+  => live updates using redis / long polling to push to the page
+
+* document assembly UI
+  => handle images & media
+  => n.b.: atm get_data displays raw image data...
+
+* generate
+  => markdown validation
+  => html
+  => pdf
 
 * provide templates
   => no doubt wrap the markdown with unobtrusive classes
-  => some sort of css UI (or just type for now?)
+  => paste in CSS
 
-* generate
-  => html
-  => pdf
+
+Second Pass
+-----------
+
+* users / accounts / repos
+  * github oauth
+  * cache session user in redis
+  * handle repos dissapearing
+
+* handle commits  
+  => trigger the repo sanity check properly
+  => handle branches dissapearing
+
+* document assembly UI
+  => handle blobs being removed
+  => manage / reorder / drop in right place
+
+* templates
+  => some sort of css UI
 
 
 Issues

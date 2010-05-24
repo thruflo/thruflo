@@ -571,6 +571,20 @@ class Documents(SluggedBaseHandler):
                 endkey=[self.account.id, 'Repository', [], []],
                 include_docs=True
             ).all()
+            logging.info(
+                '@@ repo commit sanity checking triggered in \
+                ``view.Document.repositories``'
+            )
+            logging.warning(
+                '@@ need to cache repository commit checking properly'
+            )
+            for item in self._repositories:
+                k = '-'.join([item.owner, item.name])
+                if not self.get_secure_cookie(k):
+                    for branch in item.branches:
+                        item.update_commits(self.current_user, branch)
+                    item.save()
+                    self.set_secure_cookie(k, 'cached', expires_days=None)
         return self._repositories
         
     
@@ -647,7 +661,7 @@ class PostCommitHook(web.RequestHandler):
     """Posted to when a user pushes to github.
     """
     
-    def post(self):
+    def post(self, token):
         """We get a payload like this::
           
               {
@@ -694,26 +708,26 @@ class PostCommitHook(web.RequestHandler):
           
         """
         
+        try: # make sure token is a 32 char hash
+            token = schema.CouchDocumentId.to_python(token)
+        except formencode.Invalid, err:
+            logging.warning('Invalid token: %s' % token)
+            return ''
+        
+        # get the payload
         data = utils.json_decode(self.request.body)
         repo = data['repository']
         
-        # first, are we actually interested in these changes?
-        bothered = False
-        try:
-            for commit in repo['commits']:
-                for k in ['added', 'modified', 'removed']:
-                    if commit.has_key(k):
-                        for item in commit[k]:
-                            if config.markdown_or_media.match(item):
-                                bothered = True
-                                raise StopIteration
-        except StopIteration:
-            pass
-        
-        if not bothered:
+        # have we got a corresponding user?
+        user = model.db.query(model.User).filter_by(
+            github_username=repo['owner']['name']
+        ).first()
+        if not user:
+            return ''
+        elif user.github_token != token:
             return ''
         
-        # second is this actually a repo we have stored?
+        # is this actually a repo we have stored?
         key = [repo['owner']['name'], repo['name']]
         repos = model.Repository.view(
             'repository/global_owner_name',
@@ -722,39 +736,23 @@ class PostCommitHook(web.RequestHandler):
         ).all()
         if len(repos) > 1:
             logging.warning('@@ race conditions on repo: %s/%s' % (key[0], key[1]))
-            for item in repos[1:]:
+            for item in repos[:-1]:
                 item.delete()
-        if len(repos) == 0:
+        elif len(repos) == 0:
             return ''
         
-        # thirdly, have we got a corresponding user?
-        user = model.db.query(model.User).filter_by(
-            github_username=repo['owner']['name']
-        ).first()
-        if not user:
-            return ''
-        
-        # ok, let's do this thang
-        doc = repos[0]
-        
-        username = self.current_user.github_username
-        token = self.current_user.github_token
-        github = Github(username=username, api_token=token)
-        
-        # update the branches if this is a new one
+        doc = repos[-1]
         branch = repo["ref"].split('/')[-1]
-        if not branch in doc.branches:
-            doc.update_branches(github)
         
-        # update the blobs stored for that branch
-        doc.update_blobs(github, branch)
-        
-        # brute forcing it rather than interpreting the add / rm / modify info
-        logging.warning('@@ brute force update_blobs is not v. efficient')
-        
-        # @@ and at this point we could do something with redis to
-        # trigger live updates :)
-        logging.info('@@ not doing any redis blocking pop foo *yet*')
+        # handle the commit
+        doc.handle_commits(
+            user, 
+            branch, 
+            data['commits'],
+            before=data['before']
+        )
+        doc.save()
+        return ''
         
     
     

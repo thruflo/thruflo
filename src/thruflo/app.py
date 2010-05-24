@@ -5,9 +5,7 @@
   ``main()`` which preforks one per detected cpu core.
 """
 
-# patch sockets, threading etc. so they don't block
-from gevent import monkey
-monkey.patch_all()
+import patch
 
 from gevent import fork, wsgi
 

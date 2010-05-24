@@ -182,9 +182,11 @@ db = Session()
 
 from couchdbkit import Server, ResourceNotFound, ResourceConflict
 from couchdbkit import Document as CouchDocument
+from couchdbkit.exceptions import BulkSaveError
 from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
+from github2.client import Github
 from github2.request import GithubError
 
 import config
@@ -305,7 +307,6 @@ class Blob(BaseDocument):
             path=path
         )
     
-    
     def get_data(self, github):
         """This is where the magic happens.
           
@@ -321,6 +322,8 @@ class Blob(BaseDocument):
           
           
         """
+        
+        logging.debug('Blob.get_data: %s' % self.path)
         
         if not self.data:
             logging.debug('no data')
@@ -435,6 +438,9 @@ class Repository(AccountDocument):
     
     branch_paths = DictProperty()
     
+    handled_commits = DictProperty()
+    latest_sanity_checked_commits = DictProperty()
+    
     def update_branches(self, github):
         """repos/show/:user/:repo/branches
         """
@@ -505,6 +511,113 @@ class Repository(AccountDocument):
         
     
     
+    def invalidate_blobs_content(self, user, commit, before=None):
+        """Invalidate the content cache by deleting all Blobs 
+          where ``latest commit`` matches a ``commit parent id``.
+          
+          Returns ``True`` if successful and ``False`` if there
+          was a bulk save error.
+        """
+        
+        commit_ids = []
+        if before:
+            commit_ids.append(before)
+        if commit.has_key('parents'):
+            for item in commit.get('parents'):
+                parent_id = item.get('id', None)
+                if parent_id:
+                    commit_ids.append(parent_id)
+        
+        blobs = Blob.view(
+            'blob/latest_commit', 
+            keys=commit_ids, 
+            include_docs=True
+        ).all()
+        
+        if len(blobs):
+            logging.debug('invalidating blobs')
+            for blob in blobs:
+                blob.latest_commit = ''
+                blob.data = ''
+                logging.debug(blob.to_json())
+            try:
+                Blob.get_db().bulk_save([blob.to_json() for blob in blobs])
+            except BulkSaveError, err:
+                return False
+        return True
+        
+    
+    
+    def update_commits(self, user, branch):
+        """Check these against the full commits list, fetching and then
+          handling any we missed since we last sanity checked.
+        """
+        
+        username = user.github_username
+        token = user.github_token
+        github = Github(username=username, api_token=token)
+        
+        command = '/'.join(['commits', 'list', self.owner, self.name, branch])
+        commits = github.request.make_request(command).get('commits')
+        
+        latest = None
+        to_handle = []
+        for item in commits:
+            item_id = item.get('id')
+            if item_id == self.latest_sanity_checked_commits.get(branch, None):
+                logging.debug('matched that latest commit')
+                break
+            else:
+                if latest is None:
+                    latest = item_id
+                    logging.debug('latest is %s' % latest)
+                if not item_id in self.handled_commits.get(branch, []):
+                    to_handle.append(item)
+                
+        if len(to_handle):
+            self.handle_commits(user, branch, to_handle)
+            
+        if latest is not None:
+            self.latest_sanity_checked_commits[branch] = latest
+        
+        self.handled_commits[branch] = []
+        
+    
+    def handle_commits(self, user, branch, commits, before=None):
+        """
+        """
+        
+        for item in commits:
+            self.invalidate_blobs_content(user, item, before=before)
+        
+        bothered = False
+        try:
+            for commit in commits:
+                for k in ['added', 'modified', 'removed']:
+                    if commit.has_key(k):
+                        for item in commit[k]:
+                            if config.markdown_or_media.match(item):
+                                bothered = True
+                                raise StopIteration
+        except StopIteration:
+            pass
+        
+        if bothered:
+            username = user.github_username
+            token = user.github_token
+            github = Github(username=username, api_token=token)
+            logging.warning('@@ brute force update_blobs is not v. efficient')
+            self.update_branches(github)
+            self.update_blobs(github, branch)
+            logging.info('@@ not doing any redis blocking pop foo *yet*')
+        
+        handled_commits = self.handled_commits.get(branch, [])
+        for item in commits:
+            handled_commits.append(item.get('id'))
+        self.handled_commits[branch] = handled_commits
+        
+    
+    
 
 class Document(SluggedDocument):
     """
@@ -516,7 +629,6 @@ class Document(SluggedDocument):
     blobs = StringListProperty()
     
     def get_blobs(self):
-        logging.debug(self.blobs)
         return Blob.view(
             '_all_docs', 
             keys=self.blobs,
