@@ -50,6 +50,8 @@ def app_factory():
     
 
 
+application = app_factory()
+
 def main():
     num_processes = _cpu_count()
     for i in range(num_processes):

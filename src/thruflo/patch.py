@@ -5,8 +5,8 @@
 """
 
 # patch sockets, threading etc. so they don't block
-from gevent import monkey
-monkey.patch_all()
+#from gevent import monkey
+#monkey.patch_all()
 
 # patch github library to use https by default
 import github2.request
