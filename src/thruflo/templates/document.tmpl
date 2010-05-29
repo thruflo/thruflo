@@ -62,7 +62,7 @@
     </div>
   </div>
   <div id="sections-container" class="ui-droppable">
-    % for blob in handler.context.get_blobs():
+    % for blob in handler.context.get_blobs(handler.github):
       <div id="${blob.id}" class="blob">
         ${blob.get_data(handler.github)}
       </div>
