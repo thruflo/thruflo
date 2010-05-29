@@ -32,7 +32,8 @@ setup(
         'FormEncode>=1.2.2',
         'pyDNS>=2.3.4',
         'pytz>=2010',
-        'webob>=0.9.8'
+        'webob>=0.9.8',
+        'github2'
     ],
     entry_points = {
         'setuptools.file_finders': [
