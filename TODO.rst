@@ -1,5 +1,3 @@
-whack it on gunicorn
-
 First Pass
 ----------
 

@@ -573,16 +573,16 @@ class Documents(SluggedBaseHandler):
                 endkey=[self.account.id, 'Repository', [], []],
                 include_docs=True
             ).all()
-            logging.info(
-                '@@ repo commit sanity checking triggered in \
-                ``view.Document.repositories``'
-            )
             logging.warning(
                 '@@ need to cache repository commit checking properly'
             )
             for item in self._repositories:
                 k = '-'.join([item.owner, item.name])
                 if not self.get_secure_cookie(k):
+                    logging.info(
+                        '@@ repo commit sanity checking triggered in \
+                        ``view.Document.repositories``'
+                    )
                     for branch in item.branches:
                         item.update_commits(self.current_user, branch)
                     item.save()
@@ -710,6 +710,9 @@ class PostCommitHook(web.RequestHandler):
           
         """
         
+        logging.info('***')
+        logging.info(token)
+        
         try: # make sure token is a 32 char hash
             token = schema.CouchDocumentId.to_python(token)
         except formencode.Invalid, err:
@@ -725,8 +728,10 @@ class PostCommitHook(web.RequestHandler):
             github_username=repo['owner']['name']
         ).first()
         if not user:
+            logging.info('not a user')
             return ''
         elif user.github_token != token:
+            logging.info('token doesnt match')
             return ''
         
         # is this actually a repo we have stored?
@@ -741,6 +746,7 @@ class PostCommitHook(web.RequestHandler):
             for item in repos[:-1]:
                 item.delete()
         elif len(repos) == 0:
+            logging.info('no repos')
             return ''
         
         doc = repos[-1]
