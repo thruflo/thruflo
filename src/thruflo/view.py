@@ -719,11 +719,10 @@ class PostCommitHook(web.RequestHandler):
             logging.warning('Invalid token: %s' % token)
             return ''
         
-        logging.info(dir(self.request))
-        logging.info(self.request.body)
+        logging.info(self.get_argument('payload'))
         
         # get the payload
-        data = utils.json_decode(self.request.body)
+        data = utils.json_decode(self.get_argument('payload'))
         repo = data['repository']
         
         # have we got a corresponding user?
