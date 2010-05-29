@@ -363,7 +363,7 @@ class Blob(BaseDocument):
     def get_data(self, github):
         logging.debug('Blob.get_data: %s' % self.path)
         
-        self.update_data()
+        self.update_data(github)
         return self.data
         
     
@@ -662,7 +662,7 @@ class Document(SluggedDocument):
     
     blobs = StringListProperty()
     
-    def get_blobs(self):
+    def get_blobs(self, github):
         blobs = Blob.view(
             '_all_docs', 
             keys=self.blobs,
@@ -673,7 +673,7 @@ class Document(SluggedDocument):
             # if it's been updated once, use the updated version
             if to_save.has_key(item.id):
                 item = to_save.get(item.id)
-            elif item.update_data(save=False):
+            elif item.update_data(github, save=False):
                 to_save[item.id] = item
         if to_save:
             dicts = [item.to_dict() for item in to_save.values()]
