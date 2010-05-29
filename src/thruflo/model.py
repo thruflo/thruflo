@@ -668,6 +668,12 @@ class Document(SluggedDocument):
             keys=self.blobs,
             include_docs=True
         ).all()
+        
+        logging.info('get blobs')
+        
+        logging.info('before')
+        logging.info([blob.to_json() for blob in blobs])
+        
         to_save = {}
         for item in blobs:
             # if it's been updated once, use the updated version
@@ -678,6 +684,18 @@ class Document(SluggedDocument):
         if to_save:
             dicts = [item.to_json() for item in to_save.values()]
             Blob.get_db().bulk_save(dicts)
+        
+        logging.info('after')
+        logging.info([blob.to_json() for blob in blobs])
+        
+        logging.info('after a re-fetch')
+        blobs = Blob.view(
+            '_all_docs', 
+            keys=self.blobs,
+            include_docs=True
+        ).all()
+        logging.info([blob.to_json() for blob in blobs])
+        
         return blobs
         
     
