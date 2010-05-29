@@ -646,3 +646,8 @@ class Stylesheet(SluggedDocument):
     content = StringProperty()
     
 
+
+def sync():
+    couch.sync()
+    
+

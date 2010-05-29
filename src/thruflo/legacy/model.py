@@ -157,13 +157,13 @@ class Account(SQLModel):
     display_name = Column(Unicode)
     
     # 'basic', 'plus', 'premium', 'max'
-    plan = Column(Unicode, default='basic')
+    plan = Column(Unicode, default=u'basic')
     
     administrators = relation("User", secondary=admins)
     members = relation("User", secondary=members)
     
     def __init__(
-            self, slug, display_name=None, plan='basic',
+            self, slug, display_name=None, plan=u'basic',
             administrators=None, members=None
         ):
         self.slug = slug

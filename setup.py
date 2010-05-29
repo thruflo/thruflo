@@ -41,7 +41,8 @@ setup(
             "foobar = setuptools_git:gitlsfiles"
         ],
         'console_scripts': [
-            'thruflo = thruflo.app:main'
+            'thruflo = thruflo.app:main',
+            'thruflo-sync = thruflo.model:sync'
         ]
     }
 )
