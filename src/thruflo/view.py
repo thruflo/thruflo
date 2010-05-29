@@ -659,7 +659,7 @@ class Stylesheets(SluggedBaseHandler):
     
 
 
-class PostCommitHook(web.RequestHandler):
+class PostCommitHook(RequestHandler):
     """Posted to when a user pushes to github.
     """
     
