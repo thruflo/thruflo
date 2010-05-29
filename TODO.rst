@@ -2,7 +2,7 @@ First Pass
 ----------
 
 * handle commits
-  => test the post handler fo real
+  + test the post handler fo real
   => live updates using redis / long polling to push to the page
 
 * document assembly UI
