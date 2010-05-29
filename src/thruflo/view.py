@@ -719,6 +719,9 @@ class PostCommitHook(web.RequestHandler):
             logging.warning('Invalid token: %s' % token)
             return ''
         
+        logging.info(dir(self.request))
+        logging.info(self.request.body)
+        
         # get the payload
         data = utils.json_decode(self.request.body)
         repo = data['repository']
