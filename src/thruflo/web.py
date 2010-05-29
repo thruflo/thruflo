@@ -104,6 +104,8 @@ class WSGIApplication(object):
                     response.status = 405
             else:
                 response.status = 405
+        else:
+            response.status = 404
         
         return response(environ, start_response)
         

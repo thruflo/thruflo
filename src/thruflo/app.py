@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Provides a WSGI app factory as ``app_factory()`` and
-  ``main()`` which preforks one per detected cpu core.
+"""Provides a WSGI app factory as ``app_factory()``, a WSGI app
+  as ``application`` and  ``main()`` which preforks an application
+  per detected cpu core.
 """
 
 import patch
@@ -40,7 +41,7 @@ mapping = [(
         r'^/stylesheets(\/([\w]*))?(\/([\w]*))?\/?$',
         view.Stylesheets
     ), (
-        r'^/hooks/post_commit\/?$',
+        r'^/hooks/post_commit\/([a-z0-9]{32})\/?$',
         view.PostCommitHook
     )
 ]
