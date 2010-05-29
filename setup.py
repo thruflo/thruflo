@@ -33,7 +33,8 @@ setup(
         'pyDNS>=2.3.4',
         'pytz>=2010',
         'webob>=0.9.8',
-        'github2'
+        'github2',
+        'pg8000'
     ],
     entry_points = {
         'setuptools.file_finders': [
