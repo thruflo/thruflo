@@ -72,7 +72,7 @@ class User(SQLModel):
     
     first_name = Column(Unicode)
     last_name = Column(Unicode)
-    time_zone = Column(Integer)
+    time_zone = Column(Unicode)
     
     github_username = Column(Unicode)
     github_token = Column(Unicode)
