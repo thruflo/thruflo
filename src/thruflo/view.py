@@ -151,6 +151,7 @@ class Login(RequestHandler):
     """
     
     def post(self):
+        logging.info('login')
         login = self.get_argument('login', None)
         params = {
             'username': login, 
@@ -173,6 +174,7 @@ class Login(RequestHandler):
                 kwargs = {}
                 kwargs[p] = params['username']
                 kwargs['password'] = schema.SecurePassword.to_python(params['password'])
+                logging.info(kwargs)
                 user = model.db.query(model.User).filter_by(**kwargs).first()
                 if user:
                     self.set_secure_cookie(
