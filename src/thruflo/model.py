@@ -676,7 +676,7 @@ class Document(SluggedDocument):
             elif item.update_data(github, save=False):
                 to_save[item.id] = item
         if to_save:
-            dicts = [item.to_dict() for item in to_save.values()]
+            dicts = [item.to_json() for item in to_save.values()]
             Blob.get_db().bulk_save(dicts)
         return blobs
         
