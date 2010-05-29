@@ -307,7 +307,8 @@ class Blob(BaseDocument):
             path=path
         )
     
-    def get_data(self, github):
+    
+    def update_data(self, github, save=True):
         """This is where the magic happens.
           
           1.  ``Document`` lists ``:repo/:branch/:path``s
@@ -323,7 +324,7 @@ class Blob(BaseDocument):
           
         """
         
-        logging.debug('Blob.get_data: %s' % self.path)
+        changed = False
         
         if not self.data:
             logging.debug('no data')
@@ -351,8 +352,20 @@ class Blob(BaseDocument):
             self.data = blob['data']
             if not self.data:
                 self.data = ' ' # empty but evals to True
-            self.save()
+            if save:
+                self.save()
+            changed = True
+        
+        return changed
+        
+    
+    
+    def get_data(self, github):
+        logging.debug('Blob.get_data: %s' % self.path)
+        
+        self.update_data()
         return self.data
+        
     
     
 
@@ -650,11 +663,22 @@ class Document(SluggedDocument):
     blobs = StringListProperty()
     
     def get_blobs(self):
-        return Blob.view(
+        blobs = Blob.view(
             '_all_docs', 
             keys=self.blobs,
             include_docs=True
         ).all()
+        to_save = {}
+        for item in blobs:
+            # if it's been updated once, use the updated version
+            if to_save.has_key(item.id):
+                item = to_save.get(item.id)
+            elif item.update_data(save=False):
+                to_save[item.id] = item
+        if to_save:
+            dicts = [item.to_dict() for item in to_save.values()]
+            Blob.get_db().bulk_save(dicts)
+        return blobs
         
     
     
