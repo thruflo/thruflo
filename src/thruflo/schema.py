@@ -105,7 +105,7 @@ class SecurePassword(validators.UnicodeString):
     
     def _to_python(self, value, state):
         value = super(SecurePassword, self)._to_python(value, state)
-        return generate_hash(s=value.strip().lower())
+        return unicode(generate_hash(s=value.strip().lower()))
         
     
     
