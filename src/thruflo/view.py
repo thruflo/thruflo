@@ -752,7 +752,7 @@ class PostCommitHook(RequestHandler):
             return ''
         
         doc = repos[-1]
-        branch = repo["ref"].split('/')[-1]
+        branch = data["ref"].split('/')[-1]
         
         # handle the commit
         doc.handle_commits(
