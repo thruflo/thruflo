@@ -519,6 +519,9 @@ class Repository(AccountDocument):
           was a bulk save error.
         """
         
+        logging.info('invalidating from')
+        logging.info(commit)
+        
         commit_ids = []
         if before:
             commit_ids.append(before)
@@ -528,22 +531,32 @@ class Repository(AccountDocument):
                 if parent_id:
                     commit_ids.append(parent_id)
         
+        logging.info('commit_ids')
+        logging.info(commit_ids)
+        
         blobs = Blob.view(
             'blob/latest_commit', 
             keys=commit_ids, 
             include_docs=True
         ).all()
         
+        logging.info('blobs')
+        logging.info(blobs)
+        
         if len(blobs):
-            logging.debug('invalidating blobs')
+            logging.info('invalidating blobs')
             for blob in blobs:
+                logging.info('blob: %s' % blob.id)
                 blob.latest_commit = ''
                 blob.data = ''
-                logging.debug(blob.to_json())
+                logging.info(blob.to_json())
             try:
                 Blob.get_db().bulk_save([blob.to_json() for blob in blobs])
             except BulkSaveError, err:
+                logging.warning(err)
                 return False
+        
+        logging.info('saved blobs')
         return True
         
     
@@ -587,6 +600,9 @@ class Repository(AccountDocument):
         """
         """
         
+        logging.info('** invalidating commits **')
+        logging.info('branch: %s' % branch)
+        
         for item in commits:
             self.invalidate_blobs_content(user, item, before=before)
         
@@ -602,6 +618,8 @@ class Repository(AccountDocument):
         except StopIteration:
             pass
         
+        logging.info('bothered? %s' % bothered)
+        
         if bothered:
             username = user.github_username
             token = user.github_token
@@ -615,6 +633,9 @@ class Repository(AccountDocument):
         for item in commits:
             handled_commits.append(item.get('id'))
         self.handled_commits[branch] = handled_commits
+        
+        logging.info('self.handled_commits')
+        logging.info(self.handled_commits)
         
     
     
