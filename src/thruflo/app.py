@@ -20,6 +20,12 @@ mapping = [(
         r'^/$', 
         view.Index,
     ), (
+        r'^/oauth\/login\/?$',
+        view.OAuthLogin
+    ), (
+        r'^/oauth\/callback\/?$',
+        view.OAuthCallback
+    ), (
         r'^/login\/?$',
         view.Login
     ), (

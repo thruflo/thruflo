@@ -111,5 +111,44 @@ jQuery(document).ready(
         }
       }
     );
+    // if we're on the document UI page, open a websocket to
+    // handle live updates
+    if ($("#repository-browser").length) {
+      var poller = {
+        'min': 100,
+        'max': 4000,
+        'multiplier': 1.5,
+        'backoff': 1000
+      };
+      poller.poll = function () {
+        $.ajax({
+            'url': current_path + '/listen',
+            'type': 'POST',
+            'dataType': 'json',
+            'data': {},
+            'success': function (data) {
+              if (data) {
+                log('@@ handle data');
+                log(data);
+              }
+            },
+            'complete': function (transport, text_status) {
+              var status = parseInt(text_status);
+              if (status < 300) {
+                poller.backoff = poller.min;
+              }
+              else {
+                poller.backoff = poller.backoff * poller.multiplier;
+                if (poller.backoff > poller.max) {
+                  poller.backoff = poller.max;
+                }
+              }
+              window.setTimeout(poller.poll, poller.backoff);
+            }
+          }
+        );
+      };
+      poller.poll();
+    }
   }
 );

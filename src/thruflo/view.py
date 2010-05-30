@@ -25,9 +25,12 @@ from datetime import datetime, timedelta
 from operator import itemgetter
 from urllib import quote
 
+import gevent
+
 import formencode
 import webob
 
+import oauth2
 from github2.client import Github
 
 from couchdbkit.exceptions import BulkSaveError
@@ -36,6 +39,7 @@ from sqlalchemy.exc import IntegrityError, InvalidRequestError
 import config
 import model
 import schema
+import secret
 import template
 import web
 import utils
@@ -194,6 +198,55 @@ class Login(RequestHandler):
         
     
     
+
+
+oauth_settings = {
+    'client_id': '83c01f987ff4b78c6648',
+    'client_secret': secret.github_client_secret,
+    'base_url': 'https://github.com/login/oauth/',
+    'redirect_url': 'http://dev.thruflo.com/oauth/callback'
+}
+class OAuthLogin(RequestHandler):
+    def get(self):
+        logging.debug('OAuthLogin')
+        oauth_client = oauth2.Client2(
+            oauth_settings['client_id'],
+            oauth_settings['client_secret'],
+            oauth_settings['base_url']
+        )
+        authorization_url = oauth_client.authorization_url(
+            redirect_uri=oauth_settings['redirect_url'],
+            params={'scopes': 'user,public_repos,repos'}
+        )
+        logging.debug('authorization_url: %s' % authorization_url)
+        return self.redirect(authorization_url)
+        
+    
+    
+
+class OAuthCallback(RequestHandler):
+    def get(self):
+        logging.debug('OAuthCallback')
+        oauth_client = oauth2.Client2(
+            oauth_settings['client_id'],
+            oauth_settings['client_secret'],
+            oauth_settings['base_url']
+        )
+        code = self.get_argument('code')
+        data = oauth_client.access_token(code, oauth_settings['redirect_url'])
+        access_token = data.get('access_token')
+        logging.debug(access_token)
+        (headers, body) = oauth_client.request(
+            'https://github.com/api/v2/json/user/show',
+            access_token=access_token
+        )
+        logging.debug(headers.get('status'))
+        logging.debug(body)
+        return body
+        
+    
+    
+
 
 class Logout(RequestHandler):
     """Clear cookie and redirect.
@@ -576,9 +629,10 @@ class Documents(SluggedBaseHandler):
             logging.warning(
                 '@@ need to cache repository commit checking properly'
             )
+            force = self.get_argument('force_refresh', False) 
             for item in self._repositories:
                 k = '-'.join([item.owner, item.name])
-                if not self.get_secure_cookie(k):
+                if force or not self.get_secure_cookie(k):
                     logging.info(
                         '@@ repo commit sanity checking triggered in \
                         ``view.Document.repositories``'
@@ -643,6 +697,18 @@ class Documents(SluggedBaseHandler):
                 
             
         
+        
+    
+    
+    def listen(self):
+        """Waits for news from redis.
+        """
+        
+        gevent.sleep(50)
+        
+        return {'status': '304'}
+        
+        # raise NotImplementedError
         
     
     

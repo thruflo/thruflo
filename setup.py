@@ -34,7 +34,8 @@ setup(
         'pytz>=2010',
         'webob>=0.9.8',
         'github2',
-        'pg8000'
+        #'pg8000',
+        'oauth2>=1.1.3',
     ],
     entry_points = {
         'setuptools.file_finders': [

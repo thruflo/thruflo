@@ -615,11 +615,13 @@ class Repository(AccountDocument):
         for item in commits:
             self.invalidate_blobs_content(user, item, before=before)
         
-        bothered = False
+        bothered = True
         try:
             for commit in commits:
+                logging.debug(commit)
                 for k in ['added', 'modified', 'removed']:
                     if commit.has_key(k):
+                        bothered = False
                         for item in commit[k]:
                             if config.markdown_or_media.match(item):
                                 bothered = True

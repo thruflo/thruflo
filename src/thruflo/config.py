@@ -13,7 +13,7 @@ import secret
 settings = {
     'static_path': join_path(dirname(__file__), 'static'),
     'cookie_secret': secret.cookie_secret,
-    'login_url': '/login',
+    'login_url': '/oauth/login',
     'xsrf_cookies': True,
     'domain': 'thruflo.com'
 }
