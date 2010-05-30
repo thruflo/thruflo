@@ -27,7 +27,6 @@ import cgi
 import Cookie
 import datetime
 import email.utils
-import escape
 import hashlib
 import hmac
 import httplib
@@ -364,7 +363,7 @@ class RequestHandler(object):
         """An HTML <input/> element to be included with all POST forms.
         """
         
-        v = escape.xhtml_escape(self.xsrf_token)
+        v = utils.xhtml_escape(self.xsrf_token)
         return '<input type="hidden" name="_xsrf" value="%s"/>' % v
         
     

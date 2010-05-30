@@ -4,19 +4,44 @@
 """Application settings.
 """
 
+import logging
 import re
+import sys
 
 from os.path import dirname, join as join_path
 
 import secret
 
+# logging setup
+if sys.platform == 'darwin':
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger('beaker').setLevel(logging.INFO)
+    logging.getLogger('restkit').setLevel(logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger('beaker').setLevel(logging.WARNING)
+    logging.getLogger('restkit').setLevel(logging.WARNING)
+
+# web application settings
 settings = {
     'static_path': join_path(dirname(__file__), 'static'),
     'cookie_secret': secret.cookie_secret,
-    'login_url': '/oauth/login',
+    'login_url': '/login',
     'xsrf_cookies': True,
     'domain': 'thruflo.com'
 }
 
-_exts_pattern = r'.*(\.md$)|(.png$)|(.jpg$)|(.jpeg$)|(.mp4$)'
-markdown_or_media = re.compile(_exts_pattern, re.U)
+# github oauth settings
+oauth = {
+    'client_id': '83c01f987ff4b78c6648',
+    'client_secret': secret.github_client_secret,
+    'base_url': 'https://github.com/login/oauth/',
+    'redirect_url': 'http://dev.thruflo.com/oauth/callback'
+}
+
+# spreedly access settings
+spreedly = {
+    'site_name': 'thruflo-test'
+    'spreedly_base_url': 'https://spreedly.com/api/v4/%(site)s/'
+    'spreedly_token': secret.spreedly_token
+}

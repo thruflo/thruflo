@@ -8,8 +8,8 @@
 # uuid to secure cookies
 cookie_secret = 'ONqi04WSTsqnYjznTRZeH3d5lhi6pULqiGgRdGy9GIE='
 
-# postgres db access
-username = u'...'
-password = u'...'
-host = u'localhost'
-dbname = u'...'
+# secret for github app
+github_client_secret = '...',
+
+# token to access spreedly
+spreedly_token = '...'

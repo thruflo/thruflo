@@ -9,18 +9,6 @@ import sys
 import time
 import urllib2
 
-import logging
-if sys.platform=='darwin':
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('beaker').setLevel(logging.INFO)
-    logging.getLogger('restkit').setLevel(logging.INFO)
-    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
-else:
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger('beaker').setLevel(logging.WARNING)
-    logging.getLogger('restkit').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
-
 from datetime import datetime, timedelta
 from operator import itemgetter
 from urllib import quote
@@ -34,13 +22,10 @@ import oauth2
 from github2.client import Github
 
 from couchdbkit.exceptions import BulkSaveError
-from sqlalchemy.exc import IntegrityError, InvalidRequestError
 
 import config
 import model
 import schema
-import secret
-import template
 import web
 import utils
 
@@ -200,22 +185,16 @@ class Login(RequestHandler):
     
 
 
-oauth_settings = {
-    'client_id': '83c01f987ff4b78c6648',
-    'client_secret': secret.github_client_secret,
-    'base_url': 'https://github.com/login/oauth/',
-    'redirect_url': 'http://dev.thruflo.com/oauth/callback'
-}
 class OAuthLogin(RequestHandler):
     def get(self):
         logging.debug('OAuthLogin')
         oauth_client = oauth2.Client2(
-            oauth_settings['client_id'],
-            oauth_settings['client_secret'],
-            oauth_settings['base_url']
+            config.oauth['client_id'],
+            config.oauth['client_secret'],
+            config.oauth['base_url']
         )
         authorization_url = oauth_client.authorization_url(
-            redirect_uri=oauth_settings['redirect_url'],
+            redirect_uri=config.oauth['redirect_url'],
             params={'scopes': 'user,public_repos,repos'}
         )
         logging.debug('authorization_url: %s' % authorization_url)
@@ -228,17 +207,18 @@ class OAuthCallback(RequestHandler):
     def get(self):
         logging.debug('OAuthCallback')
         oauth_client = oauth2.Client2(
-            oauth_settings['client_id'],
-            oauth_settings['client_secret'],
-            oauth_settings['base_url']
+            config.oauth['client_id'],
+            config.oauth['client_secret'],
+            config.oauth['base_url']
         )
         code = self.get_argument('code')
-        data = oauth_client.access_token(code, oauth_settings['redirect_url'])
+        data = oauth_client.access_token(code, config.oauth['redirect_url'])
         access_token = data.get('access_token')
         logging.debug(access_token)
         (headers, body) = oauth_client.request(
             'https://github.com/api/v2/json/user/show',
-            access_token=access_token
+            access_token=access_token,
+            token_param='access_token'
         )
         logging.debug(headers.get('status'))
         logging.debug(body)

@@ -11,8 +11,7 @@ from os.path import dirname, join as join_path
 from mako.template import Template
 from mako.lookup import TemplateLookup
 
-import escape
-from utils import json_encode
+import utils
 
 tmpl_lookup = TemplateLookup(
     directories=[join_path(dirname(__file__), 'templates')],
@@ -23,10 +22,10 @@ tmpl_lookup = TemplateLookup(
 )
 
 builtin = {
-    "escape": escape.xhtml_escape,
-    "url_escape": escape.url_escape,
-    "json_encode": json_encode,
-    "squeeze": escape.squeeze,
+    "escape": utils.xhtml_escape,
+    "url_escape": utils.url_escape,
+    "json_encode": utils.json_encode,
+    "squeeze": utils.squeeze,
     "datetime": datetime,
 }
 

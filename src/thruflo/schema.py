@@ -6,21 +6,14 @@
 
 import re
 
+valid_slug = re.compile(r'^\w{3,18}$', re.U)
+valid_document_id = re.compile(r'^[a-z0-9]{32}$', re.U)
+valid_github_sha = re.compile(r'^[a-z0-9]{40}$', re.U)
+
 import formencode
 from formencode import validators
 
-import config
-import model
-from utils import get_timezones, generate_hash
-
-slug_pattern = r'\w{3,18}'
-valid_slug = re.compile(r'^%s$' % slug_pattern, re.U)
-
-document_id_pattern = r'[a-z0-9]{32}'
-valid_document_id = re.compile(r'^%s$' % document_id_pattern, re.U)
-
-github_sha_pattern = r'[a-z0-9]{40}'
-valid_github_sha = re.compile(r'^%s$' % github_sha_pattern, re.U)
+import utils
 
 class Slug(validators.UnicodeString):
     """Lowercase, no spaces, no funny chars, between 3 and 18 long.
@@ -98,18 +91,6 @@ class GithubSha(validators.UnicodeString):
     
     
 
-class SecurePassword(validators.UnicodeString):
-    """Hashes the user input before we do anything with it.
-      Means we don't store raw passwords.
-    """
-    
-    def _to_python(self, value, state):
-        value = super(SecurePassword, self)._to_python(value, state)
-        return unicode(generate_hash(s=value.strip().lower()))
-        
-    
-    
-
 class UnicodeEmail(validators.Email):
     """Overwrite ``validators.Email`` with 
       ``validators.UnicodeString``s ``_to_python`` method.
@@ -143,162 +124,9 @@ class UnicodeEmail(validators.Email):
     
     
 
-class Timezone(validators.UnicodeString):
-    """Must be in ``utils.get_timezones()``.
-    """
-    
-    messages = {
-        'invalid': 'That\'s not a valid timezone'
-    }
-    
-    def _to_python(self, value, state):
-        value = super(Timezone, self)._to_python(value, state)
-        return value.strip()
-        
-    
-    
-    def validate_python(self, value, state):
-        super(Timezone, self).validate_python(value, state)
-        timezones = get_timezones()
-        match = False
-        try:
-            parts = value.split(' ')
-            v = (parts[1], parts[0])
-        except (ValueError, IndexError):
-            raise validators.Invalid(
-                self.message("invalid", state),
-                value, 
-                state
-            )
-        else:
-            for item in timezones:
-                if v == item:
-                    match = True
-                    break
-        if not match:
-            raise validators.Invalid(
-                self.message("invalid", state),
-                value, 
-                state
-            )
-        
-    
-    
-
-class UniqueUsername(Slug):
-    """Courtesy check to see that a username doesn't exist,
-      prior to uniqueness being enforced by constraint.
-    """
-    
-    messages = {
-        'taken': u'%(username)s has already been taken. Please choose another username.'
-    }
-    
-    def validate_python(self, value, state):
-        super(UniqueUsername, self).validate_python(value, state)
-        if model.db.query(model.User).filter_by(username=value).first():
-            raise validators.Invalid(
-                self.message("taken", state, username=value),
-                value, 
-                state
-            )
-        
-    
-    
-
-class UniqueEmail(UnicodeEmail):
-    """Courtesy check to see that a username doesn't exist,
-      prior to uniqueness being enforced by constraint.
-    """
-    
-    messages = {
-        'taken': u'%(email_address)s has already been registered.'
-    }
-    
-    def _to_python(self, value, state):
-        value = super(UniqueEmail, self)._to_python(value, state)
-        return value.strip().lower()
-        
-    
-    
-    def validate_python(self, value, state):
-        super(UniqueEmail, self).validate_python(value, state)
-        if model.db.query(model.User).filter_by(email_address=value).first():
-            raise validators.Invalid(
-                self.message("taken", state, email_address=value),
-                value, 
-                state
-            )
-        
-    
-    
-
-class UniqueAccountSlug(Slug):
-    """Courtesy check to see that a slug doesn't exist,
-      prior to uniqueness being enforced by constraint.
-    """
-    
-    messages = {
-        'taken': u'%(slug)s has already been taken. Please choose another site name.'
-    }
-    
-    def validate_python(self, value, state):
-        super(UniqueAccountSlug, self).validate_python(value, state)
-        if model.db.query(model.Account).filter_by(slug=value).first():
-            raise validators.Invalid(
-                self.message("taken", state, slug=value),
-                value, 
-                state
-            )
-        
-    
-    
-
 
 class RequiredSlug(formencode.Schema):
     slug = Slug(not_empty=True)
-
-
-class Registration(formencode.Schema):
-    """
-    """
-    
-    first_name = validators.UnicodeString(not_empty=True)
-    last_name = validators.UnicodeString(not_empty=True)
-    email_address = UniqueEmail(resolve_domain=True, not_empty=True)
-    time_zone = Timezone(not_empty=True)
-    
-    github_username = Slug(not_empty=True)
-    github_token = validators.UnicodeString(not_empty=True)
-    
-    username = UniqueUsername(not_empty=True)
-    password = SecurePassword(not_empty=True)
-    confirm = SecurePassword(not_empty=True)
-    
-    chained_validators = [
-        validators.FieldsMatch(
-            'password', 
-            'confirm'
-        ), 
-        validators.FieldsMatch(
-            'username', 
-            'account'
-        )
-    ]
-    
-    account = UniqueAccountSlug(not_empty=True)
-    
-
-class Login(formencode.Schema):
-    """
-    """
-    
-    username = Slug(not_empty=True)
-    email_address = UnicodeEmail(resolve_domain=True, not_empty=True)
-    
-    password = SecurePassword(not_empty=True)
-    
-
 
 class Repository(formencode.Schema):
     """
@@ -308,7 +136,6 @@ class Repository(formencode.Schema):
     owner = validators.UnicodeString(not_empty=True)
     url = validators.UnicodeString(not_empty=True)
     
-
 
 class AddOrEditDocument(formencode.Schema):
     """
@@ -326,7 +153,6 @@ class UpdateDocument(formencode.Schema):
     content = validators.UnicodeString()
     
 
-
 class Insert(formencode.Schema):
     
     # what to insert
@@ -336,15 +162,5 @@ class Insert(formencode.Schema):
     
     # where to insert it (ooh err missus)
     index = validators.Int(not_empty=True)
-    
-
-
-class Stylesheet(formencode.Schema):
-    """
-    """
-    
-    slug = Slug(not_empty=True)
-    source = validators.UnicodeString()
-    content = validators.UnicodeString()
     
 

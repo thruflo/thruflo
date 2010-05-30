@@ -1,10 +1,10 @@
 backlog = 2048              # The listen queue size for the server socket
 bind = "unix:/tmp/gunicorn.sock"
 daemon = False              # Whether work in the background
-debug = False               # Some extra logging
-keepalive = 5               # Time we wait for next connection (in seconds)
+debug = True               # Some extra logging
+keepalive = 30               # Time we wait for next connection (in seconds)
 logfile = "log/gunicorn.log" 
-loglevel = "info"
+loglevel = "debug"
 pidfile = None              # Path to a PID file
 workers = 1                 # Number of workers to initialize
 umask = 0                   # Umask to set when daemonizing
@@ -15,7 +15,7 @@ spew=False                  # Display trace
 timeout=30                  # Worker timeout
 tmp_upload_dir = None       # Set path used to store temporary uploads
 worker_class = "egg:gunicorn#sync"    # The type of request processing to use
-worker_connections=1000     # Maximum number of simultaneous connections
+worker_connections=100     # Maximum number of simultaneous connections
 
 after_fork=lambda server, worker: server.log.info(
         "Worker spawned (pid: %s)" % worker.pid)

@@ -1,1 +1,0 @@
-Copyright `James Arthur <http://thruflo.com>`_ 2010.

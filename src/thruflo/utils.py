@@ -8,19 +8,36 @@ import logging
 import hashlib
 import pytz
 import random
+import re
 import time
 import urllib
+import xml.sax.saxutils
 
 try:
     import simplejson as json
 except ImportError:
-    import json
+    try:
+        import json
+    except ImportError:
+        try:
+            from django.utils import simplejson as json
+        except ImportError:
+            raise ImportError("A JSON parser is required")
+        
+    
+
+def utf8(value):
+    if isinstance(value, unicode):
+        return value.encode("utf-8")
+    assert isinstance(value, str)
+    return value
 
 def _unicode(value):
     if isinstance(value, str):
         return value.decode("utf-8")
     assert isinstance(value, unicode)
     return value
+
 
 def unicode_urlencode(params):
     if isinstance(params, dict):
@@ -97,5 +114,27 @@ def get_timezones():
             results.append(item)
         
     return results
+    
+
+
+def xhtml_escape(value):
+    """Escapes a string so it is valid within XML or XHTML.
+    """
+    
+    return utf8(xml.sax.saxutils.escape(value, {'"': "&quot;"}))
+    
+
+def squeeze(value):
+    """Replace all sequences of whitespace chars with a single space.
+    """
+    
+    return re.sub(r"[\x00-\x20]+", " ", value).strip()
+    
+
+def url_escape(value):
+    """Returns a valid URL-encoded version of the given value.
+    """
+    
+    return urllib.quote_plus(utf8(value))
     
 
