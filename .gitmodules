@@ -1,9 +1,10 @@
 [submodule "vendor/couchdbkit"]
-	path = vendor/couchdbkit
-	url = git://github.com/benoitc/couchdbkit.git
-[submodule "vendor/tornado"]
-	path = vendor/tornado
-	url = git://github.com/facebook/tornado.git
-[submodule "vendor/py-github"]
-	path = vendor/py-github
-	url = git://github.com/dustin/py-github.git
+  path = vendor/couchdbkit
+  url = git://github.com/benoitc/couchdbkit.git
+[submodule "vendor/python-oauth2"]
+  path = vendor/python-oauth2
+  url = git://github.com/dgouldin/python-oauth2.git
+[submodule "vendor/python-github2"]
+  path = vendor/python-github2
+  url = git://github.com/ask/python-github2.git
+
