@@ -13,3 +13,6 @@ github_client_secret = '...',
 
 # token to access spreedly
 spreedly_token = '...'
+
+# @@ delete me when oauth is implemented
+github_api_token = '...'

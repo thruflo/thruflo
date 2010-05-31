@@ -21,15 +21,26 @@ mapping = [(
     ), (
         r'^/dashboard\/?$',
         view.Dashboard
-    #), (
-    #    r'^/repositories(\/([\w]*))?(\/([\w]*))?\/?$',
-    #    view.Repositories
-    #), (
-    #    r'^/documents(\/([\w]*))?(\/([\w]*))?\/?$',
-    #    view.Documents
+    ), (
+        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/?$',
+        view.Repository
+    ), (
+        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/add\/?$',
+        view.AddDocument
+    ), (
+        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/?$',
+        view.Document
+    ), (
+        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/edit\/?$',
+        view.EditDocument
+    ), (
+        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/insert\/?$',
+        view.InsertBlob
+    ), (
+        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/listen\/?$',
+        view.ListenForUpdates
     ), (
         r'^/hooks/post_commit\/([a-z0-9]{32})\/?$',
         view.PostCommitHook
     )
 ]
-

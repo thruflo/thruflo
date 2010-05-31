@@ -1,1 +1,52 @@
-<%inherit file="context.tmpl"/>
+<%inherit file="account.tmpl"/>
+
+<%def name="sub_title()">
+  ${handler.repository.owner} :: ${handler.repository.name}
+</%def>
+
+${self.page_content()}
+
+<%def name="page_content()">
+  <h4>
+    ${handler.repository.owner} :: ${handler.repository.name}
+  </h4>
+  <ul>
+    <li>
+      <form name="add-document"
+          action="/repo/${handler.repository.path}/doc/add"
+          method="post">
+        ${xsrf_form_html()}
+        <div class="form-container">
+          <h4>
+            Create New Document
+          </h4>
+          <div class="form-row">
+            <div class="error">
+              % if errors.has_key('display_name'):
+                ${errors['display_name']}
+              % endif
+            </div>
+            <input type="text" name="display_name"
+                value="${handler.get_argument('display_name', '')}"
+            />
+            <label for="display_name">
+              Document Name
+            </label>
+          </div>
+          <div class="form-row">
+            <input type="submit" 
+                value="Create Document"
+            />
+          </div>
+        </div>
+      </form>
+    </li>
+    % for item in handler.documents:
+      <li>
+        <a href="/repo/${handler.repository.path}/doc/${item.slug}">
+          ${item.display_name}
+        </a>
+      </li>
+    % endfor
+  </ul>
+</%def>

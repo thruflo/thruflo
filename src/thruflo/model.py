@@ -24,12 +24,15 @@ import uuid
 
 from os.path import dirname, join as join_path
 
+import gevent
+
 from couchdbkit import Server, ResourceNotFound, ResourceConflict
 from couchdbkit import Document as CouchDBKitDocument
 from couchdbkit.exceptions import BulkSaveError
 from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
+import clients
 import utils
 
 # patterns to match the files we're interested in
@@ -123,6 +126,73 @@ class BaseDocument(CouchDBKitDocument):
 
 BaseDocument.set_db(couch.db)
 
+class SluggedDocument(BaseDocument):
+    """Couchdb ``doc._id``s are long ``uuid4``s which is great
+      for avoiding conflicts but too long to feature nicely in
+      a user friendly URL.
+      
+      Equally, there's no reason we need to ask users to provide
+      a slug when creating something.
+      
+      So, we need a mechanism to generate shorter, more user 
+      friendly identifiers that can be used as the value of the 
+      an instance's ``slug`` property.  
+      
+      Whilst we check when generating a slug that it's unique,
+      they need to be fairly  unique, so it's very rare they 
+      would clash within a document type, within an account.
+      
+      We also need a sensible approach to conflicts, which is to
+      manually re-slug the newer instance until there is only one.
+    """
+    
+    @classmethod
+    def generate_slug(cls):
+        """Generates a random eight digit string.
+        """
+        
+        return str(uuid.uuid4().int)[:8]
+        
+    
+    @classmethod
+    def get_from_slug(cls, namespace, slug):
+        docs = cls.view(
+            'all/repo_type_slug_mod',
+            startkey=[namespace, cls._doc_type, slug, None],
+            endkey=[namespace, cls._doc_type, slug, []],
+            include_docs=True
+        ).all()
+        if len(docs) == 0:
+            return None
+        elif len(docs) > 1:
+            newer = docs[1:]
+            newer.reverse()
+            for doc in newer:
+                doc.slug = self.generate_slug()
+                doc.save()
+        return docs[0]
+        
+    
+    @classmethod
+    def get_unique_slug(cls, namespace, max_tries=5):
+        i = 1
+        while True:
+            if i > max_tries:
+                raise Exception('Can\'t generate unique slug')
+            else:
+                slug = cls.generate_slug()
+                if not cls.get_from_slug(namespace, slug):
+                    break
+                else:
+                    i += 1
+        return slug
+        
+    
+    
+    slug = StringProperty(required=True)
+    
+
+
 class User(BaseDocument):
     """Github provides::
       
@@ -171,7 +241,56 @@ class User(BaseDocument):
     sub_level = StringProperty(required=True)
     sub_expires = DateTimeProperty(required=True)
     
+    # a list of repo paths, e.g.: ['thruflo/blah', 'tav/foo']
     repositories = StringListProperty()
+    
+    def _get_owned_repos(self, github):
+        self._owned = github.request.make_request(
+            'repos/show/%s' % self.login
+        )
+        
+    
+    def _get_pushable_repos(self, github):
+        self._pushable = github.request.make_request(
+            'repos/pushable'
+        )
+        
+    
+    
+    def get_github_repositories(self, save=True):
+        """Makes two requests, to ``repos/show/:user`` and to
+          ``repos/pushable`` (in parallel).
+        """
+        
+        github = clients.github_factory(access_token=self.access_token)
+        
+        api_calls = [
+            gevent.spawn(self._get_owned_repos, github),
+            gevent.spawn(self._get_pushable_repos, github)
+        ]
+        
+        gevent.joinall(api_calls)
+        
+        owned = self._owned.get('repositories')
+        pushable = self._pushable.get('repositories')
+        combined = owned + pushable
+        
+        repositories = []
+        for item in combined:
+            repositories.append(
+                '%s/%s' % (
+                    item['owner'], 
+                    item['name']
+                )
+            )
+        
+        if save:
+            self.repositories = repositories
+            self.save()
+        
+        return repositories
+        
+    
     
 
 class Repository(BaseDocument):
@@ -180,7 +299,8 @@ class Repository(BaseDocument):
     
     name = StringProperty(required=True)
     owner = StringProperty(required=True)
-    url = StringProperty(required=True)
+    
+    url = StringProperty()
     description = StringProperty()
     
     branches = DictProperty()
@@ -191,15 +311,51 @@ class Repository(BaseDocument):
     handled_commits = DictProperty()
     latest_sanity_checked_commits = DictProperty()
     
-    def update_branches(self, github):
+    @property
+    def path(self):
+        return '%s/%s' % (self.owner, self.name)
+        
+    
+    
+    @classmethod
+    def get_id_from(cls, path):
+        docid = 'repo%s' % utils.generate_hash(s=path)
+        return docid
+        
+    
+    @classmethod
+    def get_or_create_from(cls, owner, name):
+        path = '%s/%s' % (owner, name)
+        docid = cls.get_id_from(path)
+        return cls.get_or_create(
+            docid=docid, 
+            owner=owner,
+            name=name
+        )
+        
+    
+    
+    def update_info(self, github):
         """repos/show/:user/:repo/branches
         """
         
         project = '%s/%s' % (self.owner, self.name)
-        self.branches = github.repos.branches(project)
-        return self.branches
+        data = github.repos.make_request("show", project).get('repository')
+        
+        self.description = data.get('description')
+        self.url = data.get('url')
         
     
+    def update_branches(self, github):
+        """repos/show/:user/:repo/branches
+        """
+        
+        logging.debug(github)
+        logging.debug(github)
+        
+        project = '%s/%s' % (self.owner, self.name)
+        self.branches = github.repos.branches(project)
+        
     
     def update_blobs(self, github, branch):
         """tree/show/:user/:repo/:branch
@@ -236,7 +392,7 @@ class Repository(BaseDocument):
         tree = github.request.get("blob/all", project, tree_sha).get('blobs')
         
         for k, v in tree.items():
-            if not config.markdown_or_media.match(k):
+            if not markdown_or_media.match(k) or stylesheet.match(k):
                 tree.pop(k)
             
         # first save the paths -- used to validate blob inserts against
@@ -261,7 +417,8 @@ class Repository(BaseDocument):
         return self.blob_tree[branch]
         
     
-    def invalidate_blobs_content(self, user, commit, before=None):
+    
+    def invalidate_blobs_content(self, commit, before=None):
         """Invalidate the content cache by deleting all Blobs 
           where ``latest commit`` matches a ``commit parent id``.
           
@@ -311,14 +468,10 @@ class Repository(BaseDocument):
         
     
     
-    def update_commits(self, user, branch):
+    def update_commits(self, github, branch):
         """Check these against the full commits list, fetching and then
           handling any we missed since we last sanity checked.
         """
-        
-        username = user.github_username
-        token = user.github_token
-        github = Github(username=username, api_token=token)
         
         command = '/'.join(['commits', 'list', self.owner, self.name, branch])
         commits = github.request.make_request(command).get('commits')
@@ -338,7 +491,7 @@ class Repository(BaseDocument):
                     to_handle.append(item)
             
         if len(to_handle):
-            self.handle_commits(user, branch, to_handle)
+            self.handle_commits(github, branch, to_handle)
         
         if latest is not None:
             self.latest_sanity_checked_commits[branch] = latest
@@ -346,7 +499,7 @@ class Repository(BaseDocument):
         self.handled_commits[branch] = []
         
     
-    def handle_commits(self, user, branch, commits, before=None):
+    def handle_commits(self, github, branch, commits, before=None):
         """
         """
         
@@ -354,7 +507,7 @@ class Repository(BaseDocument):
         logging.info('branch: %s' % branch)
         
         for item in commits:
-            self.invalidate_blobs_content(user, item, before=before)
+            self.invalidate_blobs_content(item, before=before)
         
         bothered = True
         try:
@@ -364,7 +517,8 @@ class Repository(BaseDocument):
                     if commit.has_key(k):
                         bothered = False
                         for item in commit[k]:
-                            if config.markdown_or_media.match(item):
+                            if markdown_or_media.match(item) or \
+                                    stylesheet.match(item):
                                 bothered = True
                                 raise StopIteration
         except StopIteration:
@@ -373,14 +527,8 @@ class Repository(BaseDocument):
         logging.info('bothered? %s' % bothered)
         
         if bothered:
-            username = user.github_username
-            token = user.github_token
-            github = Github(username=username, api_token=token)
-            logging.warning('@@ brute force update_blobs is not v. efficient')
-            self.update_branches(github)
             self.update_blobs(github, branch)
-            logging.info('@@ not doing any redis blocking pop foo *yet*')
-        
+            
         handled_commits = self.handled_commits.get(branch, [])
         for item in commits:
             handled_commits.append(item.get('id'))
@@ -391,73 +539,34 @@ class Repository(BaseDocument):
         
     
     
-
-class Document(BaseDocument):
-    """Couchdb ``doc._id``s are long ``uuid4``s which is great
-      for avoiding conflicts but too long to feature nicely in
-      a user friendly URL.
-      
-      Equally, there's no reason we need to ask users to provide
-      a slug when creating something.
-      
-      So, we need a mechanism to generate shorter, more user 
-      friendly identifiers that can be used as the value of the 
-      an instance's ``slug`` property.  
-      
-      Whilst we check when generating a slug that it's unique,
-      they need to be fairly  unique, so it's very rare they 
-      would clash within a document type, within an account.
-      
-      We also need a sensible approach to conflicts, which is to
-      manually re-slug the newer instance until there is only one.
-    """
-    
-    @classmethod
-    def generate_slug(cls):
-        """Generates a random eight digit string.
+    def update_all(self, github, save=True):
+        """Update info, the list of branches and then, for each branch, 
+          make sure that we're uptodate with the commits.
         """
         
-        return str(uuid.uuid4().int)[:8]
+        logging.debug('update_all')
+        logging.debug(github)
         
-    
-    @classmethod
-    def get_from_slug(cls, namespace, slug):
-        docs = cls.view(
-            'all/type_slug_mod',
-            startkey=[namespace, cls._doc_type, slug, None],
-            endkey=[namespace, cls._doc_type, slug, []],
-            include_docs=True
-        ).all()
-        if len(docs) == 0:
-            return None
-        elif len(docs) > 1:
-            newer = docs[1:]
-            newer.reverse()
-            for doc in newer:
-                doc.slug = self.generate_slug()
-                doc.save()
-        return docs[0]
+        batch1 = [
+            gevent.spawn(self.update_info, github),
+            gevent.spawn(self.update_branches, github),
+        ]
+        gevent.joinall(batch1)
         
-    
-    @classmethod
-    def get_unique_slug(cls, namespace, max_tries=5):
-        i = 1
-        while True:
-            if i > max_tries:
-                raise Exception('Can\'t generate unique slug')
-            else:
-                slug = cls.generate_slug()
-                if not cls.get_from_slug(namespace, slug):
-                    break
-                else:
-                    i += 1
-        return slug
+        batch2 = []
+        for branch in self.branches:
+            batch2.append(gevent.spawn(self.update_commits, github, branch))
+        gevent.joinall(batch2)
+        
+        if save:
+            self.save()
         
     
     
-    slug = StringProperty(required=True)
-    
-    display_name = StringProperty()
+
+class Document(SluggedDocument):
+    repository = StringProperty(required=True)
+    display_name = StringProperty(required=True)
     
     blobs = StringListProperty()
     
@@ -472,15 +581,21 @@ class Document(BaseDocument):
         ).all()
         
         if force_update:
-            to_save = {}
+            
+            to_update = {}
             for item in blobs:
-                # if it's been updated once, use the updated version
-                if to_save.has_key(item.id):
-                    item = to_save.get(item.id)
-                elif item.update_data(github, save=False):
-                    to_save[item.id] = item
-            if to_save:
-                dicts = [item.to_json() for item in to_save.values()]
+                if not to_update.has_key(item.id):
+                    to_update[item.id] = item
+            
+            batch = []
+            for item in to_update.values():
+                batch.append(
+                    gevent.spawn(item.update_data, github, save=False)
+                )
+            gevent.joinall(batch)
+            
+            if to_update:
+                dicts = [item.to_json() for item in to_update.values()]
                 Blob.get_db().bulk_save(dicts)
             
         return blobs

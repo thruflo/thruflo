@@ -4,6 +4,8 @@
 """Python clients to external service APIs.
 """
 
+import logging
+
 from datetime import datetime
 
 import config
@@ -112,7 +114,10 @@ def github_factory(user=None, access_token=None):
     elif access_token is None:
         raise ValueError('must provide either a user or an access_token')
     
-    return Github2(access_token=access_token)
+    logging.warning('faking oauth whilst the scopes are implemented')
+    #return Github2(access_token=access_token)
+    from secret import github_api_token
+    return Github2(username='thruflo', api_token=github_api_token)
     
 
 

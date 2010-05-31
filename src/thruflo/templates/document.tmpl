@@ -1,4 +1,25 @@
-<%inherit file="context.tmpl"/>
+<%inherit file="account.tmpl"/>
+
+<%def name="sub_title()">
+  ${handler.repository.owner} :: 
+  ${handler.repository.name} ::
+  ${handler.document.display_name}
+</%def>
+
+${self.page_content()}
+
+<%def name="page_content()">
+  <h4>
+    <a href="/repo/${handler.repository.path}">
+      ${handler.repository.owner} :: 
+      ${handler.repository.name}</a>
+    / 
+    <a href="/repo/${handler.repository.path}/doc/${handler.document.slug}"
+        title="${handler.document.display_name}">
+      ${handler.document.display_name}</a>
+  </h4>
+  ${self.manage()}
+</%def>
 
 <%def name="render_tree(repo, branch, data)">
   % for folder_name, items in data.get('fs').items():
@@ -24,47 +45,46 @@
   </div>
   <div id="inspector">
     <div id="repository-browser" class="accordion filetree">
-      % for repository in handler.repositories:
+      <%
+        repository = handler.repository
+        repo = repository.path
+      %>
+      <h3>
+        <a href="#">${repository.name}</a>
+      </h3>
+      <div class="accordion">
         <%
-          repo = '/'.join([repository.owner, repository.name])
-        %>
-        <h3>
-          <a href="#">${repository.name}</a>
-        </h3>
-        <div class="accordion">
-          <%
-            branches = []
-            for item in repository.branches:
-                branches.append(item)
-            branches = sorted(branches)
-            if 'master' in branches:
-                branches.remove('master')
-                branches.insert(0, 'master')
+          branches = []
+          for item in repository.branches:
+              branches.append(item)
+          branches = sorted(branches)
+          if 'master' in branches:
+              branches.remove('master')
+              branches.insert(0, 'master')
 
-          %>
-          % for branch_name in branches:
-            <h3>
-              <a href="#">${branch_name}</a>
-            </h3>
-            <div>
-              <ul>
-                <%
-                  blob_tree = repository.blob_tree.get(branch_name, None)
-                %>
-                % if blob_tree:
-                  ${self.render_tree(repo, branch_name, blob_tree)}
-                % endif
-              </ul>
-            </div>
-          % endfor
-        </div>
-      % endfor
+        %>
+        % for branch_name in branches:
+          <h3>
+            <a href="#">${branch_name}</a>
+          </h3>
+          <div>
+            <ul>
+              <%
+                blob_tree = repository.blob_tree.get(branch_name, None)
+              %>
+              % if blob_tree:
+                ${self.render_tree(repo, branch_name, blob_tree)}
+              % endif
+            </ul>
+          </div>
+        % endfor
+      </div>
     </div>
   </div>
   <div id="sections-container" class="ui-droppable">
-    % for blob in handler.context.get_blobs(handler.github):
+    % for blob in handler.blobs:
       <div id="${blob.id}" class="blob">
-        ${blob.get_data(handler.github)}
+        ${blob.data}
       </div>
     % endfor
   </div>

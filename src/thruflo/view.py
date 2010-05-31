@@ -82,17 +82,17 @@ def restricted(method):
     """
     
     @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, repo_owner, repo_name, *args, **kwargs):
         redirect_url = _get_redirect_url(self)
         if redirect_url is not None:
             if self.request.method == "GET":
                 return self.redirect(redirect_url)
             return self.error(403)
         else:
-            repo = self.repository
-            if not bool(repo and repo in self.current_user.repositories):
+            repo_path = '%s/%s' % (repo_owner, repo_name)
+            if not bool(repo_path in self.current_user.repositories):
                 return self.error(403)
-        return method(self, *args, **kwargs)
+        return method(self, repo_owner, repo_name, *args, **kwargs)
         
     
     return wrapper
@@ -139,7 +139,6 @@ class Index(RequestHandler):
         
     
     
-
 
 class OAuthLogin(RequestHandler):
     def get(self):
@@ -242,7 +241,6 @@ class OAuthCallback(RequestHandler):
     
     
 
-
 class Logout(RequestHandler):
     """Clear cookie and redirect.
     """
@@ -260,6 +258,19 @@ class Dashboard(RequestHandler):
     """
     """
     
+    @property
+    def repositories(self):
+        """Atm this updates repo listing from github every time
+          the page is called.
+        """
+        
+        if not hasattr(self, '_repositories'):
+            repositories = self.current_user.get_github_repositories()
+            self._repositories = repositories
+        return self._repositories
+        
+    
+    
     @subscribed
     def get(self):
         return self.render_template('dashboard.tmpl')
@@ -267,325 +278,145 @@ class Dashboard(RequestHandler):
     
     
 
-
-
-
-class SluggedBaseHandler(RequestHandler):
-    """Abstract class that handles adding, editing and archiving
-      ``model.SluggedDocuments``s.
+class Repository(RequestHandler):
+    """
     """
     
-    # a ``model.Container`` impl, e.g.: ``model.Project``
-    document_type = NotImplemented 
-    
-    params = NotImplemented
-    schema = NotImplemented
-    
-    context = None
-    
     @property
-    def context_type(self):
-        if not hasattr(self, '_context_type'):
-            self._context_type = self.document_type._doc_type.lower()
-        return self._context_type
+    def documents(self):
+        """
+        """
         
-    
-    @property
-    def context_title(self):
-        if not hasattr(self, '_context_title'):
-            self._context_title = self.context_type.title()
-        return self._context_title
-        
-    
-    
-    @property
-    def contexts(self):
-        if not hasattr(self, '_contexts'):
-            doc_type = self.document_type._doc_type
-            self._contexts = self.document_type.view(
-                'all/type_slug_mod',
-                startkey=[self.account.id, doc_type, None, None],
-                endkey=[self.account.id, doc_type, [], []],
+        if not hasattr(self, '_documents'):
+            self._documents = model.Document.view(
+                'all/repo_type_slug_mod',
+                startkey=[self.repository.id, 'Document', None, None],
+                endkey=[self.repository.id, 'Document', [], []],
                 include_docs=True
             ).all()
-        return self._contexts
+        return self._documents
         
     
     
     @property
-    def github(self):
-        if not hasattr(self, '_github'):
-            username = self.current_user.github_username
-            token = self.current_user.github_token
-            self._github = Github(username=username, api_token=token)
-        return self._github
-        
-    
-    
-    def add(self):
-        """``/{document_type}s/add``
+    def repository(self):
+        """
         """
         
-        params = {}
-        for item in self.params:
-            params[item] = self.get_argument(item, None)
-        try:
-            params = self.schema.to_python(params)
-        except formencode.Invalid, err:
-            return err.unpack_errors()
-        else:
-            params['account_id'] = self.account.id
-            params['slug'] = self.document_type.get_unique_slug(self.account.id)
-            doc = self.document_type(**params)
-            doc.save()
-            return doc
-        
-    
-    def edit(self):
-        """``/{document_type}s/{slug}/edit``
-        """
-        
-        params = {}
-        for item in self.params:
-            params[item] = self.get_argument(item, None)
-        try:
-            params = self.schema.to_python(params)
-        except formencode.Invalid, err:
-            return {'status': 400, 'errors': err.unpack_errors()}
-        else:
-            self.context.update(**params)
-            self.context.save()
-            return {'status': 200, 'doc': self.context.to_json()}
-        
-    
-    def archive(self):
-        """``/{document_type}s/{slug}/archive``
-        """
-        
-        self.context.archived = True
-        self.context.save()
-        return {'status': 200, 'doc': self.context.to_json()}
+        if not hasattr(self, '_repository'):
+            repository = model.Repository.get_or_create_from(
+                self.owner, 
+                self.name
+            )
+            github = clients.github_factory(user=self.current_user)
+            repository.update_all(github)
+            self._repository = repository
+        return self._repository
         
     
     
-    def _compress_args(self, *args):
-        """Convert ``('/3002092', '3002092', '/save', 'save', ...)``
-          to ``('3002092', 'save', ...)``
-        """
-        
-        _args = []
-        
-        for i in range(1, len(args), 2):
-            _args.append(args[i])
-        
-        return tuple(_args)
-        
-    
-    
-    @subscribed
-    def post(self, *args):
-        """Dispatches ``/{document_type}/add`` to ``self.add()`` and
-          ``/{document_type}/{slug}/{action}`` to ``self.action()``.
-        """
-        
-        args = self._compress_args(*args)
-        
-        if args[0] == 'add':
-            response = self.add()
-            if isinstance(response, self.document_type):
-                # success, so redirect to the newly created instance
-                return self.redirect(
-                    '/%ss/%s' % (
-                        self.context_type, 
-                        response.slug
-                    )
-                )
-            else: # we got an error dict
-                return self.render_template(
-                    '%ss.tmpl' % self.context_type, 
-                    errors=response
-                )
-        else:
-            slug = args[0]
-            self.context = self.document_type.get_from_slug(self.account.id, slug)
-            if self.context:
-                method = getattr(self, args[1])
-                data = method(*args[2:])
-            else:
-                data = {'status': 404, 'errors': {'context': 'Not found'}}
-            self.response.status = data.pop('status')
-            return data
-        
-    
-    
-    @subscribed
-    def get(self, *args):
-        args = self._compress_args(*args)
-        slug = args[0]
-        if slug:
-            self.context = self.document_type.get_from_slug(self.account.id, slug)
-            if self.context:
-                return self.render_template('%s.tmpl' % self.context_type)
-            else:
-                return self.error(404)
-        else:
-            return self.render_template('%ss.tmpl' % self.context_type, errors={})
+    @restricted
+    def get(self, owner, name):
+        self.owner = owner
+        self.name = name
+        return self.render_template('repository.tmpl', errors={})
         
     
     
 
-
-class Repositories(SluggedBaseHandler):
-    """Add and edit repositories.
-    """
-    
-    document_type = model.Repository 
-    
-    params = ['name', 'owner', 'url']
-    schema = schema.Repository
-    
-    @property
-    def repositories(self):
-        """repos/show/:user"
-        """
-        
-        if not hasattr(self, '_repositories'):
-            
-            repositories = {
-                'selected': [],
-                'unselected': []
-            }
-            
-            existing_repos = self.contexts
-            existing_repo_names = [item.name for item in existing_repos]
-            
-            username = self.current_user.github_username
-            all_repos = self.github.repos.list(username)
-            
-            for item in all_repos:
-                if item.name in existing_repo_names:
-                    repositories['selected'].append(item)
-                else:
-                    repositories['unselected'].append(item)
-                
-            self._repositories = repositories
-        
-        return self._repositories
-        
-    
-    
-    def select(self):
-        params = {}
-        for item in self.params:
-            params[item] = self.get_argument(item, None)
-        try:
-            params = self.schema.to_python(params)
-        except formencode.Invalid, err:
-            return {'status': 400, 'errors': err.unpack_errors()}
-        else:
-            username = self.current_user.github_username
-            doc = model.Repository.view(
-                'repository/owner_name',
-                key=[self.account.id, username, params['name']],
-                include_docs=True
-            ).first()
-            if not doc:
-                params['account_id'] = self.account.id
-                doc = model.Repository(**params)
-            branches = doc.update_branches(self.github)
-            for branch in branches:
-                doc.update_blobs(self.github, branch)
-            
-            doc.save()
-            return {'status': 200, 'doc': doc.to_json()}
-        
-    
-    def unselect(self):
-        params = {}
-        for item in self.params:
-            params[item] = self.get_argument(item, None)
-        try:
-            params = self.schema.to_python(params)
-        except formencode.Invalid, err:
-            return {'status': 400, 'errors': err.unpack_errors()}
-        else:
-            username = self.current_user.github_username
-            docs = model.Repository.view(
-                'repository/owner_name',
-                key=[self.account.id, username, params['name']],
-                include_docs=True
-            ).all()
-            try:
-                model.Repository.get_db().bulk_delete([doc.to_json() for doc in docs])
-            except BulkSaveError, err:
-                return {'status': 400, 'errors': err.errors}
-            else:
-                return {'status': 200}
-            
-        
-    
-    
-    @subscribed
-    def post(self, *args):
-        """Exposes ``select`` and ``unselect``.
-        """
-        
-        args_ = self._compress_args(*args)
-        if args_[0] in ['select', 'unselect']:
-            method = getattr(self, args_[0])
-            data = method()
-            self.response.status = data.pop('status')
-            return data
-        else:
-            return super(Repositories, self).post(*args)
-        
-    
-    
-
-class Documents(SluggedBaseHandler):
-    """Add and edit documents.
-    """
-    
-    document_type = model.Document 
+class AddDocument(Repository):
     
     params = ['display_name']
     schema = schema.AddOrEditDocument
     
-    @property
-    def repositories(self):
-        if not hasattr(self, '_repositories'):
-            self._repositories = model.Repository.view(
-                'all/type_slug_mod',
-                startkey=[self.account.id, 'Repository', None, None],
-                endkey=[self.account.id, 'Repository', [], []],
-                include_docs=True
-            ).all()
-            logging.warning(
-                '@@ need to cache repository commit checking properly'
-            )
-            force = self.get_argument('force_refresh', False) 
-            for item in self._repositories:
-                k = '-'.join([item.owner, item.name])
-                if force or not self.get_secure_cookie(k):
-                    logging.info(
-                        '@@ repo commit sanity checking triggered in \
-                        ``view.Document.repositories``'
-                    )
-                    for branch in item.branches:
-                        item.update_commits(self.current_user, branch)
-                    item.save()
-                    self.set_secure_cookie(k, 'cached', expires_days=None)
-        return self._repositories
-        
-    
-    
-    def insert(self):
-        """Get or create a ``Blob``.  Save its position in
-          ``self.context.blobs`` and return ``blob.get_data()``.
+    @restricted
+    def post(self, owner, name):
+        """``/repo/{owner}/{name}/doc/add``
         """
         
+        logging.debug('doc/add')
+        
+        self.owner = owner
+        self.name = name
+        
+        params = {}
+        for item in self.params:
+            params[item] = self.get_argument(item, None)
+        try:
+            params = self.schema.to_python(params)
+        except formencode.Invalid, err:
+            return self.render_template(
+                'repository.tmpl', 
+                errors=err.unpack_errors()
+            )
+        else:
+            logging.debug('valid')
+            repository_id = model.Repository.get_id_from(
+                '%s/%s' % (owner, name)
+            )
+            params['repository'] = repository_id
+            params['slug'] = model.Document.get_unique_slug(repository_id)
+            doc = model.Document(**params)
+            doc.save()
+            return self.redirect(
+                '/repo/%s/%s/doc/%s' % (
+                    owner, 
+                    name, 
+                    doc.slug
+                )
+            )
+        
+    
+    
+
+class Document(Repository):
+    """
+    """
+    
+    @property
+    def blobs(self):
+        if not hasattr(self, '_blobs'):
+            document = self.document
+            github = clients.github_factory(user=self.current_user)
+            blobs = document.get_blobs(github)
+            self._blobs = blobs
+        return self._blobs
+        
+    
+    
+    @property
+    def document(self):
+        if not hasattr(self, '_document'):
+            repository_id = model.Repository.get_id_from(
+                '%s/%s' % (self.owner, self.name)
+            )
+            document = model.Document.get_from_slug(repository_id, self.slug)
+            self._document = document
+        return self._document
+        
+    
+    
+    @restricted
+    def get(self, owner, name, slug):
+        self.owner = owner
+        self.name = name
+        self.slug = slug
+        if self.document:
+            return self.render_template('document.tmpl')
+        else:
+            return self.error(404)
+        
+        
+    
+    
+
+class InsertBlob(Document):
+    """
+    """
+    
+    def insert(self):
         params = {
-            'repo': self.get_argument('repo', None),
+            'repo': self.repository.path,
             'branch': self.get_argument('branch', None),
             'path': self.get_argument('path', None),
             'index': self.get_argument('index', -1)
@@ -597,10 +428,14 @@ class Documents(SluggedBaseHandler):
         else:
             # we get or create against key but first we have to
             # validate to make sure that key is OK
-            owner, name = params['repo'].split('/')
             exists = model.Repository.view(
                 'repository/repo_branch_path',
-                key=[owner, name, params['branch'], params['path']]
+                key=[
+                    self.owner, 
+                    self.name, 
+                    params['branch'], 
+                    params['path']
+                ]
             ).first()
             if not exists:
                 return {
@@ -616,33 +451,66 @@ class Documents(SluggedBaseHandler):
                     params['path']
                 )
                 try:
-                    blobs = self.context.blobs
+                    blobs = self.document.blobs
                     blobs.insert(params['index'], blob.id)
-                    self.context.blobs = blobs
+                    self.document.blobs = blobs
                 except IndexError:
                     return {'status': 400, 'errors': {'index': 'Out of range'}}
                 else:
-                    self.context.save()
+                    github = clients.github_factory(user=self.current_user)
+                    data = blob.get_data(github)
+                    self.document.save()
                     return {
                         'status': 200, 
                         'id': blob.id, 
-                        'data': blob.get_data(self.github)
+                        'data': data
                     }
                 
             
         
+    
+    
+    @restricted
+    def post(self, owner, name, slug):
+        self.owner = owner
+        self.name = name
+        self.slug = slug
+        if self.document:
+            data = self.insert()
+            self.response.status = data.pop('status')
+            return data
+        else:
+            return self.error(404)
+        
         
     
+    
+
+class ListenForUpdates(Document):
     
     def listen(self):
         """Waits for news from redis.
         """
         
+        logging.warning('listen not implemented')
+        
         gevent.sleep(50)
         
         return {'status': '304'}
         
-        # raise NotImplementedError
+    
+    
+    @restricted
+    def post(self, owner, name, slug):
+        self.owner = owner
+        self.name = name
+        self.slug = slug
+        if self.document:
+            data = self.listen()
+            self.response.status = data.pop('status')
+            return data
+        else:
+            return self.error(404)
         
     
     

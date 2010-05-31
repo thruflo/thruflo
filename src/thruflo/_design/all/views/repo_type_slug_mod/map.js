@@ -1,8 +1,8 @@
 function (doc) {
   emit([
-      doc.account_id, 
+      doc.repository ? doc.repository : null, 
       doc.doc_type, 
-      doc.slug ? doc.slug : null, 
+      doc.slug ? doc.slug : null,
       doc.mod
     ], 
     null
