@@ -41,7 +41,8 @@ oauth = {
 
 # spreedly access settings
 spreedly = {
-    'site_name': 'thruflo-test'
-    'spreedly_base_url': 'https://spreedly.com/api/v4/%(site)s/'
+    'site_name': 'thruflo-test',
+    'free_trial_plan_id': 5883,
+    'paid_plan_id': 5680,
     'spreedly_token': secret.spreedly_token
 }

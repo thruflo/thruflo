@@ -28,7 +28,7 @@ from couchdbkit import Server, ResourceNotFound, ResourceConflict
 from couchdbkit import Document as CouchDBKitDocument
 from couchdbkit.exceptions import BulkSaveError
 from couchdbkit.loaders import FileSystemDocsLoader
-from couchdbkit.schema import properties
+from couchdbkit.schema.properties import *
 
 import utils
 
@@ -106,7 +106,7 @@ class BaseDocument(CouchDBKitDocument):
     
     
     def update(self, data):
-        """Convienience method for setting multiple properties.
+        """Convienience method for setting multiple 
         """
         
         for k, v in data.iteritems():
@@ -159,17 +159,19 @@ class User(BaseDocument):
       and their subscription expire time.
     """
     
-    name = properties.StringProperty(required=True)
-    login = properties.StringProperty(required=True)
-    email = properties.StringProperty(required=True)
+    name = StringProperty(required=True)
+    login = StringProperty(required=True)
+    email = StringProperty(required=True)
     
-    location = properties.StringProperty()
-    gravatar_id = properties.StringProperty()
+    access_token = StringProperty(required=True)
     
-    repositories = properties.StringListProperty()
+    location = StringProperty(required=True)
+    gravatar_id = StringProperty(required=True)
     
-    subscription_level = properties.StringProperty()
-    subscription_expires = properties.StringProperty()
+    sub_level = StringProperty(required=True)
+    sub_expires = DateTimeProperty(required=True)
+    
+    repositories = StringListProperty()
     
 
 class Repository(BaseDocument):

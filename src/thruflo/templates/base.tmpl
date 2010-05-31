@@ -12,9 +12,8 @@
   <body>
     <div id="outer">
       <div id="inner">
-        ${self.super_header()}
         <div id="header">
-          % if current_user:
+          % if handler.current_user:
             ${self.auth_menu()}
           % else:
             ${self.login_menu()}
@@ -45,27 +44,6 @@
 </html>
 
 <%def name="sub_title()">...</%def>
-
-<%def name="super_header()">
-  % if current_user:
-    <div id="accounts-nav">
-      <h4>
-        Accounts:
-      </h4>
-      <ul>
-        % for item in current_user.accounts:
-          <li>
-            <a href="http://${item.slug}.${handler.settings['domain']}">
-              ${item.slug}
-            </a>
-          </li>
-        % endfor
-      </ul>
-      <div class="clear">
-      </div>
-    </div>
-  % endif
-</%def>
 
 <%def name="headers()" cached="True">
   <meta name="description" content="..." />
@@ -117,7 +95,7 @@
   <div id="auth-menu">
     <ul>
       <li>
-        Hello ${current_user.username}!
+        Hello ${handler.current_user.name}!
       </li>
       <li>
         <a href="/logout" title="Logout">

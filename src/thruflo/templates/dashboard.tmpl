@@ -1,6 +1,6 @@
 <%inherit file="account.tmpl"/>
 
-<%def name="sub_title()">${handler.account.slug} :: Dashboard</%def>
+<%def name="sub_title()">${handler.current_user.name} :: Dashboard</%def>
 
 ${self.page_content()}
 

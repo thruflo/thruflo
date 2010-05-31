@@ -7,4 +7,7 @@
 [submodule "vendor/python-github2"]
   path = vendor/python-github2
   url = git://github.com/ask/python-github2.git
+[submodule "vendor/python-spreedly"]
+  path = vendor/python-spreedly
+  url = git://github.com/chrisdrackett/python-spreedly.git
 

@@ -315,20 +315,6 @@ class RequestHandler(object):
         return None
         
     
-    @property
-    def account(self):
-        if not hasattr(self, "_account"):
-            self._account = self.get_account()
-        return self._account
-        
-    
-    def get_account(self):
-        """Override to determine the current account.
-        """
-        
-        return None
-        
-    
     
     @property
     def xsrf_token(self):
@@ -416,7 +402,6 @@ class RequestHandler(object):
         params = dict(
             handler=self,
             request=self.request,
-            account=self.account,
             current_user=self.current_user,
             static_url=self.static_url,
             xsrf_form_html=self.xsrf_form_html

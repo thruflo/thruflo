@@ -5,6 +5,7 @@
 """
 
 import functools
+import logging
 import sys
 import time
 import urllib2
@@ -23,35 +24,77 @@ from github2.client import Github
 
 from couchdbkit.exceptions import BulkSaveError
 
+import clients
 import config
 import model
 import schema
 import web
 import utils
 
-def members_only(method):
-    """Users accessing methods decorated with ``@members_only``
-      must be members of the current account.
+def _get_redirect_url(handler):
+    redirect_url = None
+    if not handler.current_user:
+        logging.debug('not authenticated')
+        redirect_url = handler.settings['login_url']
+        if "?" not in redirect_url:
+            redirect_url += "?" + utils.unicode_urlencode(
+                dict(next=handler.request.path)
+            )
+    else:
+        user = handler.current_user
+        logging.debug(user)
+        if not bool(user.sub_level and user.sub_expires > datetime.utcnow()):
+            logging.debug('subscription expired')
+            # log the user out to 'uncache' the authenticated user
+            domain = '.%s' % handler.settings['domain']
+            next = handler.get_argument('next', '/')
+            handler.clear_cookie('user_id', domain=domain)
+            # send them to spreedly to reenergise their subscription
+            redirect_url = clients.spreedly.get_subscribe_url(
+                int(user.id),
+                config.spreedly['paid_plan_id'], 
+                user.login
+            )
+    return redirect_url
+    
+
+def subscribed(method):
+    """Users accessing methods decorated with ``@subscribed``
+      must be authenticated and have an active subscription.
     """
     
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
-        authorised = False
-        if self.current_user:
-            account = self.account
-            if account and account in self.current_user.accounts:
-                authorised = True
-        if not authorised:
+        redirect_url = _get_redirect_url(self)
+        if redirect_url is not None:
             if self.request.method == "GET":
-                url = self.settings['login_url']
-                if "?" not in url:
-                    url += "?" + utils.unicode_urlencode(
-                        dict(next=self.request.path)
-                    )
-                self.redirect(url)
-                return
-            raise self.error(403)
+                return self.redirect(redirect_url)
+            return self.error(403)
         return method(self, *args, **kwargs)
+        
+    
+    return wrapper
+    
+
+def restricted(method):
+    """Users accessing methods decorated with ``@restricted``
+      must be @subscribed and have access to self.repository.
+    """
+    
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        redirect_url = _get_redirect_url(self)
+        if redirect_url is not None:
+            if self.request.method == "GET":
+                return self.redirect(redirect_url)
+            return self.error(403)
+        else:
+            repo = self.repository
+            if not bool(repo and repo in self.current_user.repositories):
+                return self.error(403)
+        return method(self, *args, **kwargs)
+        
+    
     return wrapper
     
 
@@ -74,47 +117,14 @@ class RequestHandler(web.RequestHandler):
         
     
     
-    def get_account(self):
-        host = unicode(self.request.host)
-        parts = host.split(self.settings['domain'])
-        account_slug = parts[0]
-        if account_slug:
-            account_slug = account_slug[:-1]
-            query = model.db.query(model.Account)
-            return query.filter_by(slug=account_slug).first()
-        return None
-        
-    
     def get_current_user(self):
         user_id = self.get_secure_cookie("user_id")
         logging.debug('user_id: %s' % user_id)
         if user_id:
-            user = model.db.query(model.User).get(int(user_id))
+            user = model.User.get(user_id)
             logging.debug('user: %s' % user)
             return user
         return None
-        
-    
-    
-    def redirect_to_dashboard(self, user):
-        """If we're not on an account page, redirect to 
-          the user's first account
-        """
-        
-        
-        path = self.get_argument('next', u'/dashboard')
-        
-        if not self.account:
-            accounts = user.accounts
-            if len(accounts):
-                account_slug = accounts[0].slug
-                path = u'http://%s.%s%s' % (
-                    account_slug,
-                    self.settings['domain'],
-                    path
-                )
-            
-        return self.redirect(path)
         
     
     
@@ -125,61 +135,7 @@ class Index(RequestHandler):
     """
     
     def get(self):
-        if self.account:
-            return self.redirect('/dashboard')
-        else:
-            return self.render_template('index.tmpl')
-        
-        
-    
-    
-
-class Login(RequestHandler):
-    """Accepts either a username or an email address. 
-      If authenticated, sets the user.id in a secure cookie.
-    """
-    
-    def post(self):
-        logging.info('login')
-        login = self.get_argument('login', None)
-        params = {
-            'username': login, 
-            'email_address': login,
-            'password': self.get_argument('password', None)
-        }
-        try:
-            params = schema.Login.to_python(params)
-        except formencode.Invalid, err:
-            # were *both* username *and* email_address invalid?
-            d = err.error_dict
-            if d.has_key('username') and d.has_key('email_address'):
-                d.pop('username')
-                d.pop('email_address')
-                d['login'] = u'Invalid username or email address'
-            if d.has_key('password') or d.has_key('login'):
-                return self.render_template('login.tmpl', errors=d)
-            else:
-                p = d.has_key('username') and 'email_address' or 'username'
-                kwargs = {}
-                kwargs[p] = params['username']
-                kwargs['password'] = schema.SecurePassword.to_python(params['password'])
-                logging.info(kwargs)
-                user = model.db.query(model.User).filter_by(**kwargs).first()
-                if user:
-                    self.set_secure_cookie(
-                        'user_id', 
-                        str(user.id),
-                        domain='.%s' % self.settings['domain']
-                    )
-                    return self.redirect_to_dashboard(user)
-                else:
-                    return self.render_template('login.tmpl', errors={})
-                
-            
-        
-    
-    def get(self):
-        return self.render_template('login.tmpl', errors={})
+        return self.render_template('index.tmpl')
         
     
     
@@ -187,15 +143,12 @@ class Login(RequestHandler):
 
 class OAuthLogin(RequestHandler):
     def get(self):
-        logging.debug('OAuthLogin')
-        oauth_client = oauth2.Client2(
-            config.oauth['client_id'],
-            config.oauth['client_secret'],
-            config.oauth['base_url']
-        )
-        authorization_url = oauth_client.authorization_url(
-            redirect_uri=config.oauth['redirect_url'],
-            params={'scopes': 'user,public_repos,repos'}
+        redirect_url = self.request.path_url.replace('/login', '/oauth/callback')
+        authorization_url = clients.oauth.authorization_url(
+            redirect_uri=redirect_url,
+            params={
+                'scopes': 'user,public_repos,repos,gists'
+            }
         )
         logging.debug('authorization_url: %s' % authorization_url)
         return self.redirect(authorization_url)
@@ -204,25 +157,87 @@ class OAuthLogin(RequestHandler):
     
 
 class OAuthCallback(RequestHandler):
+    """Complete the oauth handshale by accepting a ``code``
+      and requesting an ``access_token``.
+      
+      Then get the user's data from github, check their spreedly
+      subscription status, ensure we've saved an uptodate 
+      ``model.User`` instance and store their ``user_id`` in a 
+      secure cookie.
+    """
+    
     def get(self):
-        logging.debug('OAuthCallback')
-        oauth_client = oauth2.Client2(
-            config.oauth['client_id'],
-            config.oauth['client_secret'],
-            config.oauth['base_url']
-        )
+        logging.debug('/oauth/callback')
         code = self.get_argument('code')
-        data = oauth_client.access_token(code, config.oauth['redirect_url'])
+        redirect_url = self.request.path_url
+        # user logs in
+        data = clients.oauth.access_token(code, redirect_url)
         access_token = data.get('access_token')
-        logging.debug(access_token)
-        (headers, body) = oauth_client.request(
-            'https://github.com/api/v2/json/user/show',
-            access_token=access_token,
-            token_param='access_token'
+        logging.debug('access_token: %s' % access_token)
+        # get data including `user_data['id']`
+        github = clients.github_factory(access_token=access_token)
+        user_data = github.request.make_request('user/show').get('user')
+        user_id = str(user_data['id'])
+        logging.debug('user_id: %s' % user_id)
+        # we `get_or_create_and_subscribe_to_free_plan` the subscriber by `id`
+        sub = clients.spreedly.get_or_create_subscriber(
+            user_data['id'], 
+            user_data['login']
         )
-        logging.debug(headers.get('status'))
-        logging.debug(body)
-        return body
+        logging.debug('sub')
+        logging.debug(sub)
+        # they're not subscribed to a plan sign them up the the free trial
+        if sub['name'] == '' and sub['trial_elegible']:
+            logging.debug('signing user up for a free trial')
+            sub = clients.spreedly.subscribe(
+                user_data['id'],
+                config.spreedly['free_trial_plan_id'],
+                trial=True
+            )
+        # `get_or_create` their `model.User` instance by `id`
+        sub_level = 'none'
+        if sub['trial_active']:
+            sub_level = 'trial'
+        elif sub['feature_level']:
+            sub_level = sub['feature_level']
+        logging.debug('sub_level: %s' % sub_level)
+        params = {
+            'name': user_data['name'],
+            'login': user_data['login'],
+            'email': user_data['email'],
+            'location': user_data['location'],
+            'gravatar_id': user_data['gravatar_id'],
+            'sub_level': sub_level,
+            'sub_expires': sub['active_until'],
+            'access_token': access_token
+        }
+        user = model.User.get_or_create(docid=user_id, **params)
+        # making sure the data we have is uptodate
+        changed = False
+        for k, v in params.iteritems():
+            if v != getattr(user, k):
+                changed = True
+                setattr(user, k, v)
+        if changed:
+            logging.debug('user changed')
+            user.save()
+        # `set_secure_cookie`, either expiring before their next payment
+        # or not setting the expires if that's already passed
+        if user.sub_expires < datetime.utcnow():
+            expires = None
+        else:
+            expires = sub['active_until']
+        self.set_secure_cookie(
+            'user_id', user_id,
+            domain='.%s' % self.settings['domain'],
+            expires_days=None,
+            expires=expires
+        )
+        logging.debug('user authenticated, redirecting...')
+        # redirect to a page which will validate their subscription status
+        return self.redirect(
+            self.get_argument('next', '/dashboard')
+        )
         
     
     
@@ -241,79 +256,18 @@ class Logout(RequestHandler):
     
     
 
-class Register(RequestHandler):
-    """If we get valid form input, we create a user, store their 
-      user.id in a secure cookie and redirect to their dashboard.
-    """
-    
-    @property
-    def timezones(self):
-        return utils.get_timezones()
-        
-    
-    
-    def post(self):
-        params = {
-            'username': self.get_argument('username', None),
-            'password': self.get_argument('password', None),
-            'confirm': self.get_argument('confirm', None),
-            'email_address': self.get_argument('email_address', None),
-            'first_name': self.get_argument('first_name', None),
-            'last_name': self.get_argument('last_name', None),
-            'github_username': self.get_argument('github_username', None),
-            'github_token': self.get_argument('github_token', None),
-            'time_zone': self.get_argument('time_zone', None),
-            'account': self.get_argument('username', None)
-        }
-        try:
-            params = schema.Registration.to_python(params)
-        except formencode.Invalid, err:
-            return self.render_template('register.tmpl', errors=err.unpack_errors())
-        else:
-            slug = params['account']
-            account = model.Account(slug)
-            model.db.add(account)
-            logging.warning('@@ not bothering with email confirmation yet')
-            logging.warning('@@ not bothering to check github creds pending oauth...')
-            params.pop('account')
-            params.pop('confirm')
-            user = model.User(
-                administrator_accounts = [account],
-                **params
-            )
-            model.db.add(user)
-            try:
-                model.db.commit()
-            except IntegrityError, err:
-                model.db.rollback()
-                errors = {'message': err.args[0]}
-                return self.render_template('register.tmpl', errors=errors)
-            else:
-                self.set_secure_cookie(
-                    'user_id', 
-                    str(user.id),
-                    domain='.%s' % self.settings['domain']
-                )
-                return self.redirect_to_dashboard(user)
-            
-        
-    
-    def get(self):
-        return self.render_template('register.tmpl', errors={})
-        
-    
-    
-
 class Dashboard(RequestHandler):
     """
     """
     
-    @members_only
+    @subscribed
     def get(self):
         return self.render_template('dashboard.tmpl')
         
     
     
+
+
 
 
 class SluggedBaseHandler(RequestHandler):
@@ -428,7 +382,7 @@ class SluggedBaseHandler(RequestHandler):
         
     
     
-    @members_only
+    @subscribed
     def post(self, *args):
         """Dispatches ``/{document_type}/add`` to ``self.add()`` and
           ``/{document_type}/{slug}/{action}`` to ``self.action()``.
@@ -464,7 +418,7 @@ class SluggedBaseHandler(RequestHandler):
         
     
     
-    @members_only
+    @subscribed
     def get(self, *args):
         args = self._compress_args(*args)
         slug = args[0]
@@ -571,7 +525,7 @@ class Repositories(SluggedBaseHandler):
         
     
     
-    @members_only
+    @subscribed
     def post(self, *args):
         """Exposes ``select`` and ``unselect``.
         """
@@ -691,17 +645,6 @@ class Documents(SluggedBaseHandler):
         # raise NotImplementedError
         
     
-    
-
-
-class Stylesheets(SluggedBaseHandler):
-    """Add and edit stylesheets.
-    """
-    
-    document_type = model.Stylesheet 
-    
-    params = ['source', 'content']
-    schema = schema.Stylesheet
     
 
 

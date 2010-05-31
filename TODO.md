@@ -4,16 +4,9 @@ Simplify
 
 * refactoring:
   * go through and simplify the existing views
-  * move stuff into `clients.py`
   * revise `_design`
 
-* signup and login via github oauth
-* access / subscription via spreedly
 * here's the flow (without any caching):
-  a)  user logs in and we get data including `data['user']['id']`
-  b)  we `get_or_create` their `model.User` instance by `id`
-  c)  we `get_or_create_and_subscribe_to_free_plan` the subscriber by `id`
-  d)  if the subscriber has access, we `set_secure_cookie`, expiring before their next payment
   f)  render dashboard => updates repos listing saved as `model.User.repos`
   g)  render repo => updates `model.Repo` inc. blobs listing for each branch
   h)  click through doc => checks commits and updates `model.Blob`s
