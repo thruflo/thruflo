@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'thruflo',
-    version = '0.3',
+    version = '0.3.1',
     description = 'Generate documents from markdown files in a github repository',
     long_description = open('README.md').read(),
     author = 'James Arthur',
