@@ -31,9 +31,6 @@ mapping = [(
         r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/?$',
         view.Document
     ), (
-        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/edit\/?$',
-        view.EditDocument
-    ), (
         r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/insert\/?$',
         view.InsertBlob
     ), (

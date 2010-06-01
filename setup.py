@@ -27,7 +27,7 @@ setup(
         'greenlet>=0.2',
         'gevent',
         'gunicorn>=0.9.1',
-        #'redis>=0.6.1',
+        'redis>=1.36',
         'FormEncode>=1.2.2',
         'webob>=0.9.8',
         'github2',

@@ -317,6 +317,19 @@ class Repository(BaseDocument):
         
     
     
+    @property
+    def users(self):
+        if not hasattr(self, '_users'):
+            self._users = User.view(
+                'user/by_repo'    ,
+                startkey=[self.path, False],
+                endkey=[self.path, []],
+                include_docs=True
+            ).all()
+        return self._users
+        
+    
+    
     @classmethod
     def get_id_from(cls, path):
         docid = 'repo%s' % utils.generate_hash(s=path)
@@ -528,7 +541,14 @@ class Repository(BaseDocument):
         
         if bothered:
             self.update_blobs(github, branch)
-            
+            if before:
+                # notify any live users
+                redis = Redis(namespace=self.path)
+                for item in data['commits']:
+                    data = {'branch': branch, 'commit': item}
+                    redis[item['id']] = utils.json_encode(data)
+                    for user in self.users:
+                        redis('rpush', user.id, item['id'])
         handled_commits = self.handled_commits.get(branch, [])
         for item in commits:
             handled_commits.append(item.get('id'))

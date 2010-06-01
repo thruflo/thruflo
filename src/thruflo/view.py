@@ -31,6 +31,8 @@ import schema
 import web
 import utils
 
+from cache import Redis
+
 def _get_redirect_url(handler):
     redirect_url = None
     if not handler.current_user:
@@ -279,7 +281,7 @@ class Dashboard(RequestHandler):
     
 
 class Repository(RequestHandler):
-    """
+    """@@ ``repository`` contains some magic invalidation.
     """
     
     @property
@@ -310,6 +312,9 @@ class Repository(RequestHandler):
             )
             github = clients.github_factory(user=self.current_user)
             repository.update_all(github)
+            redis = Redis(namespace=repository.path)
+            for user in repository.users:
+                del redis[user.id]
             self._repository = repository
         return self._repository
         
@@ -492,9 +497,19 @@ class ListenForUpdates(Document):
         """Waits for news from redis.
         """
         
-        logging.warning('listen not implemented')
+        repo_path = '%s/%s' % (self.owner, self.name)
+        redis = Redis(namespace=repo_path)
         
-        gevent.sleep(50)
+        notification_key = self.current_user.id
+        timeout = sys.platform == 'darwin' and 5 or 45
+        
+        logging.debug('blocking waiting for %s' % notification_key)
+        data = redis('blpop', [notification_key], timeout=timeout)
+        
+        logging.debug('data: %s' % data)
+        
+        # @@ get the commit by id
+        # do shit with it like refresh the page
         
         return {'status': '304'}
         
@@ -520,7 +535,7 @@ class PostCommitHook(RequestHandler):
     """Posted to when a user pushes to github.
     """
     
-    def post(self, token):
+    def post(self):
         """We get a payload like this::
           
               {
@@ -564,61 +579,109 @@ class PostCommitHook(RequestHandler):
                 }
               }
           
-          
+          We validate it by checking the commit ids against either
+          the latest or the handled commits for that branch.
         """
         
-        logging.info('***')
-        logging.info(token)
-        
-        try: # make sure token is a 32 char hash
-            token = schema.CouchDocumentId.to_python(token)
-        except formencode.Invalid, err:
-            logging.warning('Invalid token: %s' % token)
-            return ''
-        
-        logging.info(self.get_argument('payload'))
+        logging.debug('PostCommitHook')
         
         # get the payload
         data = utils.json_decode(self.get_argument('payload'))
-        repo = data['repository']
         
-        # have we got a corresponding user?
-        user = model.db.query(model.User).filter_by(
-            github_username=repo['owner']['name']
-        ).first()
-        if not user:
-            logging.info('not a user')
-            return ''
-        elif user.github_token != token:
-            logging.info('token doesnt match')
-            return ''
+        logging.debug('data')
+        logging.debug(data)
+        
+        # get a handle on the repository
+        repo = data['repository']
+        branch = data["ref"].split('/')[-1]
+        path = '%s/%s' % (repo['owner']['name'], repo['name'])
+        docid = model.Repository.get_id_from(path)
         
         # is this actually a repo we have stored?
-        key = [repo['owner']['name'], repo['name']]
-        repos = model.Repository.view(
-            'repository/global_owner_name',
-            key=key,
-            include_docs=True
-        ).all()
-        if len(repos) > 1:
-            logging.warning('@@ race conditions on repo: %s/%s' % (key[0], key[1]))
-            for item in repos[:-1]:
-                item.delete()
-        elif len(repos) == 0:
-            logging.info('no repos')
+        repository = model.Repository.get(docid)
+        if repository is None:
             return ''
         
-        doc = repos[-1]
-        branch = data["ref"].split('/')[-1]
+        logging.debug('repository')
+        logging.debug(repository)
         
-        # handle the commit
-        doc.handle_commits(
-            user, 
-            branch, 
-            data['commits'],
-            before=data['before']
+        # to validate, either the before matches the latest
+        # sanity checked commit, or the latest handled commit
+        latest = repository.latest_sanity_checked_commits[branch]
+        handled = repository.handled_commits[branch]
+        if data['before'] == latest:
+            logging.debug('before matched latest commit')
+        elif data['before'] in handled:
+            logging.debug('before matched one a handled commit')
+        else:
+            return ''
+        
+        logging.debug('handling commits')
+        
+        logging.warning("""
+            
+              How can we get an access token to make a ``github``
+              instance to pass to handle_commits?
+              
+              We're interested in handling commits to continually refresh
+              the repo data.  So we'd rather not rely on there being a
+              logged in user kicking about.
+              
+              So, how can we know when an oauth access token expires?
+              
+              http://support.github.com/discussions/api/\
+              28-oauth2-busy-developers-guide#comment_1829676
+              
+              Either this yields an approach or we fallback on the *nasty*
+              "you need to put your username and token in the url" manual
+              approach for now.
+              
+              http://support.github.com/discussions/api/\
+              28-oauth2-busy-developers-guide#comment_1829753
+              
+              So... we can presume that tokens will be valid.  So... one
+              appproach would be to get the users from the repo id, sorted 
+              by last modified, loop through testing the authentication
+              against access token.  If we get an authenticated user, bingo.
+              
+              Now, another approach would be to try to match the commit
+              author::
+              
+                  author": {
+                    "email": "thruflo@googlemail.com", 
+                    "name": "James Arthur"
+                  }
+              
+              This is *user entered information* using e.g.::
+              
+                  $ git config --global user.name "Tekkub"
+                  $ git config --global user.email "tekkub@gmail.com"
+                  
+              But it's probably 80-90% reliable and it's presumably more
+              likely that a user doing the commit will be active?
+            """
         )
-        doc.save()
+        
+        users = repository.users
+        users.reverse()
+        for user in users:
+            github = clients.github_factory(user=user)
+            try:
+                data = github.users.make_request('show')
+            except RuntimeError:
+                github = None
+                logging.warning('@@ cache that this user failed to authenticate')
+            else:
+                break
+        if github is not None:
+            # handle the commit
+            repository.handle_commits(
+                github,
+                branch,
+                data['commits'],
+                before=data['before']
+            )
+            repository.save()
         return ''
         
     
