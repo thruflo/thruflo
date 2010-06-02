@@ -511,14 +511,19 @@ class ListenForUpdates(Document):
         
         commit_id = redis('blpop', [k], timeout=t)
         
-        logging.debug('commit_id: %s' % commit_id)
+        logging.debug('commit_id')
+        logging.debug(commit_id)
         
-        if commit_id:
-            data = utils.json_decode(redis[commit_id])
-            data.update({'status': 200})
-            return data
+        raise NotImplementedError(
+            '@@ debug commit id and actually handle commits'
+        )
         
-        return {'status': '304'}
+        #if commit_id:
+        #    data = utils.json_decode(redis[commit_id])
+        #    data.update({'status': 200})
+        #    return data
+        # 
+        #return {'status': '304'}
         
     
     
