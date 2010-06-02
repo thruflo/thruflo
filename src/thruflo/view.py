@@ -658,8 +658,8 @@ class PostCommitHook(RequestHandler):
                 try:
                     for k in ['added', 'modified', 'removed']:
                         for item in commit[k]:
-                            if markdown_or_media.match(item) or \
-                                    stylesheet.match(item):
+                            if model.markdown_or_media.match(item) or \
+                                    model.stylesheet.match(item):
                                 relevant_commits.append(commit)
                                 raise StopIteration
                 except StopIteration:
