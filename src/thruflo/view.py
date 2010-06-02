@@ -22,7 +22,7 @@ import webob
 import oauth2
 from github2.client import Github
 
-from couchdbkit.exceptions import BulkSaveError
+from couchdbkit.exceptions import BulkSaveError, ResourceNotFound
 
 import clients
 import config
@@ -123,9 +123,13 @@ class RequestHandler(web.RequestHandler):
         user_id = self.get_secure_cookie("user_id")
         logging.debug('user_id: %s' % user_id)
         if user_id:
-            user = model.User.get(user_id)
-            logging.debug('user: %s' % user)
-            return user
+            try:
+                user = model.User.get(user_id)
+            except ResourceNotFound:
+                pass
+            else:
+                logging.debug('user: %s' % user)
+                return user
         return None
         
     
