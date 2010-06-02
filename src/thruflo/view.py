@@ -630,7 +630,7 @@ class PostCommitHook(RequestHandler):
         for user in users:
             github = clients.github_factory(user=user)
             try:
-                data = github.users.make_request('show')
+                github.users.make_request('show')
             except RuntimeError:
                 github = None
                 logging.warning('@@ cache that this user failed to authenticate')
