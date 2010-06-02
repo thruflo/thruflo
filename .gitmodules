@@ -10,4 +10,6 @@
 [submodule "vendor/python-spreedly"]
   path = vendor/python-spreedly
   url = git://github.com/chrisdrackett/python-spreedly.git
-
+[submodule "vendor/redis-py"]
+  path = vendor/redis-py
+  url = git://github.com/andymccurdy/redis-py.git
