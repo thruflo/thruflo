@@ -37,7 +37,7 @@ mapping = [(
         r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/listen\/?$',
         view.ListenForUpdates
     ), (
-        r'^/hooks/post_commit\/([a-z0-9]{32})\/?$',
+        r'^/hooks/post_commit\/?$',
         view.PostCommitHook
     )
 ]
