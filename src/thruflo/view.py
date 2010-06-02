@@ -22,7 +22,8 @@ import webob
 import oauth2
 from github2.client import Github
 
-from couchdbkit.exceptions import BulkSaveError, ResourceNotFound
+from couchdbkit.exceptions import BulkSaveError
+from couchdbkit import ResourceNotFound, ResourceConflict
 
 import clients
 import config
