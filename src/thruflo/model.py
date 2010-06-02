@@ -33,6 +33,7 @@ from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
 import clients
+import config
 import utils
 
 # patterns to match the files we're interested in
@@ -53,7 +54,7 @@ class Couch(object):
         
     
     
-    def __init__(self, sync=sys.platform == 'darwin'):
+    def __init__(self, sync=config.debug):
         self.db = Server().get_or_create_db('thruflo')
         if sync:
             self.sync()
@@ -541,14 +542,7 @@ class Repository(BaseDocument):
         
         if bothered:
             self.update_blobs(github, branch)
-            if before:
-                # notify any live users
-                redis = Redis(namespace=self.path)
-                for item in data['commits']:
-                    data = {'branch': branch, 'commit': item}
-                    redis[item['id']] = utils.json_encode(data)
-                    for user in self.users:
-                        redis('rpush', user.id, item['id'])
+        
         handled_commits = self.handled_commits.get(branch, [])
         for item in commits:
             handled_commits.append(item.get('id'))

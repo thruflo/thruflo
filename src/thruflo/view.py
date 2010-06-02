@@ -312,9 +312,6 @@ class Repository(RequestHandler):
             )
             github = clients.github_factory(user=self.current_user)
             repository.update_all(github)
-            redis = Redis(namespace=repository.path)
-            for user in repository.users:
-                del redis[user.id]
             self._repository = repository
         return self._repository
         
@@ -375,7 +372,8 @@ class AddDocument(Repository):
     
 
 class Document(Repository):
-    """
+    """@@ rendering the page clears the current user's 
+      live update queue.
     """
     
     @property
@@ -407,6 +405,8 @@ class Document(Repository):
         self.name = name
         self.slug = slug
         if self.document:
+            redis = Redis(namespace='%s/%s' % (owner, name))
+            del redis[self.current_user.id]
             return self.render_template('document.tmpl')
         else:
             return self.error(404)
@@ -492,24 +492,26 @@ class InsertBlob(Document):
     
 
 class ListenForUpdates(Document):
+    """Waits for news from redis.
+    """
     
     def listen(self):
-        """Waits for news from redis.
-        """
+        k = self.current_user.id
+        t = config.listen_timeout
         
         repo_path = '%s/%s' % (self.owner, self.name)
         redis = Redis(namespace=repo_path)
         
-        notification_key = self.current_user.id
-        timeout = sys.platform == 'darwin' and 5 or 45
+        logging.debug('blocking waiting for %s' % k)
         
-        logging.debug('blocking waiting for %s' % notification_key)
-        data = redis('blpop', [notification_key], timeout=timeout)
+        commit_id = redis('blpop', [k], timeout=t)
         
-        logging.debug('data: %s' % data)
+        logging.debug('commit_id: %s' % commit_id)
         
-        # @@ get the commit by id
-        # do shit with it like refresh the page
+        if commit_id:
+            data = utils.json_decode(redis[commit_id])
+            data.update({'status': 200})
+            return data
         
         return {'status': '304'}
         
@@ -616,51 +618,7 @@ class PostCommitHook(RequestHandler):
         else:
             return ''
         
-        logging.debug('handling commits')
-        
-        logging.warning("""
-            
-              How can we get an access token to make a ``github``
-              instance to pass to handle_commits?
-              
-              We're interested in handling commits to continually refresh
-              the repo data.  So we'd rather not rely on there being a
-              logged in user kicking about.
-              
-              So, how can we know when an oauth access token expires?
-              
-              http://support.github.com/discussions/api/\
-              28-oauth2-busy-developers-guide#comment_1829676
-              
-              Either this yields an approach or we fallback on the *nasty*
-              "you need to put your username and token in the url" manual
-              approach for now.
-              
-              http://support.github.com/discussions/api/\
-              28-oauth2-busy-developers-guide#comment_1829753
-              
-              So... we can presume that tokens will be valid.  So... one
-              appproach would be to get the users from the repo id, sorted 
-              by last modified, loop through testing the authentication
-              against access token.  If we get an authenticated user, bingo.
-              
-              Now, another approach would be to try to match the commit
-              author::
-              
-                  author": {
-                    "email": "thruflo@googlemail.com", 
-                    "name": "James Arthur"
-                  }
-              
-              This is *user entered information* using e.g.::
-              
-                  $ git config --global user.name "Tekkub"
-                  $ git config --global user.email "tekkub@gmail.com"
-                  
-              But it's probably 80-90% reliable and it's presumably more
-              likely that a user doing the commit will be active?
-            """
-        )
+        logging.debug('trying to fetch an authenticated user')
         
         users = repository.users
         users.reverse()
@@ -673,7 +631,14 @@ class PostCommitHook(RequestHandler):
                 logging.warning('@@ cache that this user failed to authenticate')
             else:
                 break
+        
+        logging.debug('github')
+        logging.debug(github)
+        
         if github is not None:
+            
+            logging.debug('handling commits')
+            
             # handle the commit
             repository.handle_commits(
                 github,
@@ -682,6 +647,29 @@ class PostCommitHook(RequestHandler):
                 before=data['before']
             )
             repository.save()
+            # notify any live users
+            relevant_commits = []
+            for commit in data['commits']:
+                try:
+                    for k in ['added', 'modified', 'removed']:
+                        for item in commit[k]:
+                            if markdown_or_media.match(item) or \
+                                    stylesheet.match(item):
+                                relevant_commits.append(commit)
+                                raise StopIteration
+                except StopIteration:
+                    pass
+            
+            logging.debug('relevant commits')
+            logging.debug(relevant_commits)
+            
+            redis = Redis(namespace=repository.path)
+            k = data['after']
+            v = {'branch': branch, 'commits': relevant_commits}
+            redis[k] = utils.json_encode(v)
+            for user in repository.users:
+                redis('rpush', user.id, k)
+            
         return ''
         
     

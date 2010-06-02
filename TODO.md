@@ -7,6 +7,11 @@ First Pass
   b. against each blob
     => when a blob invalidates its content, broadcast the fact & trigger a /blobs/get_blobs?keys=[...] call
 
+^^^ atm the impl relies on too much convention.  if we're going to clear a list of commits when a repo is requested, then we should have a `handle_get_repo` event handler that's triggered no matter how a user clients there way through.
+
+equally, can we not usefully keep a record of when a user logs in?
+
+
 * document assembly UI
   => handle images & media
   => n.b.: atm get_data displays raw image data...
