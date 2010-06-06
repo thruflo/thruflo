@@ -130,6 +130,96 @@ jQuery(document).ready(
               if (data) {
                 log('@@ handle data');
                 log(data);
+                
+                var i,
+                    commit,
+                    l = data['commits'].length;
+                for (i = 0; i < l; i++) {
+                  commit = data['commits'][i];
+                  /*
+                    
+                    @@ we know data['branch'] and we have lists
+                    of ``added``, ``removed`` and ``modified``
+                    
+                    we need to add the added and remove the removed
+                    
+                  */
+                  
+                  log('@@ we need to add the added and remove the removed');
+                  
+                  
+                }
+                
+                /*
+                  
+                  @@ we have a list of data['invalid_blobs']
+                  
+                  we need to filter them against the blobs in
+                  the document and refresh those that are
+                  
+                  
+                */
+                var invalid_blob_ids = $('#sections-container').find(
+                  '.blob'
+                ).filter(
+                  function (i) {
+                    return data['invalid_blobs'].indexOf(this.id) > -1;
+                  }
+                ).map(
+                  function () { 
+                    return this.id; 
+                  }
+                ).get()
+                if (invalid_blob_ids.length) {
+                  var update_blobs = function (blobs) {
+                    $('#sections-container').find('.blob').each(
+                      function () {
+                        log(this);
+                        log(this.id);
+                        log(this.id in blobs);
+                        if (this.id in blobs) {
+                          $(this).html(blobs[this.id]);
+                        }
+                      }
+                    );
+                  };
+                  var get_blobs_url = current_path.split('/doc/')[0] + '/get_blobs';
+                  $.ajax({
+                      'url': get_blobs_url,
+                      'type': 'GET',
+                      'dataType': 'json',
+                      'data': {
+                        'keys': invalid_blob_ids
+                      },
+                      'success': function (data) {
+                        log('@@ get_blobs success');
+                        log(data);
+                        update_blobs(data);
+                      },
+                      'error': function () {
+                        log('@@ get_blobs error');
+                        $('#sections-container').delay(1000).each(
+                          function () {
+                            $.ajax({
+                                'url': get_blobs_url,
+                                'type': 'GET',
+                                'dataType': 'json',
+                                'data': {
+                                  'blobs': invalid_blob_ids
+                                },
+                                'success': function (data) {
+                                  log('@@ get_blobs retry success');
+                                  log(data);
+                                  update_blobs(data);
+                                }
+                              }
+                            );
+                          }
+                        );
+                      }
+                    }
+                  );
+                }
               }
             },
             'complete': function (transport, text_status) {

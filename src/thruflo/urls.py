@@ -31,6 +31,9 @@ mapping = [(
         r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/?$',
         view.Document
     ), (
+        r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/get_blobs\/?$',
+        view.GetBlobs
+    ), (
         r'^/repo\/([-\.\w]*)\/([-\.\w]*)\/doc\/([0-9]{8})\/insert\/?$',
         view.InsertBlob
     ), (

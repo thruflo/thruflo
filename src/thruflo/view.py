@@ -108,18 +108,6 @@ class RequestHandler(web.RequestHandler):
       ``self.redirect_to_dashboard()``.
     """
     
-    def get_argument(self, name, default=None, strip=True):
-        """Returns the value of the argument with the given name.
-        """
-        
-        value = self.request.params.get(name, None)
-        if value is None:
-            return default
-        if strip: value = value.strip()
-        return value
-        
-    
-    
     def get_current_user(self):
         user_id = self.get_secure_cookie("user_id")
         logging.debug('user_id: %s' % user_id)
@@ -375,6 +363,11 @@ class AddDocument(Repository):
         
     
     
+    def get(self, *args):
+        return self.error(405)
+        
+    
+    
 
 class Document(Repository):
     """@@ rendering the page clears the current user's 
@@ -416,6 +409,59 @@ class Document(Repository):
         else:
             return self.error(404)
         
+        
+    
+    
+
+class GetBlobs(Repository):
+    """Fetch blob data by id.
+    """
+    
+    @restricted
+    def get(self, owner, name):
+        """Takes a list of Blob ids via a ``blobs`` param and returns
+          a dictionary of {blobid: data, ...}
+        """
+        
+        raise NotImplementedError('@@ get blob content in greenlets')
+        
+        self.owner = owner
+        self.name = name
+        
+        data = {}
+        blobs = []
+        
+        blob_ids = self.get_arguments('keys[]')
+        
+        logging.debug('blob_ids')
+        logging.debug(blob_ids)
+        
+        blob_ids = list(set(blob_ids))
+        
+        # validate
+        for item in blob_ids:
+            if not schema.valid_blob_id.match(item):
+                blob_ids.remove(item)
+        
+        # fetch
+        if blob_ids:
+            blobs = model.Blob.view(
+                '_all_docs',
+                keys=blob_ids,
+                include_docs=True
+            ).all()
+        
+        # restrict access
+        for item in blobs:
+            if not item.repo == self.repository.path:
+                blobs.remove(item)
+            
+        if blobs:
+            github = clients.github_factory(user=self.current_user)
+            for item in blobs:
+                data[item.id] = item.get_data(github)
+            
+        return data
         
     
     
@@ -495,6 +541,11 @@ class InsertBlob(Document):
         
     
     
+    def get(self, *args):
+        return self.error(405)
+        
+    
+    
 
 class ListenForUpdates(Document):
     """Waits for news from redis.
@@ -509,21 +560,15 @@ class ListenForUpdates(Document):
         
         logging.debug('blocking waiting for %s' % k)
         
-        commit_id = redis('blpop', [k], timeout=t)
+        response = redis('blpop', [k], timeout=t)
         
-        logging.debug('commit_id')
-        logging.debug(commit_id)
+        if response is None:
+            return {'status': '304'}
         
-        raise NotImplementedError(
-            '@@ debug commit id and actually handle commits'
-        )
-        
-        #if commit_id:
-        #    data = utils.json_decode(redis[commit_id])
-        #    data.update({'status': 200})
-        #    return data
-        # 
-        #return {'status': '304'}
+        commit_id = response[1]
+        data = utils.json_decode(redis[commit_id])
+        data.update({'status': 200})
+        return data
         
     
     
@@ -541,7 +586,6 @@ class ListenForUpdates(Document):
         
     
     
-
 
 class PostCommitHook(RequestHandler):
     """Posted to when a user pushes to github.
@@ -598,7 +642,10 @@ class PostCommitHook(RequestHandler):
         logging.debug('PostCommitHook')
         
         # get the payload
-        data = utils.json_decode(self.get_argument('payload'))
+        payload = self.get_argument('payload')
+        logging.debug('payload')
+        logging.debug(payload)
+        data = utils.json_decode(payload)
         
         logging.debug('data')
         logging.debug(data)
@@ -649,36 +696,42 @@ class PostCommitHook(RequestHandler):
             
             logging.debug('handling commits')
             
-            # handle the commit
-            repository.handle_commits(
+            relevant_commits = repository.handle_commits(
                 github,
                 branch,
                 data['commits'],
                 before=data['before']
             )
-            repository.save()
-            # notify any live users
-            relevant_commits = []
-            for commit in data['commits']:
-                try:
-                    for k in ['added', 'modified', 'removed']:
-                        for item in commit[k]:
-                            if model.markdown_or_media.match(item) or \
-                                    model.stylesheet.match(item):
-                                relevant_commits.append(commit)
-                                raise StopIteration
-                except StopIteration:
-                    pass
             
             logging.debug('relevant commits')
             logging.debug(relevant_commits)
             
-            redis = Redis(namespace=repository.path)
-            k = data['after']
-            v = {'branch': branch, 'commits': relevant_commits}
-            redis[k] = utils.json_encode(v)
-            for user in repository.users:
-                redis('rpush', user.id, k)
+            if relevant_commits:
+                # save the repo
+                repository.save()
+                # augment the data with a list of invalid blob ids
+                invalid_blobs = []
+                for item in relevant_commits:
+                    for k in 'removed', 'modified':
+                        for filepath in item.get(k):
+                            blob_id = model.Blob.get_id_from(
+                                repository.path, 
+                                branch, 
+                                filepath
+                            )
+                            invalid_blobs.append(blob_id)
+                invalid_blobs = list(set(invalid_blobs))
+                # notify any live users
+                redis = Redis(namespace=repository.path)
+                k = data['after']
+                v = {
+                    'branch': branch,
+                    'invalid_blobs': invalid_blobs,
+                    'commits': relevant_commits
+                }
+                redis[k] = utils.json_encode(v)
+                for user in repository.users:
+                    redis('rpush', user.id, k)
             
         return ''
         

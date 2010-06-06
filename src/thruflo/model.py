@@ -432,7 +432,46 @@ class Repository(BaseDocument):
         
     
     
-    def invalidate_blobs_content(self, commit, before=None):
+    def _normalise_commits(self, commits, before=None):
+        """Standardised the data recieved from a post recieve hook and
+          a call to ``commits/show/:user_id/:repository/:sha``
+        """
+        
+        normalised = []
+        for commit in commits:
+            data = {
+                'parent_ids': [],
+                'added': [],
+                'removed': [],
+                'modified': [],
+                'message': commit['message']
+            }
+            bothered = False
+            for k in ['added', 'removed', 'modified']:
+                values = commit.get(k)
+                # if we have ``{"diff": "@@ ...", "filename": "foo.md"}``
+                # normalise to the ``"foo.md"``
+                if len(values) and isinstance(values[0], dict):
+                    values = [item.get('filename') for item in values]
+                # filter out any files we don't care about
+                for item in values:
+                    if markdown_or_media.match(item) or stylesheet.match(item):
+                        data[k].append(item)
+                        bothered = True
+            if bothered:
+                if before:
+                    data['parent_ids'].append(before)
+                if commit.has_key('parents'):
+                    for item in commit.get('parents'):
+                        parent_id = item.get('id', None)
+                        if parent_id:
+                            data['parent_ids'].append(parent_id)
+                normalised.append(data)
+        return normalised
+        
+    
+    
+    def invalidate_blobs_content(self, commits, before=None):
         """Invalidate the content cache by deleting all Blobs 
           where ``latest commit`` matches a ``commit parent id``.
           
@@ -441,46 +480,63 @@ class Repository(BaseDocument):
         """
         
         logging.info('invalidating from')
-        logging.info(commit)
+        logging.info(commits)
         
-        commit_ids = []
-        if before:
-            commit_ids.append(before)
-        if commit.has_key('parents'):
-            for item in commit.get('parents'):
-                parent_id = item.get('id', None)
-                if parent_id:
-                    commit_ids.append(parent_id)
+        for commit in commits:
             
-        logging.info('commit_ids')
-        logging.info(commit_ids)
-        
-        blobs = Blob.view(
-            'blob/latest_commit', 
-            keys=commit_ids, 
-            include_docs=True
-        ).all()
-        
-        logging.info('blobs')
-        logging.info(blobs)
-        
-        if len(blobs):
-            logging.info('invalidating blobs')
-            for blob in blobs:
-                logging.info('blob: %s' % blob.id)
-                blob.latest_commit = ''
-                blob.data = ''
-                logging.info(blob.to_json())
-            try:
-                Blob.get_db().bulk_save([blob.to_json() for blob in blobs])
-            except BulkSaveError, err:
-                logging.warning(err)
-                return False
-        
+            blobs = Blob.view(
+                'blob/latest_commit', 
+                keys=commit['parent_ids'],
+                include_docs=True
+            ).all()
+            
+            logging.info('blobs')
+            logging.info(blobs)
+            
+            if len(blobs):
+                logging.info('invalidating blobs')
+                for blob in blobs:
+                    logging.info('blob: %s' % blob.id)
+                    blob.latest_commit = ''
+                    blob.data = ''
+                    logging.info(blob.to_json())
+                try:
+                    Blob.get_db().bulk_save([blob.to_json() for blob in blobs])
+                except BulkSaveError, err:
+                    logging.warning(err)
+                    return False
+            
         logging.info('saved blobs')
+        
         return True
         
     
+    def handle_commits(self, github, branch, commits, before=None):
+        """
+        """
+        
+        logging.debug(
+            'invalidating commits for %s/%s/%s' % (
+                self.owner, self.name, branch
+            )
+        )
+        
+        relevant_commits = self._normalise_commits(commits, before=before)
+        
+        if relevant_commits:
+            self.invalidate_blobs_content(relevant_commits, before=before)
+            self.update_blobs(github, branch)
+        
+        handled_commits = self.handled_commits.get(branch, [])
+        for item in commits:
+            handled_commits.append(item.get('id'))
+        self.handled_commits[branch] = handled_commits
+        
+        logging.info('self.handled_commits')
+        logging.info(self.handled_commits)
+        
+        return relevant_commits
+        
     
     def update_commits(self, github, branch):
         """Check these against the full commits list, fetching and then
@@ -505,6 +561,25 @@ class Repository(BaseDocument):
                     to_handle.append(item)
             
         if len(to_handle):
+            # fetch the commit info from github
+            batch = []
+            for item in to_handle:
+                command = '/'.join([
+                        'commits', 
+                        'show', 
+                        self.owner, 
+                        self.name, 
+                        item.get('id')
+                    ]
+                )
+                batch.append(
+                    gevent.spawn(
+                        github.request.make_request,
+                        command
+                    )
+                )
+            gevent.joinall(batch)
+            to_handle = [item.value.get('commit') for item in batch]
             self.handle_commits(github, branch, to_handle)
         
         if latest is not None:
@@ -512,46 +587,6 @@ class Repository(BaseDocument):
         
         self.handled_commits[branch] = []
         
-    
-    def handle_commits(self, github, branch, commits, before=None):
-        """
-        """
-        
-        logging.info('** invalidating commits **')
-        logging.info('branch: %s' % branch)
-        
-        for item in commits:
-            self.invalidate_blobs_content(item, before=before)
-        
-        bothered = True
-        try:
-            for commit in commits:
-                logging.debug(commit)
-                for k in ['added', 'modified', 'removed']:
-                    if commit.has_key(k):
-                        bothered = False
-                        for item in commit[k]:
-                            if markdown_or_media.match(item) or \
-                                    stylesheet.match(item):
-                                bothered = True
-                                raise StopIteration
-        except StopIteration:
-            pass
-        
-        logging.info('bothered? %s' % bothered)
-        
-        if bothered:
-            self.update_blobs(github, branch)
-        
-        handled_commits = self.handled_commits.get(branch, [])
-        for item in commits:
-            handled_commits.append(item.get('id'))
-        self.handled_commits[branch] = handled_commits
-        
-        logging.info('self.handled_commits')
-        logging.info(self.handled_commits)
-        
-    
     
     def update_all(self, github, save=True):
         """Update info, the list of branches and then, for each branch, 
@@ -631,9 +666,16 @@ class Blob(BaseDocument):
     data = StringProperty()
     
     @classmethod
-    def get_or_create_from(cls, repo, branch, path):
+    def get_id_from(cls, repo, branch, path):
         s = '/'.join([repo, branch, path])
         docid = 'blob%s' % utils.generate_hash(s=s)
+        return docid
+        
+    
+    
+    @classmethod
+    def get_or_create_from(cls, repo, branch, path):
+        docid = cls.get_id_from(repo, branch, path)
         return cls.get_or_create(
             docid=docid, 
             repo=repo,
@@ -692,7 +734,6 @@ class Blob(BaseDocument):
         
         return changed
         
-    
     
     def get_data(self, github):
         self.update_data(github)

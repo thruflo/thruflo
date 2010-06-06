@@ -11,6 +11,7 @@ from formencode import validators
 
 valid_slug = re.compile(r'^\w{3,18}$', re.U)
 valid_document_id = re.compile(r'^[a-z0-9]{32}$', re.U)
+valid_blob_id = re.compile(r'^blob[a-z0-9]{40}$', re.U)
 
 class Slug(validators.UnicodeString):
     """Lowercase, no spaces, no funny chars, between 3 and 18 long.

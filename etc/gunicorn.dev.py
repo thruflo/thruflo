@@ -14,7 +14,7 @@ proc_name = None            # Change the process name
 spew=False                  # Display trace
 timeout=30                  # Worker timeout
 tmp_upload_dir = None       # Set path used to store temporary uploads
-worker_class = "egg:gunicorn#sync"    # The type of request processing to use
+worker_class = "egg:gunicorn#gevent"    # The type of request processing to use
 worker_connections=100     # Maximum number of simultaneous connections
 
 after_fork=lambda server, worker: server.log.info(

@@ -38,7 +38,8 @@ setup(
             "foobar = setuptools_git:gitlsfiles"
         ],
         'console_scripts': [
-            'thruflo-sync = thruflo.model:sync'
+            'thruflo-sync = thruflo.model:sync',
+            'relay-payload = thruflo.test:relay_commit_payload'
         ]
     }
 )
