@@ -417,6 +417,11 @@ class GetBlobs(Repository):
     """Fetch blob data by id.
     """
     
+    def _get_blob_data(self, blob, github):
+        return item.id, item.get_data(github)
+        
+    
+    
     @restricted
     def get(self, owner, name):
         """Takes a list of Blob ids via a ``blobs`` param and returns
@@ -456,10 +461,15 @@ class GetBlobs(Repository):
             if not item.repo == self.repository.path:
                 blobs.remove(item)
             
+        # get data through parallel api calls
         if blobs:
+            batch = []
             github = clients.github_factory(user=self.current_user)
             for item in blobs:
-                data[item.id] = item.get_data(github)
+                gevent.spawn(self._get_blob_data, item, github)
+            gevent.joinall(batch)
+            for item in batch:
+                data[item.value[0]] = item.value[1]
             
         return data
         

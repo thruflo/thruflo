@@ -435,6 +435,17 @@ class Repository(BaseDocument):
     def _normalise_commits(self, commits, before=None):
         """Standardised the data recieved from a post recieve hook and
           a call to ``commits/show/:user_id/:repository/:sha``
+          
+          @@ actually this does less than that.  The method was conceived
+          to normalise data but actually only serves to *filter* the
+          commits *when blob paths are provided*.
+          
+          This is because, atm, we don't need to fetch the file path
+          data for each commit got from a listing of commits.  So we
+          don't, because that's a lot of API requests.
+          
+          Instead, the 'normalisation' applied is just to make sure
+          there's a ``parent_ids = []`` for each commit.
         """
         
         normalised = []
@@ -446,18 +457,27 @@ class Repository(BaseDocument):
                 'modified': [],
                 'message': commit['message']
             }
-            bothered = False
-            for k in ['added', 'removed', 'modified']:
-                values = commit.get(k)
-                # if we have ``{"diff": "@@ ...", "filename": "foo.md"}``
-                # normalise to the ``"foo.md"``
-                if len(values) and isinstance(values[0], dict):
-                    values = [item.get('filename') for item in values]
-                # filter out any files we don't care about
-                for item in values:
-                    if markdown_or_media.match(item) or stylesheet.match(item):
-                        data[k].append(item)
-                        bothered = True
+            bothered = True
+            verbs = ['added', 'removed', 'modified']
+            for k in verbs:
+                if commit.has_key(k):
+                    bothered = False
+                    break
+            if not bothered:
+                for k in verbs:
+                    values = commit.get(k)
+                    """
+                    # if we have ``{"diff": "@@ ...", "filename": "foo.md"}``
+                    # normalise to the ``"foo.md"``
+                    if len(values) and isinstance(values[0], dict):
+                        values = [item.get('filename') for item in values]
+                    """
+                    # filter out any files we don't care about
+                    for item in values:
+                        if markdown_or_media.match(item) or \
+                                stylesheet.match(item):
+                            data[k].append(item)
+                            bothered = True
             if bothered:
                 if before:
                     data['parent_ids'].append(before)
@@ -561,6 +581,7 @@ class Repository(BaseDocument):
                     to_handle.append(item)
             
         if len(to_handle):
+            """
             # fetch the commit info from github
             batch = []
             for item in to_handle:
@@ -580,6 +601,7 @@ class Repository(BaseDocument):
                 )
             gevent.joinall(batch)
             to_handle = [item.value.get('commit') for item in batch]
+            """
             self.handle_commits(github, branch, to_handle)
         
         if latest is not None:
