@@ -1,5 +1,8 @@
 
-# Document Generation System
+# thruflo
+
+
+thruflo is a document generation system.  This README currently sets out what it will be.  Atm, it's still in development: it doesn't work yet.
 
 
 ## Problem
