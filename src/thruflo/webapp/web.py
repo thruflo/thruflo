@@ -38,7 +38,6 @@ import uuid
 
 import webob
 
-import config
 import template
 import utils
 
@@ -47,15 +46,21 @@ _CHARSET_RE = re.compile(r';\s*charset=([^;\s]*)', re.I)
 
 SUPPORTED_METHODS = ['HEAD', 'GET', 'PUT', 'POST', 'DELETE']
 
+DEFAULT_SETTINGS = {
+    'cookie_secret': 'ONqi04WSTsqnYjznTRZeH3d5lhi6pULqiGgRdGy9GIE=',
+    'static_path': '/var/www/static'
+}
+
 class WSGIApplication(object):
     """Wraps a set of RequestHandlers in a WSGI-compatible application.
     """
     
-    def __init__(self, url_mapping):
+    def __init__(self, url_mapping, settings=DEFAULT_SETTINGS):
         """Initializes with the given URL mapping.
         """
         
         self._init_url_mappings(url_mapping)
+        self.settings = settings
         self.current_request_args = ()
         
     
@@ -75,7 +80,7 @@ class WSGIApplication(object):
         for regexp, handler_class in self._url_mapping:
             match = regexp.match(request.path)
             if match:
-                handler = handler_class(request, response)
+                handler = handler_class(request, response, self.settings)
                 groups = match.groups()
                 break
                 
@@ -164,15 +169,10 @@ class RequestHandler(object):
       secure cookies, ``static_url()`` and ``xsrf_form_html()``.
     """
     
-    def __init__(self, request, response):
+    def __init__(self, request, response, settings):
         self.request = request
         self.response = response
-        
-    
-    
-    @property
-    def settings(self):
-        return config.settings
+        self.settings = settings
         
     
     

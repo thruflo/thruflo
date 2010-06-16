@@ -29,9 +29,9 @@ setup(
         'gunicorn>=0.9.1',
         'redis>=1.36',
         'FormEncode>=1.2.2',
-        'webob>=0.9.8',
-        'github2',
-        'oauth2>=1.1.3',
+        'pyDNS>=2.3.4',
+        'pytz',
+        'webob>=0.9.8'
     ],
     entry_points = {
         'setuptools.file_finders': [

@@ -4,11 +4,12 @@
 """Provides a WSGI app as ``application``.
 """
 
-from web import WSGIApplication
+from webapp.web import WSGIApplication
+
+from config import settings
 from urls import mapping
 
 def app_factory():
-    return WSGIApplication(mapping)
-
+    return WSGIApplication(mapping, settings=settings)
 
 application = app_factory()

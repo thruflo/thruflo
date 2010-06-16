@@ -8,8 +8,9 @@ import logging
 
 from datetime import datetime
 
+from webapp import utils
+
 import config
-import utils
 
 ### github oauth client
 
