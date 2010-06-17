@@ -26,14 +26,44 @@
       src="${static_url('js/Math.uuid.js')}">
   </script>
   <script type="text/javascript" 
-      src="${static_url('js/client.js')}">
+      src="${static_url('BespinEmbedded-DropIn-0.7.3/BespinEmbedded.js')}">
   </script>
+  <script type="text/javascript" 
+      src="${static_url('js/thruflo.editor.js')}">
+  </script>
+  <link rel="stylesheet" type="text/css"
+      href="${static_url('BespinEmbedded-DropIn-0.7.3/BespinEmbedded.css')}"
+  />
 </%def>
 
 <%def name="page_content()">
   <h4>
     Editor
   </h4>
+  <div id="editor-container">
+    <div id="editor" class="tabs">
+      <ul id="editor-bar">
+        <!--
+          
+          <li>
+            <a href="#document-${id}">
+              <div class="tab-button-container">
+                <a href="#close" class="tab-button close">[ x ]</a>
+                <a href="#changed" class="tab-button changed">[ O ]</a>
+              </div>
+              <div class="filename">${filename}</span>
+            </a>\
+          </li>
+          
+          ...
+          
+        -->
+      </ul>
+      <div id="document-${id}">
+        
+      </div>
+    </div>
+  </div>
 </%def>
 
 ${self.page_content()}

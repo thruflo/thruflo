@@ -1,12 +1,18 @@
-+ sign up -> creates one repo [
-    
-    currently wip: need to do `./_design` and `./templates`
-    debug signup / registration
-    hack /dashboard to default to the one owned repo
-    
-    
-  ]
 * document editing UI, bespin, section re-use handling
+  * open document tabview
+  * firefox tab style [ + ] button
+  * markdown editor
+    * save / flag changed / close
+    * live document preview
+    * validate
+    * expand / collapse
+  * insert sections
+    * accordion
+    * list / tree / search
+    * select
+    * dblclick open
+    * drag insert
+    * upload 
 * template management
 * views / selecting & publishing through stylesheets
 * refactor user / access / subscription / pricing:

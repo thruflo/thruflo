@@ -8,12 +8,6 @@
 <p>
   <form name="register-form" action="/register" method="post">
     ${xsrf_form_html()}
-    % if message:
-    <div class="form-row">
-      <div class="error">
-        ${message}
-      </div>
-    % endif
     <div class="form-row">
       <div class="error">
         % if errors.has_key('name'):

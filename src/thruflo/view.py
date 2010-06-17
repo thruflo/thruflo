@@ -105,9 +105,8 @@ class RequestHandler(web.RequestHandler):
         return None
         
     
-    
     def redirect_on_login(self):
-        """Redirect to ``/editor/${repo.slug}``.
+        """Redirect to ``/:username/:repo.slug``.
         """
         
         logging.warning('@@ select default repo from last viewed')
@@ -116,12 +115,8 @@ class RequestHandler(web.RequestHandler):
         repo_id = user.owned[0]
         repo = model.Repository.get(repo_id)
         
-        return self.redirect(
-            '/editor/%s/%s' % (
-                user.username, 
-                repo.slug
-            )
-        )
+        next_url = '/%s/%s' % (user.username, repo.slug)
+        return self.redirect(next_url)
         
     
     
@@ -273,10 +268,10 @@ class Editor(RequestHandler):
         if not hasattr(self, '_repository'):
             repository = None
             parts = self.request.path.split('/')
-            if len(parts) > 3:
+            if len(parts) > 2:
                 try:
-                    username = schema.Username.to_python(parts[2])
-                    slug = schema.Slug.to_python(parts[3])
+                    username = schema.Username.to_python(parts[1])
+                    slug = schema.Slug.to_python(parts[2])
                 except formencode.Invalid, err:
                     pass
                 else:
@@ -291,6 +286,7 @@ class Editor(RequestHandler):
     
     @restricted
     def get(self, *args):
+        logging.debug('erm')
         return self.render_template('editor.tmpl')
         
     

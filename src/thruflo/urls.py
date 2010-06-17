@@ -22,7 +22,7 @@ mapping = [(
         r'^/register\/?$',
         view.Register
     ), (
-        r'^/editor\/%s\/%s\/?$' % (username, slug),
+        r'^/%s\/%s\/?$' % (username, slug),
         view.Editor
     )
 ]
