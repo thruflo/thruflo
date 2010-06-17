@@ -59,7 +59,7 @@ class BaseDocument(CouchDBKitDocument):
     """
     
     @classmethod
-    def soft_get(cls, *args, default=None, **kwargs):
+    def soft_get(cls, docid, default=None):
         """Allows::
           
               inst = cls.soft_get(possible_id)
@@ -70,7 +70,7 @@ class BaseDocument(CouchDBKitDocument):
         """
         
         try:
-            return cls.get(*args, **kwargs)
+            return cls.get(docid)
         except ResourceNotFound:
             return default
         
@@ -173,9 +173,9 @@ class SluggedDocument(BaseDocument):
     @classmethod
     def get_from_slug(cls, namespace, slug):
         docs = cls.view(
-            'slugged/namespace_type_slug_mod',
-            startkey=[namespace, cls._doc_type, slug, None],
-            endkey=[namespace, cls._doc_type, slug, []],
+            'slugged/type_namespace_slug_mod',
+            startkey=[cls._doc_type, namespace, slug, None],
+            endkey=[cls._doc_type, namespace, slug, []],
             include_docs=True
         ).all()
         if len(docs) == 0:
@@ -206,6 +206,7 @@ class SluggedDocument(BaseDocument):
         
     
     
+    namespace = StringProperty(required=True)
     slug = StringProperty(required=True)
     
 
@@ -225,6 +226,15 @@ class User(BaseDocument):
     owned = StringListProperty()
     shared = StringListProperty()
     
+    @property
+    def repositories(self):
+        """List of ``repository.id``s this user can access.
+        """
+        
+        return self.owned + self.shared
+        
+    
+    
     @classmethod
     def _get_id_from_username(cls, username):
         """We use a hash of the ``username`` as the ``user.id``.
@@ -236,14 +246,14 @@ class User(BaseDocument):
     
     @classmethod
     def check_exists(cls, username):
-        candidate_id = self._get_id_from_username(username)
-        return candidate_id in cls
+        candidate_id = cls._get_id_from_username(username)
+        return candidate_id in cls.get_db()
         
     
     
     @classmethod
     def create_user(cls, username, params):
-        candidate_id = self._get_id_from_username(username)
+        candidate_id = cls._get_id_from_username(username)
         user = cls(_id=candidate_id, **params)
         try:
             user.save()
@@ -257,12 +267,13 @@ class User(BaseDocument):
     
     @classmethod
     def authenticate(cls, username, password):
-        results = cls.view(
+        return cls.view(
             'user/authenticate', 
             key=[
-                username_or_email_address,
+                username,
                 password
-            ]
+            ],
+            include_docs=True
         ).one()
         
     
@@ -273,6 +284,9 @@ class Repository(SluggedDocument):
       by URL like ``../repo/73652037`` rather than the rather
       unweildy ``../repo/d8sjd6dhd8dkd0s9a6sme5w6dks7sm35``
     """
+    
+    # display name
+    name = StringProperty(default=u'Default')
     
 
 class Document(BaseDocument):

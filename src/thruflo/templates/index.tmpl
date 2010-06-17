@@ -1,0 +1,16 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="sub_title()" cached="True">
+  simple, fast document authoring
+</%def>
+
+<%def name="page_content()" cached="True">
+  <h4>
+    Welcome
+  </h4>
+  <p>
+    Lorum ipsum ...
+  </p>
+</%def>
+
+${self.page_content()}

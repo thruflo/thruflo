@@ -16,7 +16,7 @@ import model
 slug_pattern = r'[0-9]{8}'
 valid_slug = re.compile(r'^%s$' % slug_pattern, re.U)
 
-username_pattern = r'[.-\w]{3,18}'
+username_pattern = r'[.\-\w]{3,18}'
 valid_username = re.compile(r'^%s$' % username_pattern, re.U)
 
 document_id_pattern = r'[a-z0-9]{32}'
@@ -129,7 +129,7 @@ class UnicodeEmail(validators.Email):
             else:
                 value = str(value)
         try:
-            return unicode(value, self.inputEncoding)
+            return unicode(value, 'utf-8')
         except UnicodeDecodeError:
             raise validators.Invalid(
                 self.message('badEncoding', state), value, state
@@ -205,7 +205,7 @@ class Register(formencode.Schema):
         )
     ]
     name = validators.UnicodeString(not_empty=True)
-    email_address = UniqueEmail(resolve_domain=True, not_empty=True)
+    email = UniqueEmail(resolve_domain=True, not_empty=True)
     
 
 class Login(formencode.Schema):

@@ -25,23 +25,22 @@ def _get_redirect_url(handler):
             redirect_url += "?" + utils.unicode_urlencode(
                 dict(next=handler.request.path)
             )
-    else:
-        user = handler.current_user
-        """
-        logging.debug(user)
-        if not bool(user.sub_level and user.sub_expires > datetime.utcnow()):
-            logging.debug('subscription expired')
-            # log the user out to 'uncache' the authenticated user
-            domain = '.%s' % handler.settings['domain']
-            next = handler.get_argument('next', '/')
-            handler.clear_cookie('user_id', domain=domain)
-            # send them to spreedly to reenergise their subscription
-            redirect_url = clients.spreedly.get_subscribe_url(
-                int(user.id),
-                config.spreedly['paid_plan_id'], 
-                user.login
-            )
-        """
+    """else:
+          user = handler.current_user
+          logging.debug(user)
+          if not bool(user.sub_level and user.sub_expires > datetime.utcnow()):
+              logging.debug('subscription expired')
+              # log the user out to 'uncache' the authenticated user
+              domain = '.%s' % handler.settings['domain']
+              next = handler.get_argument('next', '/')
+              handler.clear_cookie('user_id', domain=domain)
+              # send them to spreedly to reenergise their subscription
+              redirect_url = clients.spreedly.get_subscribe_url(
+                  int(user.id),
+                  config.spreedly['paid_plan_id'], 
+                  user.login
+              )
+    """
     return redirect_url
     
 
@@ -69,19 +68,17 @@ def restricted(method):
     """
     
     @functools.wraps(method)
-    def wrapper(self, repo_owner, repo_name, *args, **kwargs):
+    def wrapper(self, *args, **kwargs):
         redirect_url = _get_redirect_url(self)
         if redirect_url is not None:
             if self.request.method == "GET":
                 return self.redirect(redirect_url)
             return self.error(403)
-        else:
-            """
-            repo_path = '%s/%s' % (repo_owner, repo_name)
-            if not bool(repo_path in self.current_user.repositories):
-                return self.error(403)
-            """
-        return method(self, repo_owner, repo_name, *args, **kwargs)
+        elif not self.repository:
+            return self.error(404)
+        elif not self.repository.id in self.current_user.repositories:
+            return self.error(403)
+        return method(self, *args, **kwargs)
         
     
     return wrapper
@@ -89,17 +86,42 @@ def restricted(method):
 
 
 class RequestHandler(web.RequestHandler):
-    """Implements ``self.get_current_user()``.
+    """Base RequestHandler for this webapp implementation.
     """
     
     def get_current_user(self):
+        """Get the current user from a ``user.id`` stored 
+          in a secure cookie, or return ``None``.
+        """
+        
         user_id = self.get_secure_cookie("user_id")
         logging.debug('user_id: %s' % user_id)
+        
         if user_id:
             user = model.User.soft_get(user_id)
             logging.debug('user: %s' % user)
             return user
+        
         return None
+        
+    
+    
+    def redirect_on_login(self):
+        """Redirect to ``/editor/${repo.slug}``.
+        """
+        
+        logging.warning('@@ select default repo from last viewed')
+        
+        user = self.current_user
+        repo_id = user.owned[0]
+        repo = model.Repository.get(repo_id)
+        
+        return self.redirect(
+            '/editor/%s/%s' % (
+                user.username, 
+                repo.slug
+            )
+        )
         
     
     
@@ -111,9 +133,9 @@ class Index(RequestHandler):
     
     def get(self):
         if self.current_user:
-            self.redirect('/dashboard')
+            return self.redirect_on_login()
         else:
-            self.render_tmpl('index.tmpl')
+            return self.render_template('index.tmpl')
         
         
     
@@ -131,7 +153,11 @@ class Login(RequestHandler):
         try:
             params = schema.Login.to_python(params)
         except formencode.Invalid, err:
-            self.render_tmpl('login.tmpl', errors=err.error_dict)
+            self.render_template(
+                'login.tmpl', 
+                errors=err.error_dict,
+                message=None
+            )
         else:
             user = model.User.authenticate(
                 params['username'], 
@@ -143,16 +169,25 @@ class Login(RequestHandler):
                     str(user.id),
                     domain='.%s' % self.settings['domain']
                 )
-                self.redirect('/dashboard')
+                self._current_user = user
+                return self.redirect_on_login()
             else:
-                self.render_tmpl('login.tmpl', errors={})
+                return self.render_template(
+                    'login.tmpl', 
+                    errors={},
+                    message=u'Login unsuccessful.'
+                )
             
         
         
     
     
     def get(self):
-        self.render_tmpl('login.tmpl', errors={})
+        return self.render_template(
+            'login.tmpl', 
+            errors={},
+            message=None
+        )
         
     
     
@@ -166,7 +201,7 @@ class Logout(RequestHandler):
             'user_id', 
             domain='.%s' % self.settings['domain']
         )
-        self.redirect(
+        return self.redirect(
             self.get_argument('next', '/')
         )
         
@@ -184,18 +219,19 @@ class Register(RequestHandler):
             'username': self.get_argument('username', None),
             'password': self.get_argument('password', None),
             'confirm': self.get_argument('confirm', None),
-            'email_address': self.get_argument('email_address', None),
+            'email': self.get_argument('email', None),
             'name': self.get_argument('name', None)
         }
         try:
             params = schema.Register.to_python(params)
         except formencode.Invalid, err:
-            self.render_tmpl('register.tmpl', errors=err.error_dict)
+            return self.render_template('register.tmpl', errors=err.error_dict)
         else:
+            params.pop('confirm')
             username = params['username']
             # create repo
             slug = model.Repository.get_unique_slug(namespace=username)
-            repo = model.Repository(slug=slug)
+            repo = model.Repository(slug=slug, namespace=username)
             repo.save()
             # create user
             params['owned'] = [repo.id]
@@ -205,14 +241,16 @@ class Register(RequestHandler):
             )
             if not user:
                 errors = {'username': '%s already taken.'}
-                self.render_tmpl('register.tmpl', errors=errors)
+                return self.render_template('register.tmpl', errors=errors)
             else:
+                user.save()
                 self.set_secure_cookie(
                     'user_id', 
                     str(user.id),
                     domain='.%s' % self.settings['domain']
                 )
-                self.redirect('/dashboard')
+                self._current_user = user
+                return self.redirect_on_login()
                 
             
         
@@ -220,20 +258,41 @@ class Register(RequestHandler):
     
     
     def get(self):
-        self.render_tmpl('register.tmpl', errors={})
+        return self.render_template('register.tmpl', errors={})
         
     
     
 
-class Dashboard(RequestHandler):
+
+class Editor(RequestHandler):
     """
     """
     
-    @members_only
-    def get(self):
-        self.render_tmpl('dashboard.tmpl')
+    @property
+    def repository(self):
+        if not hasattr(self, '_repository'):
+            repository = None
+            parts = self.request.path.split('/')
+            if len(parts) > 3:
+                try:
+                    username = schema.Username.to_python(parts[2])
+                    slug = schema.Slug.to_python(parts[3])
+                except formencode.Invalid, err:
+                    pass
+                else:
+                    repository = model.Repository.get_from_slug(
+                        username,
+                        slug
+                    )
+            self._repository = repository
+        return self._repository
         
     
     
-
+    @restricted
+    def get(self, *args):
+        return self.render_template('editor.tmpl')
+        
+    
+    
 

@@ -1,0 +1,48 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="sub_title()">Login</%def>
+
+<h4>
+  Login
+</h4>
+<p>
+  <form name="login-form" action="${handler.settings['login_url']}"
+      method="post">
+    ${xsrf_form_html()}
+    % if message:
+    <div class="form-row">
+      <div class="error">
+        ${message}
+      </div>
+    % endif
+    <div class="form-row">
+      <div class="error">
+        % if errors.has_key('username'):
+          ${errors['username']}
+        % endif
+      </div>
+      <input type="text" name="username" 
+          value="${handler.get_argument('username', '')}"
+      />
+      <label for="username">
+        Username
+      </label>
+    </div>
+    <div class="form-row">
+      <div class="error">
+        % if errors.has_key('password'):
+          ${errors['password']}
+        % endif
+      </div>
+      <input type="password" name="password"
+          value="${handler.get_argument('password', '')}"
+      />
+      <label for="password">
+        Password
+      </label>
+    </div>
+    <div class="form-row">
+      <input type="submit" value="Login" />
+    </div>
+  </form>
+</p>

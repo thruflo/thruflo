@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC
+    "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>
+      thruflo :: ${self.sub_title()}
+    </title>
+    ${self.headers()}
+    ${self.sub_headers()}
+  </head>
+  <body>
+    <div id="outer">
+      <div id="inner">
+        <div id="header">
+          % if handler.current_user:
+            ${self.auth_menu()}
+          % else:
+            ${self.login_menu()}
+          % endif
+          <div id="logo">
+            <a href="http://${handler.settings['domain']}" title="thruflo">
+              LOGO
+              <!--img src="${static_url('img/logo.png')}" /-->
+            </a>
+          </div>
+          <div class="clear">
+          </div>
+        </div>
+        <div id="main-content">
+          ${next.body()}
+        </div>
+        <div class="clear">
+        </div>
+      </div>
+    </div>
+    ${self.footer()}
+    ${self.super_footer_scripts()}
+    ${self.footer_scripts()}
+  </body>
+</html>
+
+<%def name="sub_title()"></%def>
+
+<%def name="headers()" cached="True">
+  <meta name="description" 
+      content="Simple document authoring system that's much faster than using Word, Powerpoint, iWork, etc. Output for screen and print.  Collaborate. Reuse content. Define stylesheets."
+  />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link type="text/css" rel="stylesheet"
+      href="${static_url('css/base.css')}"
+  />
+  <link type="image/ico" rel="icon"
+      href="${static_url('img/favicon.ico')}"
+  />
+</%def>
+
+<%def name="sub_headers()"></%def>
+
+<%def name="auth_menu()">
+  <div id="auth-menu">
+    <ul>
+      <li>
+        Hello ${handler.current_user.name}!
+      </li>
+      <li>
+        <a href="/logout" title="Logout">
+          Logout
+        </a>
+      </li>
+    </ul>
+  </div>
+</%def>
+
+<%def name="login_menu()" cached="True">
+  <div id="login-menu">
+    <ul>
+      <li>
+        <a href="/login" title="Login">
+          Login
+        </a>
+      </li>
+      <li>
+        <a href="/register" title="Register">
+          Register
+        </a>
+      </li>
+    </ul>
+  </div>
+</%def>
+
+<%def name="footer()" cached="True">
+  <div id="footer">
+    &copy; thruflo
+  </div>
+</%def>
+
+<%def name="super_footer_scripts()"></%def>
+
+<%def name="footer_scripts()" cached="True">
+  <script type="text/javascript">
+    // <![CDATA[
+      (function () {
+          var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+          document.write(
+            unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"
+            )
+          );
+      })();
+    // ]]>
+  </script>
+  <script type="text/javascript">
+    // <![CDATA[
+      (function () {
+          try {
+            var pageTracker = _gat._getTracker("UA-11267780-1");
+            pageTracker._setDomainName(document.location.host);
+            pageTracker._trackPageview();
+          }
+          catch(err) {}
+      })();
+    // ]]>
+  </script>
+</%def>

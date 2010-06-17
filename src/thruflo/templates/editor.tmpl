@@ -1,0 +1,39 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="sub_title()">
+  ${handler.current_user.name} 
+  :: 
+  ${handler.repository.name}
+</%def>
+
+<%def name="sub_headers()" cached="True">
+  <script type="text/javascript"
+      src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js">
+  </script>
+  <script type="text/javascript"
+      src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.1/jquery-ui.min.js">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/jquery.cookie.js')}">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/jquery.template.js')}">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/jquery.treeview.js')}">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/Math.uuid.js')}">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/client.js')}">
+  </script>
+</%def>
+
+<%def name="page_content()">
+  <h4>
+    Editor
+  </h4>
+</%def>
+
+${self.page_content()}

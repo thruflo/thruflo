@@ -13,6 +13,5 @@
   * sharing a repo requires paid subscription
   * pricing plans based on no. of owned repos and no. users shared with
   * invite users to repos & manage who has access
-* handle rejected pushes (i.e: can't merge)
-
-[Dulwich]: http://github.com/jelmer/dulwich/blob/master/docs/tutorial/2-change-file.txt
+* handle conflicting saves
+* versioning / undo via http://blog.couch.io/post/632718824/simple-document-versioning-with-couchdb

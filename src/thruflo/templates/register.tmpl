@@ -1,0 +1,86 @@
+<%inherit file="base.tmpl"/>
+
+<%def name="sub_title()">Register</%def>
+
+<h4>
+  Register
+</h4>
+<p>
+  <form name="register-form" action="/register" method="post">
+    ${xsrf_form_html()}
+    % if message:
+    <div class="form-row">
+      <div class="error">
+        ${message}
+      </div>
+    % endif
+    <div class="form-row">
+      <div class="error">
+        % if errors.has_key('name'):
+          ${errors['name']}
+        % endif
+      </div>
+      <input type="text" name="name"
+          value="${handler.get_argument('name', '')}"
+      />
+      <label for="name">
+        Name
+      </label>
+    </div>
+    <div class="form-row">
+      <div class="error">
+        % if errors.has_key('email'):
+          ${errors['email']}
+        % endif
+      </div>
+      <input type="text" name="email" 
+          value="${handler.get_argument('email', '')}"
+      />
+      <label for="email">
+        Email
+      </label>
+    </div>
+    <div class="form-row">
+      <div class="error">
+        % if errors.has_key('username'):
+          ${errors['username']}
+        % endif
+      </div>
+      <input type="text" name="username" 
+          value="${handler.get_argument('username', '')}"
+      />
+      <label for="username">
+        Username
+      </label>
+    </div>
+    <div class="form-row">
+      <div class="error">
+        % if errors.has_key('password'):
+          ${errors['password']}
+        % endif
+      </div>
+      <input type="password" name="password"
+          value="${handler.get_argument('password', '')}"
+      />
+      <label for="password">
+        Password
+      </label>
+    </div>
+    <div class="form-row">
+      <div class="error">
+        % if errors.has_key('confirm'):
+          ${errors['confirm']}
+        % endif
+      </div>
+      <input type="password" name="confirm" 
+          value="${handler.get_argument('confirm', '')}"
+      />
+      <label for="confirm">
+        Confirm password
+      </label>
+    </div>
+    <div class="form-row">
+      <input type="submit" value="Register" />
+    </div>
+  </form>
+</p>

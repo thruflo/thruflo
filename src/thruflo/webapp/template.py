@@ -14,7 +14,7 @@ from mako.lookup import TemplateLookup
 import utils
 
 tmpl_lookup = TemplateLookup(
-    directories=[join_path(dirname(__file__), 'templates')],
+    directories=[join_path(dirname(__file__), '..', 'templates')],
     module_directory='/tmp/mako_modules',
     input_encoding='utf-8', 
     output_encoding='utf-8', 
