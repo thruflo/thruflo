@@ -1,4 +1,12 @@
 * document editing UI, bespin, section re-use handling
+  * new document / rename document:
+    * we want "don't think just type"
+    * so we need a save and rename dialog? yuck...
+  * render document content
+    * get raw content via AJAX
+    * render within the right markup through the js client
+    * parse `<!-- section:... -->` comments into seperate editors
+    * pin / unpin
   * open document tabview
   * firefox tab style [ + ] button
   * markdown editor
