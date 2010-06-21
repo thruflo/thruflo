@@ -23,6 +23,7 @@ setup(
         'couchdbkit>=0.4.6',
         'greenlet>=0.2',
         'gevent',
+        'Paste>=1.7.3',
         'gunicorn>=0.9.1',
         'thruflo.webapp>=0.1',
         'FormEncode>=1.2.2',
