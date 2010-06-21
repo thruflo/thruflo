@@ -88,14 +88,16 @@ String.prototype.endsWith = function (pattern) {
             },
             'open': function () {},
             'save': function () {},
-            'close': function () {},
+            'saveas': function () {},
+            'move': function () {},
             'delete': function () {},
             'insert': function () {},
             'unpin': function () {},
             'preview': function () {},
             'validate': function () {},
             'expand': function () {},
-            'collapse': function () {}
+            'collapse': function () {},
+            'close': function () {}
         });
         
         
