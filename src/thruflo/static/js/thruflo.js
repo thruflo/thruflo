@@ -2,15 +2,6 @@ String.prototype.endsWith = function (pattern) {
   var d = this.length - pattern.length;
   return d >= 0 && this.lastIndexOf(pattern) === d;
 };
-var log = function (what) {
-  try { 
-    console.log(what); 
-  }
-  catch (err) {
-    // pass
-  }
-};
-
 (function ($) {
     $.fn.document = function (tabview, options) {
       var templates = {
@@ -54,6 +45,14 @@ var log = function (what) {
         }
       );
     };
+    var log = function (what) {
+      try { 
+        console.log(what); 
+      }
+      catch (err) {
+        // pass
+      }
+    };
     $(document).ready(
       function () {
         var current_path = window.location.pathname;
@@ -72,8 +71,34 @@ var log = function (what) {
           'distance': 20,
           'scroll': true
         };
-        $('.tabs').tabs();
-        $('.accordion').accordion();
+        var editor = {
+          'tabs': $('#editor .tabs').tabs(),
+          'accordion': $('#editor .accordion').accordion()
+        };
+        
+        var Document = Class.extend({
+            'init': function () {
+              
+              // add the tab
+              // add the panel
+              // render the bespin editor
+              // etc.
+              
+              
+            },
+            'open': function () {},
+            'save': function () {},
+            'close': function () {},
+            'delete': function () {},
+            'insert': function () {},
+            'unpin': function () {},
+            'preview': function () {},
+            'validate': function () {},
+            'expand': function () {},
+            'collapse': function () {}
+        });
+        
+        
       }
     );
 })(jQuery);

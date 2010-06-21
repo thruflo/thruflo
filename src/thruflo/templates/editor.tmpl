@@ -29,7 +29,10 @@
       src="${static_url('BespinEmbedded-DropIn-0.7.3/BespinEmbedded.js')}">
   </script>
   <script type="text/javascript" 
-      src="${static_url('js/thruflo.editor.js')}">
+      src="${static_url('js/class.js')}">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/thruflo.js')}">
   </script>
   <link rel="stylesheet" type="text/css"
       href="${static_url('BespinEmbedded-DropIn-0.7.3/BespinEmbedded.css')}"
@@ -41,27 +44,31 @@
     Editor
   </h4>
   <div id="editor-container">
-    <div id="editor" class="tabs">
-      <ul id="editor-bar">
-        <!--
+    <div id="editor">
+      <div class="tabs">
+        <ul id="tabs-bar">
+          <!--
           
-          <li>
-            <a href="#document-:id">
-              <div class="tab-button-container">
-                <a href="#close" class="tab-button close">[ x ]</a>
-                <a href="#changed" class="tab-button changed">[ O ]</a>
-              </div>
-              <div class="filename">:filename</span>
-            </a>\
-          </li>
+            <li>
+              <a href="#document-:id">
+                <div class="tab-button-container">
+                  <a href="#close" class="tab-button close">[ x ]</a>
+                  <a href="#changed" class="tab-button changed">[ O ]</a>
+                </div>
+                <div class="filename">:filename</span>
+              </a>\
+            </li>
           
-          ...
+            ...
           
-        -->
-      </ul>
-      <!--div id="document-:id">
+          -->
+        </ul>
+        <!--div id="document-:id">
         
-      </div-->
+        </div-->
+      </div>
+      <div class="accordion">
+      </div>
     </div>
   </div>
 </%def>

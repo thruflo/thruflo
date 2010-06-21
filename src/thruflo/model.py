@@ -24,7 +24,7 @@ from couchdbkit.exceptions import BulkSaveError
 from couchdbkit.loaders import FileSystemDocsLoader
 from couchdbkit.schema.properties import *
 
-from webapp.utils import generate_hash
+from thruflo.webapp.utils import generate_hash
 
 import config
 

@@ -9,7 +9,7 @@ import re
 import formencode
 from formencode import validators
 
-from webapp.utils import generate_hash
+from thruflo.webapp.utils import generate_hash
 
 import model
 

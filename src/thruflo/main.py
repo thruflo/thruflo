@@ -4,12 +4,12 @@
 """Provides a WSGI app as ``application``.
 """
 
-from webapp.web import WSGIApplication
+from thruflo.webapp import web
 
 from config import settings
 from urls import mapping
 
 def app_factory():
-    return WSGIApplication(mapping, settings=settings)
+    return web.WSGIApplication(mapping, settings=settings)
 
 application = app_factory()

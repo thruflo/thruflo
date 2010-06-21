@@ -20,18 +20,13 @@ setup(
     zip_safe = False,
     install_requires=[
         'setuptools_git==0.3.4',
-        'simplejson>=2.0.9',
-        'Mako>=0.3.2',
-        'Beaker>=1.5.3',
         'couchdbkit>=0.4.6',
         'greenlet>=0.2',
         'gevent',
         'gunicorn>=0.9.1',
-        'redis>=1.36',
+        'thruflo.webapp>=0.1',
         'FormEncode>=1.2.2',
-        'pyDNS>=2.3.4',
-        'pytz',
-        'webob>=0.9.8'
+        'pyDNS>=2.3.4'
     ],
     entry_points = {
         'setuptools.file_finders': [

@@ -27,6 +27,7 @@ else:
 # web application settings
 settings = {
     'static_path': join_path(dirname(__file__), 'static'),
+    'tmpl_dirs': [join_path(dirname(__file__), 'templates')],
     'cookie_secret': secret.cookie_secret,
     'login_url': '/login',
     'xsrf_cookies': True,
