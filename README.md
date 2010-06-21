@@ -1,8 +1,7 @@
 
 # thruflo
 
-
-thruflo is a document authoring system.  It's still in early, alpha development and may well not work yet.
+thruflo is a document authoring system.  It's still in early, alpha development and will probably not work yet if you try to [use it][(INSTALL.md)].
 
 
 ## Problem
@@ -19,46 +18,23 @@ thruflo is a document authoring system.  It's still in early, alpha development 
 * reuse sections of previous documents
 
 
-## Install
+## Implementation
 
-    git clone git@github.com:thruflo/thruflo.git
-    cd thruflo
-
-
-## Develop
-
-    python setup.py develop
-
-
-## Run
-
-    ./bin/paster serve etc/dev.ini
-
-
-## Output
-
-* documents
-* presentations
-* webpages
-* slideshows
-* emailshots
-* to print
+* web UI as editor
+* don't think just type approach
+* output
+  * documents
+  * presentations
+  * webpages
+  * slideshows
+  * emailshots
+  * to print
 * formats:
   * pdf
   * html
 
 
-## Implementation
-
-* users <-> repos many to many
-* web UI with:
-  * file browser / REST style UI to add / edit / delete documents
-  * search UI to find and select sections to re-use
-  * [bespin][]'d syntax highlighting / foo
-* formats are views, where you apply a skin to the document
-
-
-## Reuse Syntax
+## Reuse
 
 * use markdown headings to demarcate sections
 * sections stored using `<!-- section:${path} -->` comment syntax
@@ -96,8 +72,10 @@ bar.md:
 
 ## Unpinning
 
-* in the web UI, re-used sections are visually demarcated
+* in the web UI, re-used sections are visually demarcated using [bespin syntax highlighting][]
 * the heading is not editable
 * editing the content saves the original document
 * "unpin" to edit without saving the original (or to edit the heading)
 * this removes the <!-- section --><!-- end section --> wrapper and just edits the new document directly
+
+[bespin syntax highlighting]: https://bespin.mozillalabs.com/docs/pluginguide/syntax.html
