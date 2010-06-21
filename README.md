@@ -1,7 +1,7 @@
 
 # thruflo
 
-thruflo is a document authoring system.  It's still in early, alpha development and will probably not work yet if you try to [use it][(INSTALL.md)].
+thruflo is a document authoring system.  It's still in early, alpha development probably won't work yet if you try to [use it][].
 
 
 ## Problem
@@ -21,7 +21,7 @@ thruflo is a document authoring system.  It's still in early, alpha development 
 ## Implementation
 
 * web UI as editor
-* don't think just type approach
+* don't think just type
 * output
   * documents
   * presentations
@@ -78,4 +78,5 @@ bar.md:
 * "unpin" to edit without saving the original (or to edit the heading)
 * this removes the <!-- section --><!-- end section --> wrapper and just edits the new document directly
 
+[use it]: http://github.com/thruflo/thruflo/blob/master/INSTALL.md
 [bespin syntax highlighting]: https://bespin.mozillalabs.com/docs/pluginguide/syntax.html
