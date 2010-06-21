@@ -32,6 +32,9 @@ setup(
         'setuptools.file_finders': [
             "foobar = setuptools_git:gitlsfiles"
         ],
+        'paste.app_factory': [
+            'main=thruflo.main:app_factory',
+        ],
         'console_scripts': [
             'thruflo-sync = thruflo.model:sync',
             'relay-payload = thruflo.test:relay_commit_payload'

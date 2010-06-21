@@ -3,6 +3,7 @@
 * implement the core document js class interface:
   * `init`: 
     * render core elements, inc. tabs bits and bespin editor
+    * apply event handling
   * `open`:
     * get raw content via AJAX
     * possibly register for update events?
@@ -10,14 +11,15 @@
     * we want "don't think just type"
     * naming and renaming done by *editing the top level heading*
     * if save without a heading, prompt for a heading and *write into the markdown*
-    * saveas and move dialog with folder
   * `delete`:
     * delete the document from the filesystem and close
   * `insert`:
     * insert markup for document / document section / image / video
-    * insert into the write place
-    * *use syntax highlighting to visually demarkate `<!-- section:... -->` comments*
-    * *position pin / unpin button elements which have behaviour added by javascript*
+    * insert into the right place
+    * *use bespin syntax highlighting* to visually demarkate `<!-- section:... -->` comment blocks
+      * write syntax highlighter plugin
+      * `dryrun` rake / bundle a custom embedded bespin
+    * apply styles and behaviour to bespin canvas elements added by syntax highlighting
   * `unpin`: 
     * lose the `<!-- section -->` comments and thus auto lose the behaviour added
   * `close`:
@@ -32,6 +34,7 @@
   * drag insert
   * upload / images / videos
 * extend the markdown editor
+  * saveas and move dialog with folders
   * live document preview
   * validate
   * expand / collapse

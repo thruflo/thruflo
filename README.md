@@ -2,7 +2,7 @@
 # thruflo
 
 
-thruflo is a document generation system.  This README currently sets out what it will be.  Atm, it's still in development: it doesn't work yet.
+thruflo is a document authoring system.  It's still in early, alpha development and may well not work yet.
 
 
 ## Problem
@@ -16,32 +16,41 @@ thruflo is a document generation system.  This README currently sets out what it
 
 * write using markdown
 * format using stylesheets
-* store using version control
+* reuse sections of previous documents
 
 
-## Features
+## Install
 
-* output:
-  * documents
-  * presentations
-  * webpages
-  * slideshows
-  * emailshots
-  * to print
+    git clone git@github.com:thruflo/thruflo.git
+    cd thruflo
+
+
+## Develop
+
+    python setup.py develop
+
+
+## Run
+
+    ./bin/paster serve etc/dev.ini
+
+
+## Output
+
+* documents
+* presentations
+* webpages
+* slideshows
+* emailshots
+* to print
 * formats:
   * pdf
   * html
-* re-use sections of documents
-* collaborate (edit the same document at the same time)
-* edit through the web (or for advanced users, edit files locally and `git push`)
 
 
 ## Implementation
 
 * users <-> repos many to many
-* repos stored on filesystem (initially on one machine, potentially sharded)
-* update documents through [git daemon][] and Python web app using [dulwich][]
-* `git hooks` index / cache data in couchdb & redis (rebuildable)
 * web UI with:
   * file browser / REST style UI to add / edit / delete documents
   * search UI to find and select sections to re-use

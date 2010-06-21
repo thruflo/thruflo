@@ -14,6 +14,7 @@ __all__ = [
 ]
 
 import logging
+import sys
 import uuid
 
 from os.path import dirname, join as join_path
@@ -26,7 +27,7 @@ from couchdbkit.schema.properties import *
 
 from thruflo.webapp.utils import generate_hash
 
-import config
+SHOULD_SYNC = sys.platform == 'darwin'
 
 class Couch(object):
     """Convenience wrapper around the ``couchdbkit``
@@ -43,7 +44,7 @@ class Couch(object):
         
     
     
-    def __init__(self, sync=config.debug):
+    def __init__(self, sync=SHOULD_SYNC):
         self.db = Server().get_or_create_db('thruflo')
         if sync:
             self.sync()
