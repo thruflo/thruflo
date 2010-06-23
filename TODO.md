@@ -1,5 +1,3 @@
-* move app config into `.ini` files
-* create tabs and accordion
 * implement the core document js class interface:
   * `init`: 
     * render core elements, inc. tabs bits and bespin editor

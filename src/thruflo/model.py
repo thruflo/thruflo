@@ -27,8 +27,6 @@ from couchdbkit.schema.properties import *
 
 from thruflo.webapp.utils import generate_hash
 
-SHOULD_SYNC = sys.platform == 'darwin'
-
 class Couch(object):
     """Convenience wrapper around the ``couchdbkit``
       ``Server`` and ``FileSystemDocsLoader`` internals.
@@ -44,15 +42,14 @@ class Couch(object):
         
     
     
-    def __init__(self, sync=SHOULD_SYNC):
-        self.db = Server().get_or_create_db('thruflo')
-        if sync:
-            self.sync()
+    def __init__(self, dbname='thruflo', settings={}):
+        self.server = Server()
+        self.db = self.server.get_or_create_db(dbname)
+        self.app_settings = settings
         
     
     
 
-couch = Couch()
 
 class BaseDocument(CouchDBKitDocument):
     """Tweak Couchdbkit a little and extends it to provide ``ver``
@@ -211,7 +208,6 @@ class SluggedDocument(BaseDocument):
     slug = StringProperty(required=True)
     
 
-BaseDocument.set_db(couch.db)
 
 class User(BaseDocument):
     """``User``s can own and share ``Repository``s.
@@ -301,11 +297,53 @@ class Document(BaseDocument):
     
 
 
+def couch_factory(settings):
+    """Returns a ``Couch`` instance.  
+      
+      Written to be used within the context of an app factory,
+      so that the model classes can be aware of the application 
+      settings, ala:
+          
+          import model
+          
+          def app_factory(global_config, **local_conf):
+              settings = global_config
+              # ... etc.
+              
+              model.couch = model.couch_factory(settings)
+              
+          
+      The couch instance provides:
+      
+      * `couch.server`: low level server interface
+      * `couch.db`: the database this app is using
+      * `couch.app_settings`: the application settings
+      * `coucn.sync()` to sync the couchdb views in the 
+        database with the ``./_design`` folder.
+      
+    """
+    
+    # instantiate
+    couch = Couch(settings=settings)
+    
+    # in dev mode always sync the views
+    if settings['dev_mode']:
+        couch.sync()
+    
+    # tell all the ``Document`` classes to use
+    # ``couch.db``
+    BaseDocument.set_db(couch.db)
+    
+    # return
+    return couch
+    
+
 def sync():
     """Syncs the couchdb views in the database with the 
       ``./_design`` folder.
     """
     
+    couch = Couch()
     couch.sync()
     
 

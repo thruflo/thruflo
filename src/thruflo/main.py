@@ -4,23 +4,22 @@
 """Provides a WSGI ``app_factory``.
 """
 
-import logging
-
-from thruflo.webapp import web
-
-from urls import mapping
-
 def app_factory(global_config, **local_conf):
-    """Update config, setup logging, create ``model.db`` 
+    """Update config, setup logging, create ``model.couch`` 
       and return a wsgi application.
     """
     
-    # update config
+    ### update config
+    
     settings = global_config
     settings.update(local_conf)
     settings['tmpl_dirs'] = [settings['template_path']]
     
-    # setup logging
+    
+    ### setup logging
+    
+    import logging
+    
     if settings['debug']:
         logging.basicConfig(level=logging.DEBUG)
         logging.getLogger('beaker').setLevel(logging.INFO)
@@ -31,7 +30,18 @@ def app_factory(global_config, **local_conf):
         logging.getLogger('restkit').setLevel(logging.WARNING)
     
     
-    # return webapp
+    ### create model.couch instance
+    
+    import model
+    
+    model.couch = model.couch_factory(settings)
+    
+    
+    ### return webapp
+    
+    from thruflo.webapp import web
+    from urls import mapping
+    
     return web.WSGIApplication(mapping, settings=settings)
     
 
