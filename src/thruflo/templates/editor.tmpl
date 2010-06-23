@@ -7,11 +7,25 @@
 </%def>
 
 <%def name="sub_headers()" cached="True">
+  <%
+    gapis = 'http://ajax.googleapis.com/ajax/libs'
+  %>
+  % if handler.settings['dev_mode']:
+    <link rel="stylesheet" type="text/css"
+        href="${gapis}/jqueryui/1.8.2/themes/base/jquery-ui.css"
+    />
+    <link rel="stylesheet" type="text/css"
+        href="http://static.jquery.com/ui/css/demo-docs-theme/ui.theme.css" 
+    />
+  % endif
+  <link rel="stylesheet" type="text/css"
+      href="${static_url('css/editor.css')}"
+  />
   <script type="text/javascript"
-      src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js">
+      src="${gapis}/jquery/1.4.2/jquery.min.js">
   </script>
   <script type="text/javascript"
-      src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.1/jquery-ui.min.js">
+      src="${gapis}/jqueryui/1.8.1/jquery-ui.min.js">
   </script>
   <script type="text/javascript" 
       src="${static_url('js/jquery.cookie.js')}">
@@ -23,20 +37,8 @@
       src="${static_url('js/jquery.treeview.js')}">
   </script>
   <script type="text/javascript" 
-      src="${static_url('js/Math.uuid.js')}">
-  </script>
-  <script type="text/javascript" 
-      src="${static_url('BespinEmbedded-DropIn-0.7.3/BespinEmbedded.js')}">
-  </script>
-  <script type="text/javascript" 
       src="${static_url('js/class.js')}">
   </script>
-  <script type="text/javascript" 
-      src="${static_url('js/thruflo.js')}">
-  </script>
-  <link rel="stylesheet" type="text/css"
-      href="${static_url('BespinEmbedded-DropIn-0.7.3/BespinEmbedded.css')}"
-  />
 </%def>
 
 <%def name="page_content()">
@@ -45,6 +47,30 @@
   </h4>
   <div id="editor-container">
     <div id="editor">
+      <ul id="file-menu">
+        <li>
+          <a id="add-new-document-link" href="#add">
+            Add new document
+          </a>
+        </li>
+        <li>
+          <a id="save-document" href="#save">
+            Save
+          </a>
+        </li>
+        <li>
+          <a id="saveas-document" href="#saveas">
+            Save As
+          </a>
+        </li>
+        <li>
+          <a id="delete-document" href="#delete">
+            Delete
+          </a>
+        </li>
+      </ul>
+      <div class="clear">
+      </div>
       <div class="tabs">
         <ul id="tabs-bar">
           <!--
@@ -71,6 +97,12 @@
       </div>
     </div>
   </div>
+</%def>
+
+<%def name="super_footer_scripts()">
+  <script type="text/javascript" 
+      src="${static_url('js/thruflo.js')}">
+  </script>
 </%def>
 
 ${self.page_content()}

@@ -1,14 +1,16 @@
 * implement the core document js class interface:
   * `init`: 
-    * render core elements, inc. tabs bits and bespin editor
-    * apply event handling
-  * `open`:
-    * get raw content via AJAX
-    * possibly register for update events?
+    + render core elements, inc. tabs bits and bespin editor
+    + apply event handling
   * `save`, `saveas` and `move`:
     * we want "don't think just type"
     * naming and renaming done by *editing the top level heading*
     * if save without a heading, prompt for a heading and *write into the markdown*
+    * how to handle overwriting?
+    * https://bespin.mozillalabs.com/docs/pluginguide/keymapping.html
+  * `open`:
+    * get raw content via AJAX
+    * possibly register for update events?
   * `delete`:
     * delete the document from the filesystem and close
   * `insert`:
@@ -21,7 +23,7 @@
   * `unpin`: 
     * lose the `<!-- section -->` comments and thus auto lose the behaviour added
   * `close`:
-    * remove the UI elements
+    + remove the UI elements
     * prompt for save?
 * firefox tab style [ + ] button
 * right hand side UI

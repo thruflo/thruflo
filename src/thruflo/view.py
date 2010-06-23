@@ -292,3 +292,17 @@ class Editor(RequestHandler):
     
     
 
+
+class Bespin(RequestHandler):
+    """Just serves the static bespin page.  It's a template
+      to ensure the static file anti-cache versioning by
+      query string works.
+      
+    """
+    
+    def get(self):
+        return self.render_template('bespin.tmpl')
+        
+    
+    
+
