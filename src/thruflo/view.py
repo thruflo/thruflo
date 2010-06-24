@@ -8,6 +8,7 @@ import functools
 import logging
 
 from datetime import datetime, timedelta
+from xml.etree import ElementTree
 
 import formencode
 
@@ -284,9 +285,39 @@ class Editor(RequestHandler):
         
     
     
+    def _save(self):
+        raw_content = self.get_argument('content')
+        params = {
+            'content': raw_content,
+            'path': self.get_argument('path')
+        }
+        try:
+            params = schema.Save.to_python(params)
+        except formencode.Invalid, err:
+            data = utils.json_encode(err.error_dict)
+            return self.error(400, body=data)
+        else:
+            elem = ElementTree.fromstring(params['content'])
+            logging.debug(elem)
+            
+            return {'status': 'NotImplemented'}
+        
+    
+    
     @restricted
-    def get(self, *args):
-        logging.debug('erm')
+    def post(self, action):
+        """Acts as a little dispatch script to send
+          actions to the corresponding method.
+          
+          (The action is validated by the url mapping).
+        """
+        
+        return getattr(self, '_%s' % action)()
+        
+    
+    
+    @restricted
+    def get(self):
         return self.render_template('editor.tmpl')
         
     
@@ -300,7 +331,7 @@ class Bespin(RequestHandler):
       
     """
     
-    def get(self):
+    def get(self, *args):
         return self.render_template('bespin.tmpl')
         
     

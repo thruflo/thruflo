@@ -4,10 +4,12 @@
 """Form schemas for validation, independent of the models.
 """
 
-import re
-
 import formencode
 from formencode import validators
+
+import logging
+import markdown
+import re
 
 from thruflo.webapp.utils import generate_hash
 
@@ -212,3 +214,69 @@ class Login(formencode.Schema):
     username = Username(not_empty=True)
     password = SecurePassword(not_empty=True)
     
+
+
+path_pattern = r'/([ \-\.\w]+\/?)*'
+valid_path = re.compile(r'^%s$' % path_pattern, re.U)
+
+content_pattern = r'^<h1>'
+valid_content = re.compile(content_pattern, re.U)
+
+class Content(validators.UnicodeString):
+    """Parses the content into html with `Python-Markdown`_
+      and enforces that the html must start with an ``<h1>``.
+      
+      .. _`Python-Markdown`: http://www.freewisdom.org/projects/python-markdown
+      
+    """
+    
+    messages = {'invalid': 'Invalid content.'}
+    
+    def _to_python(self, value, state):
+        value = super(Content, self)._to_python(value, state)
+        return markdown.markdown(value)
+        
+    
+    
+    def validate_python(self, value, state):
+        super(Content, self).validate_python(value, state)
+        logging.debug(value)
+        if not valid_content.match(value):
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        
+    
+    
+
+class Path(validators.UnicodeString):
+    """A ``/unix/style/url/pathy/whatnot\/?``.
+    """
+    
+    messages = {'invalid': 'Invalid path.'}
+    
+    def _to_python(self, value, state):
+        value = super(Path, self)._to_python(value, state)
+        return value.strip()
+        
+    
+    def validate_python(self, value, state):
+        super(Path, self).validate_python(value, state)
+        if not valid_path.match(value):
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        
+    
+    
+
+
+class Save(formencode.Schema):
+    content = Content(not_empty=True)
+    path = Path(not_empty=True)
+    
+

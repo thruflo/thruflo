@@ -1,3 +1,6 @@
+String.prototype.startsWith = function (pattern) {
+  return this.indexOf(pattern) === 0;
+};
 String.prototype.endsWith = function (pattern) {
   var d = this.length - pattern.length;
   return d >= 0 && this.lastIndexOf(pattern) === d;
@@ -51,6 +54,7 @@ String.prototype.endsWith = function (pattern) {
             }
           }
         );
+        var convertor = new Showdown.converter();
         var UNTITLED = 'Untitled',
             current_document,
             intid = 1;
@@ -112,6 +116,36 @@ String.prototype.endsWith = function (pattern) {
             'open': function () {},
             'save': function () {
               log('save: ' + this._get_index());
+              var content = this.editor.value;
+              var html = convertor.makeHtml(content);
+              if (html.startsWith('<h1>')) {
+                // we have a heading
+                $.ajax({
+                    'url': current_path + '/save',
+                    'type': 'POST',
+                    'dataType': 'json',
+                    'data': {
+                      'content': content,
+                      'path': '/' // @@ folder path
+                    },
+                    'success': function (data) {
+                      
+                      log('@@ handle saved OK');
+                      log(data);
+                      
+                      
+                    },
+                    'error': function (transport, text_status) {
+                      log(transport.responseText);
+                    },
+                    'complete': function () {}
+                  }
+                );
+              }
+              else {
+                // we need to add a heading
+                alert('please add a heading (@@ make nice prompt)');
+              }
             },
             'saveas': function () {
               log('saveas: ' + this._get_index());

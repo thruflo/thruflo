@@ -37,7 +37,13 @@
       src="${static_url('js/jquery.treeview.js')}">
   </script>
   <script type="text/javascript" 
+      src="${static_url('js/showdown.js')}">
+  </script>
+  <script type="text/javascript" 
       src="${static_url('js/class.js')}">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/thruflo.js')}">
   </script>
 </%def>
 
@@ -97,12 +103,6 @@
       </div>
     </div>
   </div>
-</%def>
-
-<%def name="super_footer_scripts()">
-  <script type="text/javascript" 
-      src="${static_url('js/thruflo.js')}">
-  </script>
 </%def>
 
 ${self.page_content()}

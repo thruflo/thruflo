@@ -27,7 +27,8 @@ setup(
         'gunicorn>=0.9.1',
         'thruflo.webapp>=0.1',
         'FormEncode>=1.2.2',
-        'pyDNS>=2.3.4'
+        'pyDNS>=2.3.4',
+        'Markdown>=2.0.3'
     ],
     entry_points = {
         'setuptools.file_finders': [
