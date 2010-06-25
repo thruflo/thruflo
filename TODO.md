@@ -48,5 +48,6 @@
   * pricing plans based on no. of owned repos and no. users shared with
   * invite users to repos & manage who has access
 * versioning / undo as per ([#][]) 
+* etags
 
 [#]: http://blog.couch.io/post/632718824/simple-document-versioning-with-couchdb

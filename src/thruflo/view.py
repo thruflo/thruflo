@@ -8,7 +8,6 @@ import functools
 import logging
 
 from datetime import datetime, timedelta
-from xml.etree import ElementTree
 
 import formencode
 
@@ -297,10 +296,15 @@ class Editor(RequestHandler):
             data = utils.json_encode(err.error_dict)
             return self.error(400, body=data)
         else:
-            elem = ElementTree.fromstring(params['content'])
-            logging.debug(elem)
-            
-            return {'status': 'NotImplemented'}
+            title = params['content'] # coerced by the schema
+            doc = model.Document(
+                repository=self.repository.id,
+                path=params['path'],
+                title=title,
+                content=raw_content
+            )
+            doc.save()
+            return {'title': title, 'id': doc.id}
         
     
     
@@ -322,7 +326,6 @@ class Editor(RequestHandler):
         
     
     
-
 
 class Bespin(RequestHandler):
     """Just serves the static bespin page.  It's a template

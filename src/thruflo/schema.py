@@ -4,12 +4,14 @@
 """Form schemas for validation, independent of the models.
 """
 
+
+import logging
+import re
+
 import formencode
 from formencode import validators
 
-import logging
 import markdown
-import re
 
 from thruflo.webapp.utils import generate_hash
 
@@ -219,8 +221,8 @@ class Login(formencode.Schema):
 path_pattern = r'/([ \-\.\w]+\/?)*'
 valid_path = re.compile(r'^%s$' % path_pattern, re.U)
 
-content_pattern = r'^<h1>'
-valid_content = re.compile(content_pattern, re.U)
+h1_pattern = r'^<h1>(.+)</h1>[ \t]*\n'
+start_with_h1 = re.compile(h1_pattern, re.U)
 
 class Content(validators.UnicodeString):
     """Parses the content into html with `Python-Markdown`_
@@ -230,23 +232,28 @@ class Content(validators.UnicodeString):
       
     """
     
-    messages = {'invalid': 'Invalid content.'}
+    messages = {'invalid': 'Content must contain a top level heading.'}
     
     def _to_python(self, value, state):
         value = super(Content, self)._to_python(value, state)
-        return markdown.markdown(value)
+        surely_enough_html = markdown.markdown(value[:500])
+        match = start_with_h1.match(surely_enough_html)
+        if match is not None:
+            title = match.groups()[0]
+            return title
+        else:
+            return u''
         
     
     
     def validate_python(self, value, state):
-        super(Content, self).validate_python(value, state)
-        logging.debug(value)
-        if not valid_content.match(value):
+        if not value:
             raise validators.Invalid(
                 self.message("invalid", state),
                 value,
                 state
             )
+        super(Content, self).validate_python(value, state)
         
     
     
