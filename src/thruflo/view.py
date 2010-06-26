@@ -318,11 +318,11 @@ class Editor(RequestHandler):
         """
         
         params = {
-            '_id': self.get_argument('_id'),
-            '_rev': self.get_argument('_rev'),
-            'path': self.get_argument('path'),
-            'title': self.get_argument('title'),
-            'content': self.get_argument('content')
+            '_id': self.get_argument('_id', u''),
+            '_rev': self.get_argument('_rev', u''),
+            'path': self.get_argument('path', u''),
+            'title': self.get_argument('title', u''),
+            'content': self.get_argument('content', u'')
         }
         try:
             params = schema.OverwriteDocument.to_python(params)
@@ -358,6 +358,22 @@ class Editor(RequestHandler):
             doc.save()
             return {'_id': doc._id, '_rev': doc._rev}
             
+        
+    
+    def _fetch(self):
+        _id = self.get_argument('_id', u'')
+        try:
+            _id = schema.CouchDocumentId(not_empty=True).to_python(_id)
+        except formencode.Invalid, err:
+            data = utils.json_encode({'_id': 'Invalid ``_id``'})
+            return self.error(400, body=data)
+        else:
+            response = model.Document.soft_get_with_sections(_id)
+            if response is None:
+                data = utils.json_encode({'_id': 'Not found'})
+                return self.error(404, body=data)
+            return response
+        
         
     
     

@@ -25,7 +25,7 @@ mapping = [(
         r'^/%s\/%s\/?$' % (username, slug),
         view.Editor
     ), (
-        r'^/%s\/%s\/(create|overwrite|rename|open|delete)\/?$' % (username, slug),
+        r'^/%s\/%s\/(create|overwrite|rename|delete|fetch)\/?$' % (username, slug),
         view.Editor
     ),(
         r'^/bespin\/?',

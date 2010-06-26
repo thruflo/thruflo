@@ -27,6 +27,14 @@ from couchdbkit.schema.properties import *
 
 from thruflo.webapp.utils import generate_hash
 
+ten_lists = [
+    [], [], [], [], [], [], [], [], [], []
+]
+ten_lies = [
+    False, False, False, False, False, 
+    False, False, False, False, False
+]
+
 class Couch(object):
     """Convenience wrapper around the ``couchdbkit``
       ``Server`` and ``FileSystemDocsLoader`` internals.
@@ -305,6 +313,37 @@ class Document(BaseDocument):
     path = StringProperty(required=True)
     
     content = StringProperty()
+    
+    @classmethod
+    def soft_get_with_sections(cls, _id):
+        """Two stage lookup:
+          
+          * first we get the doc by id
+          * then we get raw sections data filtering by the 
+            document title
+          
+          Then we filter the sections results by doc id to 
+          deduplicate them if necessary.
+        """
+        
+        doc = cls.soft_get(_id)
+        if doc is None:
+            return None
+        
+        key_stub = [doc.repository, 0, doc.title]
+        candidates = cls.view(
+            'document/sections',
+            startkey = key_stub + ten_lies,
+            endkey = key_stub + ten_lists
+        ).all()
+        
+        sections = [item for item in candidates if item['id'] == doc.id]
+        
+        logging.debug(sections)
+        
+        return {'sections': sections, 'doc': doc.to_json()}
+        
+    
     
 
 

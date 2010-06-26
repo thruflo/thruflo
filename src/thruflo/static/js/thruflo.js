@@ -122,14 +122,29 @@ String.prototype.endsWith = function (pattern) {
               }
               return title[1];
             },
-            'init': function (_id, _rev, path) {
-              this._id = _id;
-              this._rev = _rev;
-              this.path = path;
-              // render tab
+            '_trim_title': function (title) {
+              if (title.length > 20) {
+                title = title.slice(0, 16) + ' ...';
+              }
+              return title;
+            },
+            'init': function (doc) {
               var id_no = this._generate_tabs_id();
               var tab_id = '#tabs-' + id_no;
-              t.tabs('add', tab_id, UNTITLED + ' ' + id_no);
+              if (doc) {
+                this._id = doc._id;
+                this._rev = doc._rev;
+                this.path = doc.path;
+                this.initial_content = doc.content;
+                t.tabs('add', tab_id, this._trim_title(doc.title));
+              }
+              else {
+                this._id = null;
+                this._rev = null;
+                this.path = '/';
+                this.initial_content = '\n# ' + UNTITLED + ' ' + id_no + '\n\n\n';
+                t.tabs('add', tab_id, UNTITLED + ' ' + id_no);
+              }
               this.tab = $('li', t).last();
               // wait for the editor to be ready
               var panel = $(tab_id);
@@ -142,7 +157,7 @@ String.prototype.endsWith = function (pattern) {
                 self.bespin = $('#editor', doc).get(0).bespin;
                 self.editor = self.bespin.editor;
                 // default the content to something friendly
-                self.editor.value = '\n# ' + UNTITLED + ' ' + id_no + '\n\n\n';
+                self.editor.value = self.initial_content;
                 self.editor.setLineNumber(4);
                 self.editor.focus = true;
                 // handle events
@@ -210,10 +225,7 @@ String.prototype.endsWith = function (pattern) {
                       self._id = data['_id'];
                       self._rev = data['_rev'];
                       // update the tab label
-                      var label = title;
-                      if (label.length > 20) {
-                        label = label.slice(0, 16) + ' ...';
-                      }
+                      var label = self._trim_title(title);
                       self.tab.find('span').text(label);
                     },
                     'error': function (transport, text_status) {
@@ -270,13 +282,102 @@ String.prototype.endsWith = function (pattern) {
           }
         );
         
+        var Listing = Class.extend({
+            '_has_data': function () {
+              return !!(this.doc);
+            },
+            '_fetch_data': function (callback) {
+              var self = this;
+              $.ajax({
+                  'url': current_path + '/fetch',
+                  'type': 'POST',
+                  'dataType': 'json',
+                  'data': {'_id': this._id},
+                  'success': function (data) {
+                    self.doc = data['doc'];
+                    self.sections = data['sections'];
+                    self._render_sections();
+                    callback();
+                  },
+                  'error': function (transport, text_status) {
+                    log('@@ fetch failed');
+                    log(transport.responseText);
+                  }
+                }
+              );
+            },
+            '_render_sections': function () {
+              log('@@ render sections');
+              log(this.sections);
+            },
+            '_show_sections': function () {
+              log('@@ show sections');
+            },
+            '_trigger_open': function () {
+              $(document).trigger('thruflo:document:opened', [this.doc]);
+            },
+            'init': function (target, _id, title) {
+              this.doc = null;
+              this.sections = null;
+              this.target = target;
+              this._id = _id;
+              this.title = title;
+              var self = this;
+              $(this.target).click(
+                function (event) {
+                  self.select();
+                  return false;
+                }
+              );
+              $(this.target).dblclick(
+                function (event) {
+                  self.open();
+                  return false;
+                }
+              );
+            },
+            'select': function () {
+              if (this._has_data()) {
+                this._show_sections();
+              }
+              else {
+                this._fetch_data(this._show_sections);
+              }
+            },
+            'open': function () {
+              if (this._has_data()) {
+                this._trigger_open();
+              }
+              else {
+                this.fetch_data(this._trigger_open);
+              }
+            }
+          }
+        );
+        
+        $(document).bind(
+          'thruflo:document:opened',
+          function (event, doc) {
+            var d = new Document(doc);
+            return false;
+          }
+        );
+        
+        $('#documents-listing .listing').each(
+          function () {
+            var _id = this.id.split('listing-')[1];
+            var title = $(this).find('a').eq(0).attr('title');
+            this.listing = new Listing(this, _id, title);
+          }
+        );
+        
         // don't think just type
-        var d = new Document(null, null, '/');
+        var d = new Document();
         
         $('#add-new-document-link').bind(
           'click dblclick',
           function () {
-            var d = new Document(null, null, '/');
+            var d = new Document();
             return false;
           }
         );

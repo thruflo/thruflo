@@ -1,10 +1,8 @@
 
-* start with an html listing of the documents in the page
-* have the key delimited by '/' as an attr 
-* click on the document gets and reveals the content & sections
++ click on the listing gets and reveals the content & sections
 * click in the listings expands / contracts the treeview and scrolls the preview area
 
-* on save, need to insert the new document in the listings at the right point sorted by title
+* on save, need to insert the new document in the listings at the right point sorted by title / update the relevant listing instance
 
   * `open`:
     * get raw content via AJAX
