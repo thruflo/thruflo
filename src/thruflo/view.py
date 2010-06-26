@@ -284,27 +284,55 @@ class Editor(RequestHandler):
         
     
     
-    def _save(self):
-        raw_content = self.get_argument('content')
+    def _overwrite(self):
+        """Save overwrites the content of a previously stored
+          document.  If the ``doc._rev`` is out of date, this 
+          will raise an error.
+          
+          @@ todo: handle conflicts / merging.
+        """
+        
         params = {
-            'content': raw_content,
-            'path': self.get_argument('path')
+            '_id': self.get_argument('_id'),
+            '_rev': self.get_argument('_rev'),
+            'path': self.get_argument('path'),
+            'title': self.get_argument('title'),
+            'content': self.get_argument('content')
         }
         try:
-            params = schema.Save.to_python(params)
+            params = schema.OverwriteDocument.to_python(params)
         except formencode.Invalid, err:
             data = utils.json_encode(err.error_dict)
             return self.error(400, body=data)
         else:
-            title = params['content'] # coerced by the schema
-            doc = model.Document(
-                repository=self.repository.id,
-                path=params['path'],
-                title=title,
-                content=raw_content
-            )
+            params['repository'] = self.repository.id
+            doc = model.Document(**params)
             doc.save()
-            return {'title': title, 'id': doc.id}
+            return {'_id': doc._id, '_rev': doc._rev}
+            
+        
+    
+    def _create(self):
+        """Creates a new document called ``title`` at ``path``
+          with the ``content`` provided.
+        """
+        
+        params = {
+            'path': self.get_argument('path'),
+            'title': self.get_argument('title'),
+            'content': self.get_argument('content')
+        }
+        try:
+            params = schema.CreateDocument.to_python(params)
+        except formencode.Invalid, err:
+            data = utils.json_encode(err.error_dict)
+            return self.error(400, body=data)
+        else:
+            params['repository'] = self.repository.id
+            doc = model.Document(**params)
+            doc.save()
+            return {'_id': doc._id, '_rev': doc._rev}
+            
         
     
     

@@ -11,7 +11,7 @@ import re
 import formencode
 from formencode import validators
 
-import markdown
+# import markdown
 
 from thruflo.webapp.utils import generate_hash
 
@@ -95,6 +95,32 @@ class CouchDocumentId(validators.UnicodeString):
     def validate_python(self, value, state):
         super(CouchDocumentId, self).validate_python(value, state)
         if not valid_document_id.match(value):
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        
+    
+    
+
+class CouchRevId(validators.UnicodeString):
+    messages = {
+        'invalid': 'Invalid rev id'
+    }
+    
+    def _to_python(self, value, state):
+        value = super(CouchRevId, self)._to_python(value, state)
+        return value.strip().lower()
+        
+    
+    
+    def validate_python(self, value, state):
+        super(CouchRevId, self).validate_python(value, state)
+        parts = value.split('-')
+        if len(parts) != 2 or \
+                not parts[0].isdigit() or \
+                not valid_document_id.match(parts[1]):
             raise validators.Invalid(
                 self.message("invalid", state),
                 value,
@@ -221,8 +247,10 @@ class Login(formencode.Schema):
 path_pattern = r'/([ \-\.\w]+\/?)*'
 valid_path = re.compile(r'^%s$' % path_pattern, re.U)
 
-h1_pattern = r'^<h1>(.+)</h1>[ \t]*\n'
-start_with_h1 = re.compile(h1_pattern, re.U)
+setext_h1_pattern = r'^(.+)[ \t]*\n\=+[ \t]*\n'
+atx_h1_pattern = r'^\#[ \t]*(.+)[ \t]*\#*\n'
+h1_pattern = r'(%s)|(%s)' % (setext_h1_pattern, atx_h1_pattern)
+starts_with_h1 = re.compile(h1_pattern, re.U)
 
 class Content(validators.UnicodeString):
     """Parses the content into html with `Python-Markdown`_
@@ -235,25 +263,21 @@ class Content(validators.UnicodeString):
     messages = {'invalid': 'Content must contain a top level heading.'}
     
     def _to_python(self, value, state):
+        logging.debug(u'_%s_' % value)
         value = super(Content, self)._to_python(value, state)
-        surely_enough_html = markdown.markdown(value[:500])
-        match = start_with_h1.match(surely_enough_html)
-        if match is not None:
-            title = match.groups()[0]
-            return title
-        else:
-            return u''
+        return value.lstrip()
         
     
     
     def validate_python(self, value, state):
-        if not value:
+        super(Content, self).validate_python(value, state)
+        logging.debug(u'_%s_' % value)
+        if not starts_with_h1.match(value):
             raise validators.Invalid(
                 self.message("invalid", state),
                 value,
                 state
             )
-        super(Content, self).validate_python(value, state)
         
     
     
@@ -282,7 +306,16 @@ class Path(validators.UnicodeString):
     
 
 
-class Save(formencode.Schema):
+class CreateDocument(formencode.Schema):
+    title = validators.UnicodeString(not_empty=True)
+    content = Content(not_empty=True)
+    path = Path(not_empty=True)
+    
+
+class OverwriteDocument(formencode.Schema):
+    _id = CouchDocumentId(not_empty=True)
+    _rev = CouchRevId(not_empty=True)
+    title = validators.UnicodeString(not_empty=True)
     content = Content(not_empty=True)
     path = Path(not_empty=True)
     
