@@ -1,13 +1,11 @@
-* implement the core document js class interface:
-  * `init`: 
-    + render core elements, inc. tabs bits and bespin editor
-    + apply event handling
-  * `save`, `saveas` and `move`:
-    * we want "don't think just type"
-    * naming and renaming done by *editing the top level heading*
-    * if save without a heading, prompt for a heading and *write into the markdown*
-    * how to handle overwriting?
-    * https://bespin.mozillalabs.com/docs/pluginguide/keymapping.html
+
+* start with an html listing of the documents in the page
+* have the key delimited by '/' as an attr 
+* click on the document gets and reveals the content & sections
+* click in the listings expands / contracts the treeview and scrolls the preview area
+
+* on save, need to insert the new document in the listings at the right point sorted by title
+
   * `open`:
     * get raw content via AJAX
     * possibly register for update events?
@@ -34,6 +32,8 @@
   * drag insert
   * upload / images / videos
 * extend the markdown editor
+  * if save without a heading, prompt for a heading and *write into the markdown*
+  * https://bespin.mozillalabs.com/docs/pluginguide/keymapping.html
   * saveas and move dialog with folders
   * live document preview
   * validate

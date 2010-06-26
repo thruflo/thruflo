@@ -284,6 +284,31 @@ class Editor(RequestHandler):
         
     
     
+    @property
+    def documents_list(self):
+        """A list of dicts::
+          
+              [{
+                      'value': [
+                          '2-1ef8f88931b08ed7842a0cf511575941', # rev
+                          '2010-06-26T10:14:22Z'# mod
+                      ], 
+                      'id': '8c4bd062ec3d096db552ab12471452ac', 
+                      'key': [
+                          'c18862966c9a294c0f4ed6558a63540b', # repo id
+                          'Doc 3' # title
+                      ]
+                  }
+              ]
+          
+        """
+        
+        if not hasattr(self, '_documents_list'):
+            self._documents_list = self.repository.list_documents()
+        return self._documents_list
+        
+    
+    
     def _overwrite(self):
         """Save overwrites the content of a previously stored
           document.  If the ``doc._rev`` is out of date, this 

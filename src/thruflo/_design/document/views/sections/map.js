@@ -92,14 +92,14 @@ function (doc) {
         h_pos,
         j,
         h,
-        key = [0, null, 0, null, 0, null, 0, null, 0, null, 0, null],
+        key = [doc.repository, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null],
         l = key.length,
         value;
     for (i = 0; i < parts.length; i = i + 2) {
       heading_parts = parts[i].split(':');
       level = parseInt(heading_parts[0][1]);
       h = heading_parts[1];
-      h_pos = (level * 2) - 1;
+      h_pos = (level * 2);
       i_pos = h_pos - 1;
       key[i_pos] = i;
       key[h_pos] = h;

@@ -29,7 +29,28 @@ String.prototype.endsWith = function (pattern) {
           'distance': 20,
           'scroll': true
         };
-        var a = $('#editor .accordion').accordion();
+        var stop_accordion;
+        $('#editor .accordion').click(
+          function (event) {
+            if (stop_accordion) {
+              event.stopImmediatePropagation();
+              event.preventDefault();
+              stop_accordion = false;
+            }
+          }
+        );
+        var a = $('#editor .accordion').accordion({
+            'autoHeight': false,
+            'collapsible': true
+          }
+        ).sortable({
+            'axis': "y",
+            'handle': "h3",
+            'stop': function (event, ui) {
+              stop_accordion = true;
+            }
+          }
+        );
         var t = $('#editor .tabs').tabs({
             'tabTemplate': '<li>\
               <a href="#{href}">\
@@ -41,7 +62,7 @@ String.prototype.endsWith = function (pattern) {
               </div>\
             </li>',
             'panelTemplate': '<div>\
-              <iframe src="/bespin" width="420px" height="420px">\
+              <iframe src="/bespin" width="572px" height="353px">\
               </iframe>\
             </div>',
             'add': function(event, ui) {
@@ -246,7 +267,8 @@ String.prototype.endsWith = function (pattern) {
                 
               */
             }
-        });
+          }
+        );
         
         // don't think just type
         var d = new Document(null, null, '/');

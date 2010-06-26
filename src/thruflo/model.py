@@ -285,6 +285,17 @@ class Repository(SluggedDocument):
     # display name
     name = StringProperty(default=u'Default')
     
+    def list_documents(self, sort_by='title', start=False, end=[], limit=2000):
+        return Document.view(
+            'document/by_%s' % sort_by,
+            startkey=[self.id, start],
+            endkey=[self.id, end],
+            limit=limit
+            # n.b.: no include_docs...
+        ).all()
+        
+    
+    
 
 class Document(BaseDocument):
     """``Repository``s contain ``Document``s.

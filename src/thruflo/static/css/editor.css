@@ -16,3 +16,14 @@ a.disabled {
   text-decoration: none;
   cursor: default;
 }
+.tabs {
+  width: 582px;
+  float: left;
+}
+  .ui-tabs .ui-tabs-panel {
+    padding: 0px 0px 0px 5px;
+  }
+.accordion {
+  width: 358px;
+  float: right;
+}

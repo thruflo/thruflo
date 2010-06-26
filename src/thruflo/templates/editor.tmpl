@@ -104,6 +104,43 @@
         </div-->
       </div>
       <div class="accordion">
+        <h3>
+          <a href="#">Documents</a>
+        </h3>
+        <div>
+          <ul id="documents-listing" class="resource-listing">
+            % for data in handler.documents_list:
+              <li id="listing-${data['id']}" 
+                  class="listing document-listing">
+                <span>
+                  <a href="#${data['id']}" title="${data['key'][1]}" 
+                      thruflo:rev="${data['value'][0]}"
+                      thruflo:mod="${data['value'][1]}">
+                    ${data['key'][1]}
+                  </a>
+                </span>
+                <ul class="sections-list">
+                </ul>
+              </li>
+            % endfor
+          </ul>
+        </div>
+        <h3><a href="#">Images</a></h3>
+        <div>
+          <ul id="images-listing" class="resource-listing">
+            <li class="listing image-listing">
+              @@ ...
+            </li>
+          </ul>
+        </div>
+        <h3><a href="#">Videos</a></h3>
+        <div>
+          <ul id="videos-listing" class="resource-listing">
+            <li class="listing video-listing">
+              @@ ...
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>

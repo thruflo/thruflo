@@ -5,19 +5,23 @@
   <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
       <link rel="stylesheet" type="text/css"
+          href="${static_url('css/reset.css')}"
+      />
+      <link rel="stylesheet" type="text/css"
           href="${static_url('BespinEmbedded-DropIn-0.8.0/BespinEmbedded.css')}"
       />
+      <style type="text/css">
+        #editor {
+          width: 572px;
+          height: 353px;
+        }
+      </style>
     </head>
-    <body>
-      <div id="editor" class="bespin" style="width: 400px; height: 400px"></div>
-      <% 
-        js_url = static_url('BespinEmbedded-DropIn-0.8.0/BespinEmbedded.js')
-        base = '/'.join(js_url.split('/')[:5])
-      %>
-      <a id="bespin_base" href="${base}"></a>
-      <script type="text/javascript" src="${js_url}">
-      </script>
-    </body>
+    <% 
+      js_url = static_url('BespinEmbedded-DropIn-0.8.0/BespinEmbedded.js')
+      base = '/'.join(js_url.split('/')[:5])
+    %>
+    <body><div id="editor" class="bespin"></div><a id="bespin_base" href="${base}"></a><script type="text/javascript" src="${js_url}"></script></body>
   </html>
 </%def>
 
