@@ -1,119 +1,235 @@
-/*
-  
-  First split for Setext_ ``H1``s:
-  
-      Heading 1
-      =========
-  
-  Then for Setext_ ``H2``s:
-  
-      Heading 2
-      ---------
-  
-  Then for atx_ ``H1`` to ``H6``s:
-  
-      # Heading 1
-      # Heading 1 #
-      ...
-      ###### Heading 6
-      ###### Heading 6 ######
-  
-  .. _Setext: http://docutils.sourceforge.net/mirror/setext.html
-  .. _atx: http://www.aaronsw.com/2002/atx/
-  
-  
-*/
-/*
-  
-  Then yield rows so that:
-  
-      Example Document
-      ================
+(function () { 
+    
+    /*
       
-      Lorum ipsum foo bar dolores.  Yaddy yadda.  Intro text.
+      `unicode aware`_ regexp char sets
       
-      ## Sections
+      .. _`unicode aware`: http://bit.ly/14baJp
       
-      ### Section 1
+    */
+    
+    var new_line = '\u000a\u000d\u2028\u2029\u0085';
+    var space = '\u0009\u000b\u000c\u0020\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000';
+    
+    var nl = '[' + new_line + ']';
+    var sp = '[' + space + ']';
+    var dot = '[^' + new_line + ']'; 
+    
+    /*
       
-      This is section one ...
+      unicode patched versions of `Showdown`_'s heading patterns:
       
-      ### Section Two
+      * `setext`_ h1: ``/^(.+)[ \t]*\n=+[ \t]*\n/gm``
+      * `setext`_ h2: ``/^(.+)[ \t]*\n-+[ \t]*\n/gm``
+      * `atx`_ h1-h6: ``/^(\#{1,6})[ \t]*(.+?)[ \t]*\#*\n/gm``
       
-      section two ...
+      .. _`Showdown`: http://attacklab.net/showdown/
+      .. _`setext`: http://docutils.sourceforge.net/mirror/setext.html
+      .. _`atx`: http://www.aaronsw.com/2002/atx/
       
-      Footer
-      ------
-      
-      &copy; thruflo.'
-  
-  Becomes:
-  
-      [["Example Document", [], [], 3 more...], "Lorum ipsum ..."]
-      [["Example Document", "Sections", [], 3 more...], ""]
-      [["Example Document", "Sections", "Section 1", 3 more...], "This is section one ..."]
-      [["Example Document", "Sections", "Section Two", 3 more...], "section two ..."]
-      [["Example Document", "Footer", [], 3 more...], "&copy; thruflo."]
-  
-  
-*/
-function (doc) {
-  if (doc.doc_type == 'Document') {
-    var i = 0;
-    var parts = doc.content.replace(
-      /^(.+)[ \t]*\n=+[ \t]*\n/gm,
-      function (wholeMatch, m1) {
-        return "<h1>h1:" + m1 + "</h1>"
-      }
-    ).replace(
-      /^(.+)[ \t]*\n-+[ \t]*\n/gm,
-      function (wholeMatch, m1) {
-        return "<h2>h2:" + m1 + "</h2>"
-      }
-    ).replace(
-      /^(\#{1,6})[ \t]*(.+?)[ \t]*\#*\n/gm,
-      function (wholeMatch, m1, m2) {
-        var h_level = m1.length;
-        return "<h" + h_level + ">h" + h_level + ":" + m2 + "</h" + h_level + ">"
-      }
-    ).split(/^<h[1-6]>(.+)<\/h[1-6]>[ \t]*\n/gm);
-    while (true) {
-      if (parts[i].indexOf('h') === 0) {
-        break;
-      }
-      else {
-        i++;
-      }
+    */
+    
+    // n.b.: we allow headings to match the end of doc as well as a new line at the
+    // end of the line
+    var setext_pattern = '^(' + dot + '+)' + sp + '*' + nl + '=+' + sp + '*' + nl;
+    var setext = {
+      'h1': new RegExp(setext_pattern, 'gm'),
+      'h2': new RegExp(setext_pattern.replace('=', '-'), 'gm')
     };
-    parts = parts.slice(i); 
-    var heading_parts,
-        level,
-        i_pos,
-        h_pos,
-        j,
-        h,
-        key = [doc.repository, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null],
-        l = key.length,
-        value;
-    for (i = 0; i < parts.length; i = i + 2) {
-      heading_parts = parts[i].split(':');
-      level = parseInt(heading_parts[0][1]);
-      h = heading_parts[1];
-      h_pos = (level * 2);
-      i_pos = h_pos - 1;
-      key[i_pos] = i;
-      key[h_pos] = h;
-      for (j = h_pos + 1; j < l; j = j + 2) {
-        if (key[j] != 0) {
-          key[j] = 0;
-          key[j + 1] = null;
+    
+    var atx_pattern = '^(\#{1,6})' + sp + '*(' + dot + '+)' + sp + '*\#*' + nl;
+    var atx = new RegExp(atx_pattern, 'gm');
+    
+    /*
+      
+      And patterns to split text against:
+      
+          <hn>Heading Text</hn>
+      
+    */
+    
+    var split_pattern = '^<h{i}>(' + dot + '+)<\/h{i}>' + sp + '*' + nl;
+    var split = {};
+    for (i = 1; i < 7; i++) {
+      split['h' + i] = new RegExp(split_pattern.replace(/h\{i\}>/g, 'h' + i + '>'), 'gm');
+    }
+    
+    /*
+      
+      Recursive function to split:
+      
+          ... example markdown ...
+      
+      Into:
+      
+          .. example output ...
+      
+    */
+      
+    var recursively_emit = function (text, level, key) { 
+      
+      var hn = 'h' + level;
+      var _handle_setext_match = function (whole_match, first_match) {
+        return '<' + hn + '>' + first_match + '</' + hn + '>';
+      };
+      var _handle_atx_match = function (whole_match, first_match, second_match) {
+        var l = first_match.length;
+        if (l == level) {
+          return '<h' + l + '>' + second_match + '</h' + l + '>';
+        }
+        else {
+          return whole_match;
+        }
+      };
+      
+      /*
+        
+        If we're handling level 1 or 2, replace Setext_ 
+        ``H1``s and ``H2``s:
+        
+            Heading 1
+            =========
+            
+            Heading 2
+            ---------
+        
+        With ``<hn>Heading Text</hn>`` markup.
+        
+      */
+      
+      if (setext.hasOwnProperty(hn)) {
+        text = text.replace(setext[hn], _handle_setext_match);
+      }
+      
+      /*
+        
+        Then replace atx_ ``H1`` to ``H6``s:
+        
+            # Heading 1
+            # Heading 1 #
+            ...
+            ###### Heading 6
+            ###### Heading 6 ######
+        
+        With the same ``<hn>Heading Text</hn>`` markup.
+        
+      */
+      
+      text = text.replace(atx, _handle_atx_match);
+      
+      /*
+        
+        Now split into parts, so:
+        
+            ## Heading
+            
+            Foo bar
+            
+            ## Heading Again
+            
+            Dolores
+        
+        Becomes:
+        
+            [[""Heading", "\n", "Foo bar\n\n""], ["Heading Again", "\n", "Dolores"]]
+        
+      */
+      
+      var parts = text.split(split[hn]).slice(1);
+      
+      /*
+        
+        Which we then yeild not only in items:
+        
+            ["Heading", "Foo bar\n\n", "Heading Again", "Dolores"]
+        
+        But also recursively with children, ala:
+        
+            [[""Heading", content, recursively_emit(content, next_level)], ...]
+        
+        Except that instead of building a nested list, we emit rows to the view
+        index instead:
+        
+            ...
+        
+      */
+      
+      // we work with a copy of the key and the parts
+      var key = key.slice(0);
+      
+      // clearing anything after this level
+      var key_length = key.length;
+      var heading_index = (level * 2);
+      var sort_counter_index = heading_index - 1;
+      for (i = heading_index + 1; i < key_length; i = i + 2) {
+        // n.b.: ``0`` and ``null`` are explicit default values
+        // see ``_six_zero_null_pairs`` below...
+        if (key[i] != 0) {
+          key[i] = 0;
+          key[i + 1] = null;
         }
         else {
           break;
         }
       }
-      value = parts[i + 1];
-      emit(key.slice(0), value);
-    }
-  };
-};
+      
+      var i,
+          item, 
+          heading, 
+          value, 
+          parts_length = parts.length;
+      var next_level = level + 1;
+      
+      if (parts_length) {
+        for (i = 0; i < parts_length; i = i + 2) {
+          item = parts.slice(i, i + 2);
+          heading = item[0];
+          value = item[1];
+          // build the key
+          key[heading_index] = heading;
+          // n.b.: inserting ``i`` into the key means we can sort the emitted 
+          // rows in the same order we're looping through here
+          key[sort_counter_index] = i;
+
+          // emit
+          emit(key, value);
+          
+          // recurse
+          if (value && next_level < 7) {
+            recursively_emit(value, next_level, key);
+          }
+        }
+      }
+      
+    };
+    
+    /*
+      
+      Map function for the couchjs view engine
+      
+    */
+    
+    var _six_zero_null_pairs = [0, null, 0, null, 0, null, 0, null, 0, null, 0, null];
+    var map = function (doc) {
+      if (doc.doc_type == 'Document') {
+        var heading_level = 1;
+        var key = [doc.repository].concat(_six_zero_null_pairs);
+        recursively_emit(doc.content, heading_level, key);
+      }
+    };
+    
+    return map;
+    
+    /*
+    var doc = {
+      "doc_type":"Document",
+      "repository":"c18862966c9a294c0f4ed6558a63540b",
+      "title":"Doc 4",
+      "content":"# Doc 4\n\nfoo bar dolores!\n\n## Heading\n\nFoo bar\n\n## Heading Again\n\nDolores",
+      "path":"/",
+    };
+    
+    map(doc);
+    */
+    
+})();

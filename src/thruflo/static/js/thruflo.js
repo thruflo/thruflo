@@ -76,8 +76,9 @@ String.prototype.endsWith = function (pattern) {
           }
         );
         var convertor = new Showdown.converter();
-        var nl = '[\n\r\u2028\u2029\u0085]';
-        var dot = '[^\n\r\u2028\u2029\u0085]';
+        var zs = ' \t\u0020\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000';
+        var nl = '\n\r\u2028\u2029\u0085';
+        var dot = '[^' + nl + ']';
         var leading_whitespace = XRegExp('^[\\p{Zs}\n\r\u2028\u2029\u0085]+');
         var leading_atx_h1 = XRegExp(
           '^\#\\p{Zs}*(' + dot + '+)\\p{Zs}*\#*' + nl
