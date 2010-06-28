@@ -29,6 +29,9 @@ String.prototype.endsWith = function (pattern) {
           'distance': 20,
           'scroll': true
         };
+        var UNTITLED = 'Untitled';
+        var current_document;
+        var intid = 1;
         var stop_accordion;
         $('#editor .accordion').click(
           function (event) {
@@ -75,21 +78,62 @@ String.prototype.endsWith = function (pattern) {
             }
           }
         );
-        var convertor = new Showdown.converter();
-        var zs = ' \t\u0020\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000';
-        var nl = '\n\r\u2028\u2029\u0085';
-        var dot = '[^' + nl + ']';
-        var leading_whitespace = XRegExp('^[\\p{Zs}\n\r\u2028\u2029\u0085]+');
-        var leading_atx_h1 = XRegExp(
-          '^\#\\p{Zs}*(' + dot + '+)\\p{Zs}*\#*' + nl
+        var CouchDocument,
+            DocumentCache,
+            Document,
+            ListingsManager,
+            Listing;
+        var document_cache,
+            listings_manager,
+            convertor;
+        CouchDocument = Class.extend({
+            'init': function (doc) {
+              $.extend(this, doc);
+            },
+            'get_sections': function () {
+              // lazy load
+              if (!this.hasOwnProperty('_sections')) {
+                this._sections = thruflo.markdown.get_sections(this);
+              }
+              return this._sections;
+            }
+          }
         );
-        var leading_setext_h1 = XRegExp(
-          '^(' + dot + '+)\\p{Zs}*' + nl + '=+\\p{Zs}*' + nl
+        DocumentCache = Class.extend({
+            '_docs': {},
+            'init': function () {
+              log('@@ doc cache should poll for updates & invalidate when changed');
+            },
+            'get_document': function (_id, callback, args) {
+              if (!this._docs.hasOwnProperty(_id)) {
+                var self = this;
+                $.ajax({
+                    'url': current_path + '/fetch',
+                    'type': 'POST',
+                    'dataType': 'json',
+                    'data': {'_id': _id},
+                    'success': function (data) {
+                      self._docs[_id] = new CouchDocument(data['doc']);
+                      callback(self._docs[_id], args);
+                    },
+                    'error': function (transport, text_status) {
+                      log('@@ fetch failed');
+                      log(transport.responseText);
+                      callback(null, args);
+                    }
+                  }
+                );
+              }
+              else {
+                callback(this._docs[_id], args);
+              }
+            },
+            'invalidate': function (_id) {
+              return delete this._docs[_id];
+            }
+          }
         );
-        var UNTITLED = 'Untitled';
-        var current_document;
-        var intid = 1;
-        var Document = Class.extend({
+        Document = Class.extend({
             '_generate_tabs_id': function () {
               var id = intid;
               intid += 1;
@@ -98,8 +142,7 @@ String.prototype.endsWith = function (pattern) {
             '_get_tabs_index': function () {
               return $('li', t).index(this.tab);
             },
-            '_get_title': function (content) {
-              /*
+            '_get_title': function (content) { /*
                 
                 Extracts document title from the opening H1
                 in the markdown content.
@@ -110,18 +153,7 @@ String.prototype.endsWith = function (pattern) {
                 
                 
               */
-              if (content.length > 500) {
-                content = content.slice(0, 500);
-              }
-              content = content.replace(leading_whitespace, '');
-              var title = leading_atx_h1.exec(content);
-              if (!title) {
-                title = leading_setext_h1.exec(content);
-                if (!title) {
-                  return null;
-                }
-              }
-              return title[1];
+              return thruflo.markdown.get_first_title(content);
             },
             '_trim_title': function (title) {
               if (title.length > 20) {
@@ -166,8 +198,7 @@ String.prototype.endsWith = function (pattern) {
                 self.editor.selectionChanged.add(self.handle_selection_change);
               };
               // apply event handling
-              $('.tab-button', this.tab).bind(
-                'click dbclick', 
+              $('.tab-button', this.tab).click(
                 function () {
                   self.close();
                 }
@@ -282,30 +313,78 @@ String.prototype.endsWith = function (pattern) {
             }
           }
         );
-        
-        var Listing = Class.extend({
-            '_has_data': function () {
-              return !!(this.doc);
+        ListingsManager = Class.extend({
+            'insert': function (_id) {
+              
             },
-            '_fetch_data': function (callback) {
+            'remove': function (_id) {
+              
+            },
+            'sort': function (sort_by) {
+              
+            }
+          }
+        );
+        Listing = Class.extend({
+            '_fetching': false,
+            '_callbacks': [],
+            '_call_callbacks': function () { /*
+                
+                When you trigger a dblclick event in most browsers,
+                you actually trigger:
+                
+                    mousedown
+                    mouseup
+                    click
+                    mousedown
+                    mouseup
+                    click
+                    dblclick
+                
+                So, to hang ``click`` and a ``dblclick`` events off
+                the same element, you need an idempotent, unobtrusive
+                ``click`` handler that can be called twice without
+                harm when dblclick is triggered.
+                
+                Now, because our click handler is wrapped by 
+                ``this._ensure_has_doc``, which may make a ajax call,
+                we have to invent this 'store up your callbacks and
+                only make one ajax fetch' palava.
+                
+                In a nutshell:
+                
+                * we use a ``this._fetching`` to record whether an
+                  ajax call is in progress
+                * if it is, we cache the callbacks in a list
+                * when the request comes back, we call all the callbacks
+                  in order, clear the list and set ``this._fetching`` to
+                  false
+                
+                N.b.: this is infinitely better than some sort of nasty
+                'delay all clicks by 300ms' hack, shudder.
+                
+              */
+              for (var i = 0; i < this._callbacks.length; i++) {
+                this._callbacks[i]();
+              }
+            },
+            '_ensure_has_doc': function (callback) {
               var self = this;
-              $.ajax({
-                  'url': current_path + '/fetch',
-                  'type': 'POST',
-                  'dataType': 'json',
-                  'data': {'_id': this._id},
-                  'success': function (data) {
-                    self.doc = data['doc'];
-                    self.sections = data['sections'];
-                    self._render_sections();
-                    callback();
-                  },
-                  'error': function (transport, text_status) {
-                    log('@@ fetch failed');
-                    log(transport.responseText);
+              this._callbacks.push(callback);
+              if (!this._fetching) {
+                document_cache.get_document(
+                  this._id, 
+                  function (doc) {
+                    if (doc) {
+                      self.doc = doc;
+                      self.sections = doc.get_sections();
+                      self._call_callbacks();
+                    }
+                    self._callbacks = [];
+                    self._fetching = false;
                   }
-                }
-              );
+                );
+              }
             },
             '_render_sections': function () {
               log('@@ render sections');
@@ -313,6 +392,7 @@ String.prototype.endsWith = function (pattern) {
             },
             '_show_sections': function () {
               log('@@ show sections');
+              log(this.sections);
             },
             '_trigger_open': function () {
               $(document).trigger('thruflo:document:opened', [this.doc]);
@@ -338,23 +418,29 @@ String.prototype.endsWith = function (pattern) {
               );
             },
             'select': function () {
-              if (this._has_data()) {
-                this._show_sections();
-              }
-              else {
-                this._fetch_data(this._show_sections);
-              }
+              var self = this;
+              this._ensure_has_doc(
+                function () { 
+                  self._show_sections(); 
+                }
+              );
             },
             'open': function () {
-              if (this._has_data()) {
-                this._trigger_open();
-              }
-              else {
-                this.fetch_data(this._trigger_open);
-              }
+              var self = this;
+              this._ensure_has_doc(
+                function () { 
+                  self._trigger_open(); 
+                }
+              );
             }
           }
         );
+        
+        // convertor = new Showdown.converter();
+        
+        document_cache = new DocumentCache();
+        
+        listings_manager = new ListingsManager();
         
         $(document).bind(
           'thruflo:document:opened',
@@ -375,22 +461,19 @@ String.prototype.endsWith = function (pattern) {
         // don't think just type
         var d = new Document();
         
-        $('#add-new-document-link').bind(
-          'click dblclick',
+        $('#add-new-document-link').click(
           function () {
             var d = new Document();
             return false;
           }
         );
-        $('#save-document').bind(
-          'click dblclick',
+        $('#save-document').click(
           function () {
             current_document.save();
             return false;
           }
         );
-        $('#delete-document').bind(
-          'click dblclick',
+        $('#delete-document').click(
           function () {
             current_document.delete_();
             return false;

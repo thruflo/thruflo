@@ -1,6 +1,4 @@
 
-*n.b.: unicode the map.js*
-
 + click on the listing gets and reveals the content & sections
 * click in the listings expands / contracts the treeview and scrolls the preview area
 
@@ -13,46 +11,6 @@
     `{'_id': updated_doc_id, '_src': some_sort_of_token_per_rendered_page}`
 
 * js classes have a routine to `_get_content` and / or `_get_sections` which goes via the document cache
-
-New js interfaces:
-
-    var Document = Class.extend({
-        '_sections': 
-        'init': function (doc) {
-          this.extend(doc);
-        },
-        'sections': function () {
-          // lazy load
-          if (this._sections == null) {
-            // do sectioning foo
-          }
-        }
-    });
-    var DocumentCache = Class.extend({
-        '_docs': {},
-        'init': function () {
-          // poll for updates and invalidate as
-          // necessary
-        },
-        'get': function (_id, callback, args) {
-          if (!(_id in this._docs)) {
-            // async fetch
-            // onsuccess: ``callback(this._docs[_id], args);``
-          }
-          else {
-            callback(this._docs[_id], args);
-          }
-        },
-        'invalidate': function (_id) {
-          return delete this._docs[_id];
-        }
-    });
-    var ListingsManager = Class.extend({
-        'insert': function (_id) {},
-        'remove': function (_id) {},
-        'sort': function (sort_by) {}
-    });
-
 
   * `open`:
     * get raw content via AJAX

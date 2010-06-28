@@ -368,12 +368,8 @@ class Editor(RequestHandler):
             data = utils.json_encode({'_id': 'Invalid ``_id``'})
             return self.error(400, body=data)
         else:
-            response = model.Document.soft_get_with_sections(_id)
-            if response is None:
-                data = utils.json_encode({'_id': 'Not found'})
-                return self.error(404, body=data)
-            return response
-        
+            doc = model.Document.soft_get(_id)
+            return {'doc': doc and doc.to_json() or None}
         
     
     

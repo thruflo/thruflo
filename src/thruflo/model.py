@@ -314,9 +314,10 @@ class Document(BaseDocument):
     
     content = StringProperty()
     
+    """
     @classmethod
     def soft_get_with_sections(cls, _id):
-        """Two stage lookup:
+        Two stage lookup:
           
           * first we get the doc by id
           * then we get raw sections data filtering by the 
@@ -324,7 +325,6 @@ class Document(BaseDocument):
           
           Then we filter the sections results by doc id to 
           deduplicate them if necessary.
-        """
         
         doc = cls.soft_get(_id)
         if doc is None:
@@ -344,6 +344,7 @@ class Document(BaseDocument):
         return {'sections': sections, 'doc': doc.to_json()}
         
     
+    """
     
 
 
