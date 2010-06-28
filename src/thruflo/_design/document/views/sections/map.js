@@ -31,13 +31,13 @@
     
     // n.b.: we allow headings to match the end of doc as well as a new line at the
     // end of the line
-    var setext_pattern = '^(' + dot + '+)' + sp + '*' + nl + '=+' + sp + '*' + nl;
+    var setext_pattern = '^(' + dot + '+)' + sp + '*' + nl + '=+' + sp + '*(' + nl + '|$)';
     var setext = {
       'h1': new RegExp(setext_pattern, 'gm'),
       'h2': new RegExp(setext_pattern.replace('=', '-'), 'gm')
     };
     
-    var atx_pattern = '^(\#{1,6})' + sp + '*(' + dot + '+)' + sp + '*\#*' + nl;
+    var atx_pattern = '^(\#{1,6})' + sp + '*(' + dot + '+)' + sp + '*\#*(' + nl + '|$)';
     var atx = new RegExp(atx_pattern, 'gm');
     
     /*
@@ -54,28 +54,53 @@
       split['h' + i] = new RegExp(split_pattern.replace(/h\{i\}>/g, 'h' + i + '>'), 'gm');
     }
     
-    /*
-      
-      Recursive function to split:
-      
-          ... example markdown ...
-      
-      Into:
-      
-          .. example output ...
-      
-    */
-      
-    var recursively_emit = function (text, level, key) { 
+    var recursively_emit = function (text, level, key) { /*
+        
+        Recursive function to split:
+        
+            # Test Doc 1
+            
+            ## Section Foo
+            
+            foo
+            
+            ### Sub Section Blah
+            
+            blah
+            
+            ## Section Bar
+            
+            bar
+        
+        Into:
+        
+            [{
+                "key": ["...", 0, "Test Doc 1", 0, null, 0, null, ...],
+                "value":"## Section Foo\n\nfoo\n\n### Sub Section Blah\n\nblah\n\n## Section Bar\n\nbar"
+              }, {
+                "key":["...", 0, "Test Doc 1", 0, "Section Foo", 0, null, ...],
+                "value":"foo\n\n### Sub Section Blah\n\nblah\n\n"
+              }, {
+                "key":["...", 0, "Test Doc 1", 0, "Section Foo", 0, "Sub Section Blah", ...],
+                "value":"blah\n\n"
+              }, {
+                "key":["...", 0, "Test Doc 1", 2, "Section Bar", 0, null, ...],
+                "value":"bar"
+              }
+            ]
+        
+        One heading level (h1 - h6) at a time.
+        
+      */
       
       var hn = 'h' + level;
       var _handle_setext_match = function (whole_match, first_match) {
-        return '<' + hn + '>' + first_match + '</' + hn + '>';
+        return '<' + hn + '>' + first_match + '</' + hn + '>\n';
       };
       var _handle_atx_match = function (whole_match, first_match, second_match) {
         var l = first_match.length;
         if (l == level) {
-          return '<h' + l + '>' + second_match + '</h' + l + '>';
+          return '<h' + l + '>' + second_match + '</h' + l + '>\n';
         }
         else {
           return whole_match;
@@ -150,7 +175,39 @@
         Except that instead of building a nested list, we emit rows to the view
         index instead:
         
-            ...
+            [{
+                "key": ["...", 0, "...", 0, "Heading", ...],
+                "value":"Foo bar\n\n"
+              }, {
+                "key":["...", 0, "...", 2, "Heading Again", ...],
+                "value":"Dolores"
+              }
+            ]
+        
+        Where each row is:
+        
+            "key": [
+              // repository id
+              "c18862966c9a294c0f4ed6558a63540b", 
+              // h1 index
+              0, 
+              // h1 text
+              "Test Doc 1", 
+              // h2 index
+              0, 
+              // h2 text
+              null, 
+              
+              ...
+              
+              // h6 index
+              0, 
+              // h6 text
+              null 
+            ],
+            // the full markdown text the section contains
+            // including the raw markdown for sub sections
+            "value": "## Section Foo\n\nfoo\n\n### Sub Section Blah\n\nblah\n\n## Section Bar\n\nbar"
         
       */
       
@@ -192,7 +249,7 @@
           key[sort_counter_index] = i;
 
           // emit
-          emit(key, value);
+          emit(key.slice(0), value);
           
           // recurse
           if (value && next_level < 7) {
@@ -219,17 +276,5 @@
     };
     
     return map;
-    
-    /*
-    var doc = {
-      "doc_type":"Document",
-      "repository":"c18862966c9a294c0f4ed6558a63540b",
-      "title":"Doc 4",
-      "content":"# Doc 4\n\nfoo bar dolores!\n\n## Heading\n\nFoo bar\n\n## Heading Again\n\nDolores",
-      "path":"/",
-    };
-    
-    map(doc);
-    */
     
 })();
