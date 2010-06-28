@@ -247,10 +247,8 @@
           // n.b.: inserting ``i`` into the key means we can sort the emitted 
           // rows in the same order we're looping through here
           key[sort_counter_index] = i;
-
           // emit
           emit(key.slice(0), value);
-          
           // recurse
           if (value && next_level < 7) {
             recursively_emit(value, next_level, key);
