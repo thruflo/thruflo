@@ -8,7 +8,7 @@
 var thruflo;
 
 if (typeof(thruflo) == 'undefined') {
-  var thruflo = {};
+  thruflo = {};
 }
 
 if (!thruflo.hasOwnProperty('markdown')) {
@@ -78,6 +78,7 @@ if (!thruflo.hasOwnProperty('markdown')) {
     
     var split_pattern = '^<h{i}>(' + dot + '+)<\/h{i}>' + sp + '*' + nl;
     var split = {};
+    var i;
     for (i = 1; i < 7; i++) {
       split['h' + i] = new RegExp(split_pattern.replace(/h\{i\}>/g, 'h' + i + '>'), 'gm');
     }
@@ -236,13 +237,14 @@ if (!thruflo.hasOwnProperty('markdown')) {
       */
       
       // we work with a copy of the key and the parts
-      var key = key.slice(0);
+      key = key.slice(0);
       
       // clearing anything after this level
+      var i;
       var key_length = key.length;
       var heading_index = (level * 2);
       var sort_counter_index = heading_index - 1;
-      for (i = heading_index + 1; i < key_length; i = i + 2) {
+      for (i = heading_index + 1; i < key_length; i += 2) {
         // n.b.: ``0`` and ``null`` are explicit default values
         // see ``_six_zero_null_pairs`` above...
         if (key[i] != 0) {
@@ -254,15 +256,14 @@ if (!thruflo.hasOwnProperty('markdown')) {
         }
       }
       
-      var i,
-          item, 
+      var item, 
           heading, 
           value, 
           parts_length = parts.length;
       var next_level = level + 1;
       
       if (parts_length) {
-        for (i = 0; i < parts_length; i = i + 2) {
+        for (i = 0; i < parts_length; i += 2) {
           item = parts.slice(i, i + 2);
           heading = item[0];
           value = item[1];

@@ -1,20 +1,8 @@
 
-+ click on the listing gets and reveals the content & sections
 * click in the listings expands / contracts the treeview and scrolls the preview area
 
 * on save, need to insert the new document in the listings at the right point sorted by title / update the relevant listing instance
 
-* document cache in the browser
-* sectioning logic in the browser that precisely matches the view code
-* redis backed updates per repo with:
-
-    `{'_id': updated_doc_id, '_src': some_sort_of_token_per_rendered_page}`
-
-* js classes have a routine to `_get_content` and / or `_get_sections` which goes via the document cache
-
-  * `open`:
-    * get raw content via AJAX
-    * possibly register for update events?
   * `delete`:
     * delete the document from the filesystem and close
   * `insert`:
@@ -45,7 +33,10 @@
   * validate
   * expand / collapse
 * copy and paste and insert from open document to open document
-* live updates
+* redis backed updates per repo with:
+
+    `{'_id': updated_doc_id, '_src': some_sort_of_token_per_rendered_page}`
+
 * handle conflicting saves
 * template (i.e.: stylesheet) management
 * views / selecting & publishing through stylesheets

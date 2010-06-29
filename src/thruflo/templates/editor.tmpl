@@ -58,17 +58,17 @@
     <div id="editor">
       <ul id="file-menu">
         <li>
-          <a id="add-new-document-link" href="#add">
+          <a class="add-new-document-link" href="#add">
             Add new document
           </a>
         </li>
         <li>
-          <a id="save-document" href="#save">
+          <a class="save-document" href="#save">
             Save
           </a>
         </li>
         <li>
-          <a id="delete-document" href="#delete">
+          <a class="delete-document" href="#delete">
             Delete
           </a>
         </li>
@@ -102,7 +102,7 @@
           <a href="#">Documents</a>
         </h3>
         <div>
-          <ul id="documents-listing" class="resource-listing">
+          <ul id="document-listings" class="resource-listing">
             % for data in handler.documents_list:
               <li id="listing-${data['id']}" 
                   class="listing document-listing">
@@ -121,7 +121,7 @@
         </div>
         <h3><a href="#">Images</a></h3>
         <div>
-          <ul id="images-listing" class="resource-listing">
+          <ul id="image-listings" class="resource-listing">
             <li class="listing image-listing">
               @@ ...
             </li>
@@ -129,7 +129,7 @@
         </div>
         <h3><a href="#">Videos</a></h3>
         <div>
-          <ul id="videos-listing" class="resource-listing">
+          <ul id="video-listings" class="resource-listing">
             <li class="listing video-listing">
               @@ ...
             </li>
