@@ -8,6 +8,31 @@
       return d >= 0 && this.lastIndexOf(pattern) === d;
     };
     
+    var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split(''); 
+    Math.uuid = function() {
+      var chars = CHARS, 
+          uuid = new Array(36), 
+          rnd = 0, 
+          r;
+      for (var i = 0; i < 36; i++) {
+        if (i==8 || i==13 ||  i==18 || i==23) {
+          uuid[i] = '-';
+        } 
+        else if (i==14) {
+          uuid[i] = '4';
+        } 
+        else {
+          if (rnd <= 0x02) {
+            rnd = 0x2000000 + (Math.random() * 0x1000000) | 0;
+          }
+          r = rnd & 0xf;
+          rnd = rnd >> 4;
+          uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+        }
+      }
+      return uuid.join('');
+    };
+    
     var log = function (what) {
       try { 
         console.log(what); 
@@ -18,6 +43,8 @@
     };
     
     var intid = 1;
+    var client_id = Math.uuid();
+    
     var current_path = window.location.pathname;
     if (current_path.endsWith('/')) {
       current_path = current_path.slice(0, -1);
@@ -55,6 +82,45 @@
             return this._sections;
           }
         },
+        'poller': {
+          'min': 100,
+          'max': 16000,
+          'multiplier': 1.5,
+          'backoff': 1000
+        },
+        '_handle_poll_success': function (data) {
+          if (data) {
+            log('poll_success');
+            log(data);
+            
+            // invalidate the cache by ``_id``
+            this.invalidate(data['_id']);
+            
+            // tell the document ``ListingsManager`` to remove the 
+            // existing listing record for the ``_id`` and insert 
+            // the new listing at the right point
+            
+            var doc_listings = $('#document-listings').listings_manager;
+            doc_listings.insert(null, data['_id'], data['title'], data['mod']);
+          }
+        },
+        '_handle_poll_complete': function (transport, text_status) {
+          log('poll_complete');
+          log('text_status: ' + text_status);
+          if (text_status == 'error') {
+            this.poller.backoff = this.poller.min;
+          }
+          else {
+            this.poller.backoff = this.poller.backoff * this.poller.multiplier;
+            if (this.poller.backoff > this.poller.max) {
+              this.poller.backoff = this.poller.max;
+            }
+          }
+          window.setTimeout(
+            $.proxy(this.poller.poll, this), 
+            this.poller.backoff
+          );
+        },
         'get_document': function (_id, callback, args) {
           if (!this._docs.hasOwnProperty(_id)) {
             var _handle_success = function (data) {
@@ -85,9 +151,20 @@
         },
         'init': function (context_id) {
           this._super(context_id);
-          
-          log('@@ doc cache should poll for updates & invalidate when changed');
-          
+          var handle_success = $.proxy(this, '_handle_poll_success');
+          var handle_complete = $.proxy(this, '_handle_poll_complete');
+          this.poller.poll = function () {
+            $.ajax({
+                'url': current_path + '/listen',
+                'type': 'POST',
+                'dataType': 'json',
+                'data': {'client_id': client_id},
+                'success': handle_success,
+                'complete': handle_complete
+              }
+            );
+          };
+          this.poller.poll();
         }
       }
     );
@@ -122,7 +199,7 @@
           $('.save-document', this.context).click(
             $.proxy(
               function (event) { 
-                this.get_current_document.save();
+                this.get_current_document().save();
                 return false;
               },
               this
@@ -131,7 +208,7 @@
           $('.delete-document', this.context).click(
             $.proxy(
               function (event) { 
-                this.get_current_document.delete_();
+                this.get_current_document().delete_();
                 return false;
               },
               this
@@ -150,13 +227,39 @@
     );
     var ListingsManager = SingleContextBase.extend({
         '_handle': 'listings_manager',
-        'insert': function (context, _id, title) {
-          
+        'listing_template': $.template(
+          '<li id="listing-#{id}" class="listing document-listing">\
+            <span>\
+              <a href="##{id}" title="#{title}" thruflo:mod="#{mod}">\
+                #{title}\
+              </a>\
+            </span>\
+            <ul class="sections-list">\
+            </ul>\
+          </li>'
+        ),
+        'insert': function (context, _id, title, mod) {
+          if (!context) {
+            // @@ does the listing exist?
+            var existing = $('#listing-' + _id, this.context);
+            if (existing) {
+              // if so, delete it
+              exiting.remove();
+            }
+            // create the markup
+            log('@@ need to sort listings / insert at the right point');
+            log('@@ need to pass through ``mod``');
+            this.context.append(
+              this.listing_template, {
+                'id': _id,
+                'title': title,
+                'mod': mod
+              }
+            );
+            // now we have a context ...
+            context = $('#listing-' + _id, this.context).get(0);
+          }
           var listing = new Listing(context, _id, title);
-          
-          // @@ ...
-          
-          
         },
         'remove': function (_id) {
           

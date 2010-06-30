@@ -10,8 +10,10 @@ import logging
 from datetime import datetime, timedelta
 
 import formencode
+import webob
 
 from thruflo.webapp import web, utils
+from thruflo.webapp.cache import Redis
 
 import model
 import schema
@@ -309,6 +311,27 @@ class Editor(RequestHandler):
         
     
     
+    def _notify_doc_changed(self, doc):
+        """Get all the ``client_id``s that are live against a repo and 
+          push the new / changed ``doc._id`` and ``doc.title`` to them.
+        """
+        
+        data = utils.json_encode({
+                '_id': doc.id,
+                'title': doc.title,
+                'mod': doc.mod.replace(microsecond=0).isoformat() + 'Z'
+            }
+        )
+        
+        redis = Redis(namespace=self.repository.id, expire_after=300)
+        
+        keys = redis('keys', 'client-*')
+        for key in keys:
+            client_id = key.replace('client-', '')
+            redis('rpush', client_id, data)
+        
+    
+    
     def _overwrite(self):
         """Save overwrites the content of a previously stored
           document.  If the ``doc._rev`` is out of date, this 
@@ -333,6 +356,7 @@ class Editor(RequestHandler):
             params['repository'] = self.repository.id
             doc = model.Document(**params)
             doc.save()
+            self._notify_doc_changed(doc)
             return {'_id': doc._id, '_rev': doc._rev}
             
         
@@ -356,6 +380,7 @@ class Editor(RequestHandler):
             params['repository'] = self.repository.id
             doc = model.Document(**params)
             doc.save()
+            self._notify_doc_changed(doc)
             return {'_id': doc._id, '_rev': doc._rev}
             
         
@@ -370,6 +395,40 @@ class Editor(RequestHandler):
         else:
             doc = model.Document.soft_get(_id)
             return {'doc': doc and doc.to_json() or None}
+        
+    
+    
+    def _listen(self):
+        """Register the ``client_id`` against the repo in redis, so 
+          it's renewed every poll and expires after a few minutes.
+          
+          Listen for updates against it.
+        """
+        
+        client_id = self.get_argument('client_id', u'')
+        logging.debug(client_id)
+        try:
+            client_id = schema.ClientId(not_empty=True).to_python(client_id)
+        except formencode.Invalid, err:
+            data = utils.json_encode({'_id': 'Invalid ``client_id``'})
+            return self.error(400, body=data)
+        else:
+            redis = Redis(namespace=self.repository.id, expire_after=300)
+            timeout = self.settings['listen_timeout']
+            # (re)-register the client_id
+            client_key = 'client-%s' % client_id
+            redis[client_key] = client_id
+            # wait for updates
+            logging.debug('blocking waiting for %s' % client_id)
+            response = redis('blpop', [client_id], timeout=timeout)
+            # if it timed out, no worries
+            if response is None:
+                return webob.Response(status=304)
+            # if we got something, return it
+            return webob.Response(
+                content_type = 'application/json; charset=UTF-8',
+                unicode_body = response[1]
+            )
         
     
     

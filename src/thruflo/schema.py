@@ -26,6 +26,9 @@ valid_username = re.compile(r'^%s$' % username_pattern, re.U)
 document_id_pattern = r'[a-z0-9]{32}'
 valid_document_id = re.compile(r'^%s$' % document_id_pattern, re.U)
 
+client_id_pattern = r'[A-Z0-9]{8}-[A-Z0-9]{4}-4[A-Z0-9]{3}-[A-Z0-9]{4}-[A-Z0-9]{12}'
+valid_client_id = re.compile(r'^%s$' % client_id_pattern)
+
 class Slug(validators.UnicodeString):
     """An eight digit string.
     """
@@ -129,6 +132,30 @@ class CouchRevId(validators.UnicodeString):
         
     
     
+
+class ClientId(validators.UnicodeString):
+    messages = {
+        'invalid': 'Invalid client id'
+    }
+    
+    def _to_python(self, value, state):
+        value = super(ClientId, self)._to_python(value, state)
+        return value.strip()
+        
+    
+    
+    def validate_python(self, value, state):
+        super(ClientId, self).validate_python(value, state)
+        if not valid_client_id.match(value):
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        
+    
+    
+
 
 class SecurePassword(validators.UnicodeString):
     """Hashes the user input before we do anything with it.
