@@ -214,6 +214,7 @@
         },
         'select': function (_id) {
           var editor = this._editors[_id];
+          log(editor);
           var i = editor._get_tabs_index();
           $('#editor .tabs').tabs('select', i);
         },
@@ -271,7 +272,7 @@
                 ${title}\
               </a>\
             </span>\
-            <ul class="sections-list">\
+            <ul id="sections:${id}" class="sections-list">\
             </ul>\
           </li>'
         ),
@@ -754,6 +755,10 @@
           link.dblclick($.proxy(this, 'open'));
         },
         'select': function (event) {
+          log('@@ select');
+          log(this.context);
+          log(this._rendered);
+          log(event.target);
           var self = this;
           var target = $(event.target);
           this._ensure_has_doc(
@@ -762,6 +767,7 @@
                 this._ensure_sections();
                 var ul = target.closest('ul');
                 var li = target.closest('li');
+                log(li);
                 if (ul.hasClass('resource-listing')) {
                   ul = li.find('ul.sections-list').first();
                   li = ul.find('li.listing').first();
