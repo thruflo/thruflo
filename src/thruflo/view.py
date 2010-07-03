@@ -313,28 +313,53 @@ class Editor(RequestHandler):
         
     
     
-    def _notify_doc_changed(self, doc):
+    def _notify_clients(self, data):
         """Get all the ``client_id``s that are live against a repo and 
-          push the new / changed ``doc._id`` and ``doc.title`` to them.
+          push the new / changed / deleted data to them.
         """
         
-        logging.debug('notify doc changed')
-        
-        mod = doc.mod.replace(microsecond=0).isoformat() + 'Z'
-        data = {'_id': doc.id, 'title': doc.title.encode('utf8'), 'mod': mod}
+        logging.debug('_notify_clients')
+        logging.debug(data)
         
         redis = Redis(namespace=self.repository.id, expire_after=300)
         redis_ready_data = urllib.urlencode(data)
-        
-        logging.debug(redis_ready_data)
-        logging.debug(type(redis_ready_data))
         
         for key in redis('keys', 'client-*'):
             client_id = key.split('client-')[1]
             redis('rpush', client_id, data)
         
+    
+    def _notify_doc_deleted(self, _id):
+        data = {'_id': _id, 'action': 'deleted'}
+        self._notify_clients(data)
         
     
+    def _notify_doc_changed(self, doc):
+        data = {
+            '_id': doc.id, 
+            'action': 'changed',
+            'title': doc.title.encode('utf8'), 
+            'mod': doc.mod.replace(microsecond=0).isoformat() + 'Z'
+        }
+        self._notify_clients(data)
+        
+    
+    
+    def _delete(self):
+        params = {
+            '_id': self.get_argument('_id', u''),
+            '_rev': self.get_argument('_rev', u'')
+        }
+        try:
+            params = schema.DeleteDocument.to_python(params)
+        except formencode.Invalid, err:
+            data = utils.json_encode(err.error_dict)
+            return self.error(400, body=data)
+        else:
+            params['repository'] = self.repository.id
+            doc = model.Document.get_db().delete_doc(params)
+            self._notify_doc_deleted(params['_id'])
+        
     
     def _overwrite(self):
         """Save overwrites the content of a previously stored

@@ -37,6 +37,9 @@
       src="${static_url('js/jquery.treeview.js')}">
   </script>
   <script type="text/javascript" 
+      src="${static_url('js/jquery.tinysort.js')}">
+  </script>
+  <script type="text/javascript" 
       src="${static_url('js/showdown.js')}">
   </script>
   <script type="text/javascript" 
@@ -106,9 +109,8 @@
             % for data in handler.documents_list:
               <li id="listing-${data['id']}" 
                   class="listing document-listing">
-                <span>
+                <span class="listing-title">
                   <a href="#${data['id']}" title="${data['key'][1]}" 
-                      thruflo:rev="${data['value'][0]}"
                       thruflo:mod="${data['value'][1]}">
                     ${data['key'][1]}
                   </a>

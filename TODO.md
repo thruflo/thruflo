@@ -1,24 +1,6 @@
 
-+ in the ``DocumentManager`` constructor, start long polling, 
-  passing a ``client_id`` param to identify the browser
-
-+ register that ``client_id`` against the repo in redis, so 
-  it's renewed every poll and expires after a few minutes
-  
-+ when a document is updated on the server side, get all the
-  ``client_id``s that are live against a repo and push the
-  new / changed ``doc._id`` and ``doc.title`` to their queue
-
-* in the client side poll ``success`` method, tell the 
-  ``DocumentManager`` to invalidate the cache by ``_id``
-  and tell the appropriate ``ListingsManager`` to remove
-  the existing listing record for the ``_id`` and insert
-  the new listing at the right point
-
->>> debug title = '#' in the db
->>> debug the listen success not being called
-
 * click in the listings expands / contracts the treeview and scrolls the preview area
+* this is preserved through saving
 
   * `delete`:
     * delete the document from the filesystem and close
@@ -32,7 +14,6 @@
   * `unpin`: 
     * lose the `<!-- section -->` comments and thus auto lose the behaviour added
   * `close`:
-    + remove the UI elements
     * prompt for save?
 * firefox tab style [ + ] button
 * right hand side UI

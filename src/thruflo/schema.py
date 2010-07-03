@@ -347,3 +347,8 @@ class OverwriteDocument(formencode.Schema):
     path = Path(not_empty=True)
     
 
+class DeleteDocument(formencode.Schema):
+    _id = CouchDocumentId(not_empty=True)
+    _rev = CouchRevId(not_empty=True)
+    
+

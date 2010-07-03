@@ -92,13 +92,15 @@
           log('poll_success');
           log(data);
           if (data) {
+            var doc_listings = $('#document-listings').get(0).listings_manager;
             // invalidate the cache by ``_id``
             this.invalidate(data['_id']);
-            // tell the document ``ListingsManager`` to remove the 
-            // existing listing record for the ``_id`` and insert 
-            // the new listing at the right point
-            var doc_listings = $('#document-listings').get(0).listings_manager;
-            doc_listings.insert(null, data['_id'], data['title'], data['mod']);
+            if (data.action == 'changed') {
+              doc_listings.insert(null, data['_id'], data['title'], data['mod']);
+            }
+            else if (data.action == 'deleted') {
+              doc_listings.remove(null, data['_id']);
+            }
           }
         },
         '_handle_poll_complete': function (transport) {
@@ -164,22 +166,39 @@
         }
       }
     );
-    var DocumentManager = SingleContextBase.extend({
+    var DocumentEditorManager = SingleContextBase.extend({
         '_handle': 'doc_manager',
-        '_current_document': null,
+        '_current_doc_editor': null,
+        '_doc_editors': {},
         'open': function (data) {
-          
-          var d = new DocumentEditor(data);
-          
-          // @@
-          
-          
+          var has_id = !!(data && data.hasOwnProperty('_id'));
+          var exists = !!(has_id && this._doc_editors.hasOwnProperty(data['_id']));
+          if (exists) {
+            this.select(data['_id']);
+          }
+          else {
+            var doc_editor = new DocumentEditor(data);
+            if (has_id) {
+              this.register(data['_id'], doc_editor);
+            } 
+          }
         },
-        'get_current_document': function () {
-          return this._current_document;
+        'get_current': function () {
+          return this._current_doc_editor;
         },
-        'set_current_document': function (document_instance) {
-          this._current_document = document_instance;
+        'set_current': function (doc_editor) {
+          this._current_doc_editor = doc_editor;
+        },
+        'register': function (_id, doc_editor) {
+          this._doc_editors[_id] = doc_editor;
+        },
+        'unregister': function (_id) {
+          delete this._doc_editors[_id];
+        },
+        'select': function (_id) {
+          var doc_editor = this._doc_editors[_id];
+          var i = doc_editor._get_tabs_index();
+          $('#editor .tabs').tabs('select', i);
         },
         'init': function (context_id) {
           this._super(context_id);
@@ -195,7 +214,7 @@
           $('.save-document', this.context).click(
             $.proxy(
               function (event) { 
-                this.get_current_document().save();
+                this.get_current().save();
                 return false;
               },
               this
@@ -204,7 +223,7 @@
           $('.delete-document', this.context).click(
             $.proxy(
               function (event) { 
-                this.get_current_document().delete_();
+                this.get_current().delete_();
                 return false;
               },
               this
@@ -225,28 +244,26 @@
     );
     var ListingsManager = SingleContextBase.extend({
         '_handle': 'listings_manager',
+        '_sort_by': 'title', // | mod
         'listing_template': $.template(
-          '<li id="listing-#{id}" class="listing document-listing">\
-            <span>\
-              <a href="##{id}" title="#{title}" thruflo:mod="#{mod}">\
-                #{title}\
+          '<li id="listing-${id}" class="listing document-listing">\
+            <span class="listing-title">\
+              <a href="#${id}" title="${title}"\
+                  thruflo:mod="${mod}">\
+                ${title}\
               </a>\
             </span>\
             <ul class="sections-list">\
             </ul>\
           </li>'
         ),
+        'sort_by': function (what) {
+          this._sort_by = what;
+          this.sort();
+        },
         'insert': function (context, _id, title, mod) {
           if (!context) {
-            // @@ does the listing exist?
-            var existing = $('#listing-' + _id, this.context);
-            if (existing) {
-              // if so, delete it
-              existing.remove();
-            }
-            // create the markup
-            log('@@ need to sort listings / insert at the right point');
-            log('@@ need to pass through ``mod``');
+            $('#listing-' + _id, this.context).remove();
             $(this.context).append(
               this.listing_template, {
                 'id': _id,
@@ -254,16 +271,26 @@
                 'mod': mod
               }
             );
-            // now we have a context ...
             context = $('#listing-' + _id, this.context).get(0);
           }
           var listing = new Listing(context, _id, title);
+          this.sort();
         },
-        'remove': function (_id) {
-          
+        'remove': function (context, _id) {
+          if (!context) {
+            context = $('#listing-' + _id, this.context).get(0);
+          }
+          $(context).remove();
+          this.sort();
         },
-        'sort': function (sort_by) {
-          
+        'sort': function () {
+          log($('.listing', this.context));
+          log($('.listing span.listing-title a', this.context));
+          $('.listing', this.context).tsort(
+            "span.listing-title a", {
+              'attr': this._sort_by == 'title' ? 'title' : 'thruflo.mod'
+            }
+          );
         },
         'init': function (context_id) {
           this._super(context_id);
@@ -330,7 +357,7 @@
             if (typeof(this.editor) != 'undefined') {
               this.editor.focus = true;
             }
-            $('#editor').get(0).doc_manager.set_current_document(this);
+            $('#editor').get(0).doc_manager.set_current(this);
           }
         },
         'init': function (doc) {
@@ -414,6 +441,8 @@
                   // update the tab label
                   var label = self._trim_title(title);
                   self.tab.find('span').text(label);
+                  // register with the DocumentEditorManager
+                  $('#editor').get(0).doc_manager.register(self._id, this);
                 },
                 'error': function (transport, text_status) {
                   log('@@ save failed');
@@ -432,7 +461,22 @@
             this.close();
           }
           else {
-            alert('@@ delete_...');
+            var self = this;
+            var url = current_path + '/delete';
+            var params = {'_id': this._id, '_rev': this._rev};
+            $.ajax({
+                'url': url,
+                'type': 'POST',
+                'dataType': 'json',
+                'data': params,
+                'success': $.proxy(this, 'close'),
+                'error': function (transport) {
+                  log('@@ delete failed');
+                  log(transport.status);
+                  log(transport.responseText);
+                }
+              }
+            );
           }
         },
         'insert': function () {},
@@ -443,6 +487,9 @@
         'collapse': function () {},
         'close': function () {
           log('@@ check not changed on close');
+          if (this._id) {
+            $('#editor').get(0).doc_manager.unregister(this._id);
+          } 
           var i = $('li', $('#editor .tabs')).index(this.tab);
           $('#editor .tabs').tabs('remove', i);
         },
@@ -621,7 +668,7 @@
           
         */
         
-        var doc_manager = new DocumentManager('#editor');
+        var doc_manager = new DocumentEditorManager('#editor');
         
         /*
           
