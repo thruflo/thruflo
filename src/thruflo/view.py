@@ -6,6 +6,8 @@
 
 import functools
 import logging
+import urllib
+import urlparse
 
 from datetime import datetime, timedelta
 
@@ -316,19 +318,21 @@ class Editor(RequestHandler):
           push the new / changed ``doc._id`` and ``doc.title`` to them.
         """
         
-        data = utils.json_encode({
-                '_id': doc.id,
-                'title': doc.title,
-                'mod': doc.mod.replace(microsecond=0).isoformat() + 'Z'
-            }
-        )
+        logging.debug('notify doc changed')
+        
+        mod = doc.mod.replace(microsecond=0).isoformat() + 'Z'
+        data = {'_id': doc.id, 'title': doc.title.encode('utf8'), 'mod': mod}
         
         redis = Redis(namespace=self.repository.id, expire_after=300)
+        redis_ready_data = urllib.urlencode(data)
         
-        keys = redis('keys', 'client-*')
-        for key in keys:
-            client_id = key.replace('client-', '')
+        logging.debug(redis_ready_data)
+        logging.debug(type(redis_ready_data))
+        
+        for key in redis('keys', 'client-*'):
+            client_id = key.split('client-')[1]
             redis('rpush', client_id, data)
+        
         
     
     
@@ -425,10 +429,12 @@ class Editor(RequestHandler):
             if response is None:
                 return webob.Response(status=304)
             # if we got something, return it
-            return webob.Response(
-                content_type = 'application/json; charset=UTF-8',
-                unicode_body = response[1]
-            )
+            data = eval(response[1])
+            for item in data:
+                data[item] = data[item].decode('utf8')
+            logging.debug(data)
+            return data
+        
         
     
     

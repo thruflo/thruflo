@@ -89,25 +89,21 @@
           'backoff': 1000
         },
         '_handle_poll_success': function (data) {
+          log('poll_success');
+          log(data);
           if (data) {
-            log('poll_success');
-            log(data);
-            
             // invalidate the cache by ``_id``
             this.invalidate(data['_id']);
-            
             // tell the document ``ListingsManager`` to remove the 
             // existing listing record for the ``_id`` and insert 
             // the new listing at the right point
-            
-            var doc_listings = $('#document-listings').listings_manager;
+            var doc_listings = $('#document-listings').get(0).listings_manager;
             doc_listings.insert(null, data['_id'], data['title'], data['mod']);
           }
         },
-        '_handle_poll_complete': function (transport, text_status) {
-          log('poll_complete');
-          log('text_status: ' + text_status);
-          if (text_status == 'error') {
+        '_handle_poll_complete': function (transport) {
+          log(transport);
+          if (transport.status < '400') {
             this.poller.backoff = this.poller.min;
           }
           else {
@@ -214,6 +210,7 @@
               this
             )
           );
+          /*
           $(document).keyup(
             $.proxy(
               function (event) {
@@ -222,6 +219,7 @@
               this
             )
           );
+          */
         }
       }
     );
@@ -244,12 +242,12 @@
             var existing = $('#listing-' + _id, this.context);
             if (existing) {
               // if so, delete it
-              exiting.remove();
+              existing.remove();
             }
             // create the markup
             log('@@ need to sort listings / insert at the right point');
             log('@@ need to pass through ``mod``');
-            this.context.append(
+            $(this.context).append(
               this.listing_template, {
                 'id': _id,
                 'title': title,
@@ -302,7 +300,9 @@
             
             
           */
-          return thruflo.markdown.get_first_title(content);
+          var title = thruflo.markdown.get_first_title(content);
+          log('get title: ' + title);
+          return title;
         },
         '_trim_title': function (title) {
           if (title.length > 20) {
@@ -443,8 +443,8 @@
         'collapse': function () {},
         'close': function () {
           log('@@ check not changed on close');
-          var i = $('li', t).index(this.tab);
-          t.tabs('remove', i);
+          var i = $('li', $('#editor .tabs')).index(this.tab);
+          $('#editor .tabs').tabs('remove', i);
         },
         'handle_text_change': function (oldRange, newRange, newText) {
           /*

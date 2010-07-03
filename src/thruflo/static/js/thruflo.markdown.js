@@ -324,12 +324,12 @@ if (!thruflo.hasOwnProperty('markdown')) {
       var title = null;
       var groups = leading_atx_h1.exec(content);
       if (groups) {
-        title = groups[1];
+        title = groups[2];
       }
       else {
         groups = leading_settext_h1.exec(content);
         if (groups) {
-          title = groups[0];
+          title = groups[1];
         }
       }
       
