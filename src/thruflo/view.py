@@ -330,13 +330,14 @@ class Editor(RequestHandler):
         
     
     def _notify_doc_deleted(self, _id):
-        data = {'_id': _id, 'action': 'deleted'}
+        data = {'_id': _id, 'type': 'document', 'action': 'deleted'}
         self._notify_clients(data)
         
     
     def _notify_doc_changed(self, doc):
         data = {
             '_id': doc.id, 
+            'type': 'document',
             'action': 'changed',
             'title': doc.title.encode('utf8'), 
             'mod': doc.mod.replace(microsecond=0).isoformat() + 'Z'

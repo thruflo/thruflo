@@ -27,3 +27,13 @@ a.disabled {
   width: 358px;
   float: right;
 }
+
+.preview-container {
+  margin: 2em 0px; padding: 1em 0.2em; border-top: 2px dashed black; font-size: 50%;
+}
+.preview {
+  display: none;
+}
+.sections-list {
+  margin-left: 1em;
+}

@@ -42,13 +42,23 @@
       }
     };
     
-    var intid = 1;
-    var client_id = Math.uuid();
-    
     var current_path = window.location.pathname;
     if (current_path.endsWith('/')) {
       current_path = current_path.slice(0, -1);
     };
+    
+    var intid = 1;
+    var client_id = Math.uuid();
+    
+    var special_selector_char = /([:\.\*\~\'\!\(\)\%])/gm;
+    var escape_selector = function (whole_match, first_match) {
+      return '\\' + first_match;
+    };
+    String.prototype.makeSelectorSafe = function () {
+      return this.replace(special_selector_char, escape_selector);
+    };
+    
+    var showdown_converter = new Showdown.converter();
     
     var SingleContextBase = Class.extend({
         '_handle': null,
@@ -71,6 +81,67 @@
         }
       }
     );
+    var UpdateListener = Class.extend({
+        'min': 100,
+        'max': 16000,
+        'multiplier': 1.5,
+        'backoff': 1000,
+        '_handle_success': function (data) {
+          if (data) {
+            var _id = data['_id'];
+            // invalidate the cache by ``_id``
+            var doc_cache = $('#editor').get(0).doc_cache;
+            doc_cache.invalidate(_id);
+            // update the listings appropriately
+            var listings = $('#' + data['type'] + '-listings');
+            var listings_manager = listings.get(0).listings_manager;
+            if (data.action == 'changed') {
+              listings_manager.insert(
+                null, 
+                _id, 
+                data['title'], 
+                data['mod']
+              );
+            }
+            else if (data.action == 'deleted') {
+              listings_manager.remove(
+                null, 
+                _id
+              );
+            }
+          }
+        },
+        '_handle_complete': function (transport) {
+          if (transport.status < 400) {
+            this.backoff = this.min;
+          }
+          else {
+            this.backoff = this.backoff * this.multiplier;
+            if (this.backoff > this.max) {
+              this.backoff = this.max;
+            }
+          }
+          window.setTimeout(
+            $.proxy(this, 'poll'), 
+            this.backoff
+          );
+        },
+        'poll': function () {
+          $.ajax({
+              'url': current_path + '/listen',
+              'type': 'POST',
+              'dataType': 'json',
+              'data': {'client_id': client_id},
+              'success': $.proxy(this, '_handle_success'),
+              'complete': $.proxy(this, '_handle_complete')
+            }
+          );
+        },
+        'init': function () {
+          this.poll();
+        }
+      }
+    );
     var DocumentCache = SingleContextBase.extend({
         '_handle': 'doc_cache',
         '_docs': {},
@@ -81,43 +152,6 @@
             }
             return this._sections;
           }
-        },
-        'poller': {
-          'min': 100,
-          'max': 16000,
-          'multiplier': 1.5,
-          'backoff': 1000
-        },
-        '_handle_poll_success': function (data) {
-          log('poll_success');
-          log(data);
-          if (data) {
-            var doc_listings = $('#document-listings').get(0).listings_manager;
-            // invalidate the cache by ``_id``
-            this.invalidate(data['_id']);
-            if (data.action == 'changed') {
-              doc_listings.insert(null, data['_id'], data['title'], data['mod']);
-            }
-            else if (data.action == 'deleted') {
-              doc_listings.remove(null, data['_id']);
-            }
-          }
-        },
-        '_handle_poll_complete': function (transport) {
-          log(transport);
-          if (transport.status < '400') {
-            this.poller.backoff = this.poller.min;
-          }
-          else {
-            this.poller.backoff = this.poller.backoff * this.poller.multiplier;
-            if (this.poller.backoff > this.poller.max) {
-              this.poller.backoff = this.poller.max;
-            }
-          }
-          window.setTimeout(
-            $.proxy(this.poller.poll, this), 
-            this.poller.backoff
-          );
         },
         'get_document': function (_id, callback, args) {
           if (!this._docs.hasOwnProperty(_id)) {
@@ -146,58 +180,41 @@
         },
         'invalidate': function (_id) {
           return delete this._docs[_id];
-        },
-        'init': function (context_id) {
-          this._super(context_id);
-          var handle_success = $.proxy(this, '_handle_poll_success');
-          var handle_complete = $.proxy(this, '_handle_poll_complete');
-          this.poller.poll = function () {
-            $.ajax({
-                'url': current_path + '/listen',
-                'type': 'POST',
-                'dataType': 'json',
-                'data': {'client_id': client_id},
-                'success': handle_success,
-                'complete': handle_complete
-              }
-            );
-          };
-          this.poller.poll();
         }
       }
     );
-    var DocumentEditorManager = SingleContextBase.extend({
-        '_handle': 'doc_manager',
-        '_current_doc_editor': null,
-        '_doc_editors': {},
+    var EditorManager = SingleContextBase.extend({
+        '_handle': 'editor_manager',
+        '_current_editor': null,
+        '_editors': {},
         'open': function (data) {
           var has_id = !!(data && data.hasOwnProperty('_id'));
-          var exists = !!(has_id && this._doc_editors.hasOwnProperty(data['_id']));
+          var exists = !!(has_id && this._editors.hasOwnProperty(data['_id']));
           if (exists) {
             this.select(data['_id']);
           }
           else {
-            var doc_editor = new DocumentEditor(data);
+            var editor = new Editor(data);
             if (has_id) {
-              this.register(data['_id'], doc_editor);
+              this.register(data['_id'], editor);
             } 
           }
         },
         'get_current': function () {
-          return this._current_doc_editor;
+          return this._current_editor;
         },
-        'set_current': function (doc_editor) {
-          this._current_doc_editor = doc_editor;
+        'set_current': function (editor) {
+          this._current_editor = editor;
         },
-        'register': function (_id, doc_editor) {
-          this._doc_editors[_id] = doc_editor;
+        'register': function (_id, editor) {
+          this._editors[_id] = editor;
         },
         'unregister': function (_id) {
-          delete this._doc_editors[_id];
+          delete this._editors[_id];
         },
         'select': function (_id) {
-          var doc_editor = this._doc_editors[_id];
-          var i = doc_editor._get_tabs_index();
+          var editor = this._editors[_id];
+          var i = editor._get_tabs_index();
           $('#editor .tabs').tabs('select', i);
         },
         'init': function (context_id) {
@@ -245,6 +262,7 @@
     var ListingsManager = SingleContextBase.extend({
         '_handle': 'listings_manager',
         '_sort_by': 'title', // | mod
+        '_current_preview': null,
         'listing_template': $.template(
           '<li id="listing-${id}" class="listing document-listing">\
             <span class="listing-title">\
@@ -257,6 +275,14 @@
             </ul>\
           </li>'
         ),
+        'show_preview': function (preview_id) {
+          var preview_selector = '#' + preview_id.makeSelectorSafe();
+          if (self._current_preview) {
+            self._current_preview.hide();
+          }
+          self._current_preview = $(preview_selector);
+          self._current_preview.show();
+        },
         'sort_by': function (what) {
           this._sort_by = what;
           this.sort();
@@ -284,8 +310,6 @@
           this.sort();
         },
         'sort': function () {
-          log($('.listing', this.context));
-          log($('.listing span.listing-title a', this.context));
           $('.listing', this.context).tsort(
             "span.listing-title a", {
               'attr': this._sort_by == 'title' ? 'title' : 'thruflo.mod'
@@ -305,8 +329,8 @@
         }
       }
     );
-    var DocumentEditor = Class.extend({
-        '_handle': 'doc_editor',
+    var Editor = Class.extend({
+        '_handle': 'editor',
         'UNTITLED': 'Untitled',
         '_generate_tabs_id': function () {
           var id = intid;
@@ -328,7 +352,6 @@
             
           */
           var title = thruflo.markdown.get_first_title(content);
-          log('get title: ' + title);
           return title;
         },
         '_trim_title': function (title) {
@@ -357,7 +380,7 @@
             if (typeof(this.editor) != 'undefined') {
               this.editor.focus = true;
             }
-            $('#editor').get(0).doc_manager.set_current(this);
+            $('#editor').get(0).editor_manager.set_current(this);
           }
         },
         'init': function (doc) {
@@ -397,8 +420,8 @@
             ]
           );
           // provide dom handles
-          this.tab.doc_editor = this;
-          this.panel.doc_editor = this;
+          this.tab.editor = this;
+          this.panel.editor = this;
         },
         'open': function () {},
         'save': function () {
@@ -428,7 +451,6 @@
                 'path': this.path
               };
             }
-            log('_' + params.content + '_');
             $.ajax({
                 'url': url,
                 'type': 'POST',
@@ -441,8 +463,8 @@
                   // update the tab label
                   var label = self._trim_title(title);
                   self.tab.find('span').text(label);
-                  // register with the DocumentEditorManager
-                  $('#editor').get(0).doc_manager.register(self._id, this);
+                  // register with the EditorManager
+                  $('#editor').get(0).editor_manager.register(self._id, this);
                 },
                 'error': function (transport, text_status) {
                   log('@@ save failed');
@@ -488,7 +510,7 @@
         'close': function () {
           log('@@ check not changed on close');
           if (this._id) {
-            $('#editor').get(0).doc_manager.unregister(this._id);
+            $('#editor').get(0).editor_manager.unregister(this._id);
           } 
           var i = $('li', $('#editor .tabs')).index(this.tab);
           $('#editor .tabs').tabs('remove', i);
@@ -518,7 +540,22 @@
     var Listing = SingleContextBase.extend({
         '_handle': 'listing',
         '_fetching': false,
+        '_rendered': false,
         '_callbacks': [],
+        '_section_template': $.template(
+          '<li id="section-${path}" class="listing ${type}-listing closed">\
+            <span class="section-title">\
+              <a href="#${path}" title="${title}">${title}</a>\
+            </span>\
+            <ul id="sections:${path}" class="sections-list"></ul>\
+          </li>'
+        ),
+        '_section_preview': $.template(
+          '<li id="preview-${path}" class="preview ${type}-preview">\
+            <h4 class="preview-title">${title}</h4>\
+            <div class="preview-content">${content}</div>\
+          </li>'
+        ),
         '_call_callbacks': function () { /*
             
             When you trigger a dblclick event in most browsers,
@@ -579,16 +616,132 @@
             );
           }
         },
-        '_render_sections': function () {
-          log('@@ render sections');
-          log(this.sections);
+        '_get_type': function () {
+          if (!this.hasOwnProperty('_type')) {
+            var resource_listing = $(this.context).parents('.resource-listing').get(0);
+            log('resource_listing id: ' + resource_listing.id);
+            this._type = resource_listing.id.replace('-listings', '');
+          }
+          return this._type;
         },
-        '_show_sections': function () {
+        '_get_manager': function () {
+          if (!this.hasOwnProperty('_manager')) {
+            var listings = $('#' + this._get_type() + '-listings');
+            this._manager = listings.get(0).listings_manager;
+          }
+          return this._manager;
+        },
+        '_render_sections': function () {
+          this.recursively_render_sections(this.sections);
+          $('.sections-list', this.context).eq(0).treeview();
+        },
+        'recursively_render_sections': function (sections) { /*
+            
+            this.sections = [[
+                [repo_id, 0, "Example Sections", 0, null, 0, null, ...],
+                "\u000a## Section One\u000a\u000aFoo bar ... Footer\u000a\u000ayes."
+              ], [
+                [repo_id, 0, "Example Sections", 0, "Section One", 0, "Sub Section", ...]
+                "u000aYes\u000a\u000a"
+              ]
+            ];
+            
+          */
+          
+          var i, 
+              j, 
+              l = sections.length,
+              k = sections[0][0].length,
+              section,
+              title,
+              key, 
+              value, 
+              children,
+              key_item,
+              path_items,
+              parent_path,
+              parent_id,
+              path;
+          
+          for (i = 0; i < l; i++) { /*
+              
+              for each section
+              
+            */
+            
+            section = sections[i];
+            key = section[0];
+            value = section[1];
+            children = section[2];
+            
+            /*
+              
+              get the path, e.g.:
+              
+                  /${docid}/Example%20Sections
+                  /${docid}/Example%20Sections/Sections%20One/Sub%20Section
+              
+            */
+            
+            path_items = [];
+            for (j = 2; j < k; j += 2) {
+              key_item = key[j];
+              if (key_item != null) {
+                path_items.push(encodeURIComponent(key_item));
+              }
+              else {
+                break;
+              }
+            }
+            
+            path = this._id + ':' + path_items.join(':');
+            title = decodeURIComponent(path_items.pop());
+            
+            parent_path = this._id + ':' + path_items.join(':');
+            if (parent_path.endsWith(':')) {
+              parent_path = parent_path.slice(0, -1);
+            }
+            parent_id = 'sections:' + parent_path;
+            parent_id = parent_id.makeSelectorSafe()
+            
+            // insert the section markup
+            
+            $('#' + parent_id).append(
+              this._section_template, {
+                'path': path,
+                'type': this._get_type(),
+                'title': title,
+              }
+            );
+            
+            // insert the showdown'd section content into a div
+            
+            $('#' + this._get_type() + '-previews').append(
+              this._section_preview, {
+                'path': path,
+                'type': this._get_type(),
+                'title': title,
+                'content': showdown_converter.makeHtml(value)
+              }
+            );
+            
+            if (children.length) {
+              this.recursively_render_sections(children.slice(0));
+            }
+            
+          }
+        },
+        '_ensure_sections': function () {
+          if (!this._rendered) {
+            this._render_sections();
+            $('span.section-title a', this.context).click($.proxy(this, 'select'));
+            $('span.section-title a', this.context).dblclick($.proxy(this, 'open'));
+            this._rendered = true;
+          }
           log('@@ show sections');
-          log(this.sections);
         },
         '_trigger_open': function () {
-          $('#editor').get(0).doc_manager.open(this.doc);
+          $('#editor').get(0).editor_manager.open(this.doc);
         },
         'init': function (context, _id, title) {
           this.doc = null;
@@ -596,11 +749,39 @@
           this.context = context;
           this._id = _id;
           this.title = title;
-          $(this.context).click($.proxy(this, 'select'));
-          $(this.context).dblclick($.proxy(this, 'open'));
+          var link = $(this.context).find('a').first();
+          link.click($.proxy(this, 'select'));
+          link.dblclick($.proxy(this, 'open'));
         },
-        'select': function () {
-          this._ensure_has_doc($.proxy(this, '_show_sections'));
+        'select': function (event) {
+          var self = this;
+          var target = $(event.target);
+          this._ensure_has_doc(
+            $.proxy(
+              function () {
+                this._ensure_sections();
+                var ul = target.closest('ul');
+                var li = target.closest('li');
+                if (ul.hasClass('resource-listing')) {
+                  ul = li.find('ul.sections-list').first();
+                  li = ul.find('li.listing').first();
+                  if (ul.hasClass('hidden')) {
+                    ul.removeClass('hidden');
+                    li.find('span').first().click();
+                    if (!li.find('ul').first().is(':visible')) {
+                      li.find('span').first().click();
+                    }
+                  }
+                  else {
+                    ul.addClass('hidden');
+                  }
+                }
+                var preview_id = li.get(0).id.replace('section-', 'preview-');
+                this._get_manager().show_preview(preview_id);
+              },
+              this
+            )
+          );
         },
         'open': function () {
           this._ensure_has_doc($.proxy(this, '_trigger_open'));
@@ -660,15 +841,7 @@
           
         */
         
-        var doc_cache = new DocumentCache('#editor');
-        
-        /*
-          
-          manager for adding and selecting documents
-          
-        */
-        
-        var doc_manager = new DocumentEditorManager('#editor');
+        var dc = new DocumentCache('#editor');
         
         /*
           
@@ -676,17 +849,28 @@
           
         */
         
-        var doc_listings = new ListingsManager('#document-listings');
-        // var img_listings = new ListingsManager('#image-listings');
-        // var vid_listings = new ListingsManager('#video-listings');
+        var dls = new ListingsManager('#document-listings');
+        var ils = new ListingsManager('#image-listings');
+        var vls = new ListingsManager('#video-listings');
         
         /*
           
-          don't think just type ;)
+          listen for updates
           
         */
         
-        doc_manager.open(null);
+        var ul = new UpdateListener();
+        
+        /*
+          
+          manager for adding and selecting documents
+          
+        */
+        
+        var em = new EditorManager('#editor');
+        
+        // don't think just type ;)
+        em.open(null);
         
       }
     );

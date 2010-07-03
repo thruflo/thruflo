@@ -115,10 +115,12 @@
                     ${data['key'][1]}
                   </a>
                 </span>
-                <ul class="sections-list">
+                <ul id="sections:${data['id']}" class="sections-list hidden">
                 </ul>
               </li>
             % endfor
+          </ul>
+          <ul id="document-previews" class="preview-container">
           </ul>
         </div>
         <h3><a href="#">Images</a></h3>

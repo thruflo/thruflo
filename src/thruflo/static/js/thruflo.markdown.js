@@ -257,11 +257,11 @@ if (!thruflo.hasOwnProperty('markdown')) {
       }
       
       var item, 
+          items = [],
           heading, 
           value, 
+          next_level = level + 1,
           parts_length = parts.length;
-      var next_level = level + 1;
-      
       if (parts_length) {
         for (i = 0; i < parts_length; i += 2) {
           item = parts.slice(i, i + 2);
@@ -274,13 +274,15 @@ if (!thruflo.hasOwnProperty('markdown')) {
           key[sort_counter_index] = i;
           // recurse
           if (value && next_level < 7) {
-            return [key.slice(0), value, recursively_section(value, next_level, key)];
+            items.push([key.slice(0), value, recursively_section(value, next_level, key)]);
           }
           else {
-            return [key.slice(0), value, []];
+            items.push([key.slice(0), value, []]);
           }
         }
       }
+      
+      return items;
       
     };
     
