@@ -755,10 +755,6 @@
           link.dblclick($.proxy(this, 'open'));
         },
         'select': function (event) {
-          log('@@ select');
-          log(this.context);
-          log(this._rendered);
-          log(event.target);
           var self = this;
           var target = $(event.target);
           this._ensure_has_doc(
@@ -767,7 +763,6 @@
                 this._ensure_sections();
                 var ul = target.closest('ul');
                 var li = target.closest('li');
-                log(li);
                 if (ul.hasClass('resource-listing')) {
                   ul = li.find('ul.sections-list').first();
                   li = ul.find('li.listing').first();
