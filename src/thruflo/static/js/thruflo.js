@@ -187,26 +187,15 @@
         '_handle': 'editor_manager',
         '_current_editor': null,
         '_editors': {},
-        'open': function (data) {
-          var has_id = !!(data && data.hasOwnProperty('_id'));
-          var exists = !!(has_id && this._editors.hasOwnProperty(data['_id']));
-          if (exists) {
-            var editor_id = data['_id'];
-            var editor = this._editors[editor_id];
-            this.trigger_select(editor_id);
-            editor.update(data);
-          }
-          else {
-            var editor = new Editor(data);
-            this.register(editor.id, editor);
-            this.set_current(editor);
-          }
-        },
         'get_current': function () {
           return this._current_editor;
         },
         'set_current': function (editor) {
           this._current_editor = editor;
+        },
+        'refresh_selected': function () {
+          var t = $('#editor .tabs');
+          t.tabs('select', t.tabs('option', 'selected'));
         },
         'register': function (editor_id, editor) {
           this._editors[editor_id] = editor;
@@ -215,8 +204,9 @@
           delete this._editors[editor_id];
         },
         'reregister': function (previous_id, new_id, editor) {
-          this.register(new_id, editor);
-          this.unregister(previous_id, editor);
+          var e = editor;
+          this.unregister(previous_id);
+          this.register(new_id, e);
         },
         'add_new': function (event) {
           if (event) { event.stopPropagation(); }
@@ -238,7 +228,9 @@
           if (event) { event.stopPropagation(); }
           var target = this.get_current();
           if (target) {
+            var editor_id = target.id;
             target.delete_();
+            this.set_current(null);
           }
         },
         'trigger_select': function (editor_id) {
@@ -246,10 +238,24 @@
           $(editor.tab).click();
         },
         'select': function (editor_id) {
-          log('EditorManager.select(' + editor_id + ')');
           var editor = this._editors[editor_id];
           editor.focus();
           this.set_current(editor);
+        },
+        'open': function (data) {
+          var has_id = !!(data && data.hasOwnProperty('_id'));
+          var exists = !!(has_id && this._editors.hasOwnProperty(data['_id']));
+          if (exists) {
+            var editor_id = data['_id'];
+            var editor = this._editors[editor_id];
+            this.trigger_select(editor_id);
+            editor.update(data);
+          }
+          else {
+            var editor = new Editor(data);
+            this.register(editor.id, editor);
+            this.set_current(editor);
+          }
         },
         'init': function (context_id) {
           this._super(context_id);
@@ -309,13 +315,10 @@
           }
           this.tab = $('li', t).last().get(0);
           $('.tab-button', this.tab).click($.proxy(this, 'close'));
-          log('about to init bespin');
-          var textarea = $(tab_id).find('.bespin-container').get(0);
-          log(textarea);
-          bespin.useBespin(textarea, {'theme': 'whitetheme'}).then(
+          var target = $(tab_id).find('.bespin-container').get(0);
+          bespin.useBespin(target).then(
             $.proxy(
               function (env) {
-                log('handling bespin "then"');
                 this.bespin_editor = env.editor;
                 // default the content to something friendly
                 this.bespin_editor.value = this.initial_content;
@@ -333,11 +336,14 @@
           );
           // provide a dom handle
           this.tab.editor = this;
-          log('done initialising bespin');
         },
         'focus': function () {
           if (this.bespin_editor) {
-            this.bespin_editor.focus = true;
+            var e = this.bespin_editor;
+            var set_focus = function () { 
+              e.focus = true;
+            };
+            window.setTimeout(set_focus, 10);
           }
         },
         'save': function () {
@@ -349,11 +355,11 @@
             }
             else {
               var self = this;
-              if (this._id && this._rev) {
+              if (this.id && this.rev) {
                 var url = current_path + '/overwrite';
                 var params = {
-                  '_id': this._id,
-                  '_rev': this._rev,
+                  '_id': this.id,
+                  '_rev': this.rev,
                   'title': title,
                   'content': content,
                   'path': this.path
@@ -379,7 +385,7 @@
                     self.rev = data['_rev'];
                     // update the tab label
                     var label = self._trim_title(title);
-                    self.tab.find('span').text(label);
+                    $(self.tab).find('span').text(label);
                     // register with the EditorManager
                     var editor_manager = $('#editor').get(0).editor_manager;
                     if (self.id != prev_id) {
@@ -409,7 +415,7 @@
           else {
             var self = this;
             var url = current_path + '/delete';
-            var params = {'_id': this._id, '_rev': this._rev};
+            var params = {'_id': this.id, '_rev': this.rev};
             $.ajax({
                 'url': url,
                 'type': 'POST',
@@ -432,13 +438,13 @@
         'expand': function () {},
         'collapse': function () {},
         'close': function () {
-          log('@@ check not changed on close');
           var editor_manager = $('#editor').get(0).editor_manager;
           editor_manager.unregister(this.id);
           var tab_button = $('.tab-button', this.tab);
           tab_button.unbind('click');
           var i = $('li', $('#editor .tabs')).index(this.tab);
           $('#editor .tabs').tabs('remove', i);
+          editor_manager.refresh_selected();
         },
         'update': function (doc) {
           if (doc._id == this.id) {
@@ -507,9 +513,14 @@
           this._sort_by = what;
           this.sort();
         },
-        'insert': function (context, _id, title, mod) {
+        'insert': function (context, _id, title, mod, should_not_sort) {
           if (!context) {
-            $('#listing-' + _id, this.context).remove();
+            existing = $('#listing-' + _id, this.context);
+            existing.find('*').unbind();
+            existing.remove();
+            
+            $("li[id*='preview-" + _id + "']").remove();
+            
             $(this.context).append(
               this.listing_template, {
                 'id': _id,
@@ -520,13 +531,19 @@
             context = $('#listing-' + _id, this.context).get(0);
           }
           var listing = new Listing(context, _id, title);
-          this.sort();
+          if (!should_not_sort) {
+            this.sort();
+          }
         },
         'remove': function (context, _id) {
           if (!context) {
-            context = $('#listing-' + _id, this.context).get(0);
+            context = $('#listing-' + _id, this.context);
           }
-          $(context).remove();
+          context.find('*').unbind();
+          context.remove();
+          
+          $("li[id*='preview-" + _id + "']").remove();
+          
           this.sort();
         },
         'sort': function () {
@@ -542,18 +559,18 @@
           $('.listing', this.context).each(
             function () {
               var _id = this.id.split('listing-')[1];
-              var title = $(this).find('a').eq(0).attr('title');
-              self.insert(this, _id, title);
+              var link = $(this).find('a').eq(0);
+              var title = link.attr('title');
+              var mod = link.attr('thruflo:mod');
+              self.insert(this, _id, title, mod, true);
             }
           );
+          this.sort();
         }
       }
     );
     var Listing = SingleContextBase.extend({
         '_handle': 'listing',
-        '_fetching': false,
-        '_rendered': false,
-        '_callbacks': [],
         '_section_template': $.template(
           '<li id="section-${path}" class="listing ${type}-listing closed">\
             <span class="section-title">\
@@ -604,6 +621,7 @@
             'delay all clicks by 300ms' hack, shudder.
             
           */
+          
           for (var i = 0; i < this._callbacks.length; i++) {
             this._callbacks[i]();
           }
@@ -620,7 +638,7 @@
                     this.sections = doc.get_sections();
                     this._call_callbacks();
                   }
-                  this._callbacks = [];
+                  this._callbacks = new Array();
                   this._fetching = false;
                 },
                 this
@@ -631,7 +649,6 @@
         '_get_type': function () {
           if (!this.hasOwnProperty('_type')) {
             var resource_listing = $(this.context).parents('.resource-listing').get(0);
-            log('resource_listing id: ' + resource_listing.id);
             this._type = resource_listing.id.replace('-listings', '');
           }
           return this._type;
@@ -746,11 +763,12 @@
         '_ensure_sections': function () {
           if (!this._rendered) {
             this._render_sections();
-            $('span.section-title a', this.context).click($.proxy(this, 'select'));
-            $('span.section-title a', this.context).dblclick($.proxy(this, 'open'));
+            var link = $('span.section-title a', this.context);
+            // link.click($.proxy(this, 'select'));
+            // link.dblclick($.proxy(this, 'open'));
+            link.fixClick($.proxy(this, 'select'), $.proxy(this, 'open'));
             this._rendered = true;
           }
-          log('@@ show sections');
         },
         '_trigger_open': function () {
           $('#editor').get(0).editor_manager.open(this.doc);
@@ -758,14 +776,19 @@
         'init': function (context, _id, title) {
           this.doc = null;
           this.sections = null;
+          this._fetching = false;
+          this._rendered = false;
+          this._callbacks = [];
           this.context = context;
           this._id = _id;
           this.title = title;
           var link = $(this.context).find('a').first();
-          link.click($.proxy(this, 'select'));
-          link.dblclick($.proxy(this, 'open'));
+          // link.click($.proxy(this, 'select'));
+          // link.dblclick($.proxy(this, 'open'));
+          link.fixClick($.proxy(this, 'select'), $.proxy(this, 'open'));
         },
         'select': function (event) {
+          if (event) { event.stopPropagation(); }
           var self = this;
           var target = $(event.target);
           this._ensure_has_doc(
@@ -795,7 +818,8 @@
             )
           );
         },
-        'open': function () {
+        'open': function (event) {
+          if (event) { event.stopPropagation(); }
           this._ensure_has_doc($.proxy(this, '_trigger_open'));
         }
       }
@@ -829,14 +853,15 @@
               </div>\
             </li>',
             'panelTemplate': '<div>\
-              <textarea class="bespin-container"></textarea>\
+              <div class="bespin-container"></div>\
             </div>',
-            'add': function(event, ui) {
+            'add': function (event, ui) {
               $('#editor .tabs').tabs('select', '#' + ui.panel.id);
             },
             'select': function (event, ui) {
               var editor_manager = $('#editor').get(0).editor_manager;
-              var target_editor = ui.tab.editor;
+              var tab = $(ui.tab).closest('li').get(0);
+              var target_editor = tab.editor;
               if (target_editor) {
                 var editor_id = target_editor.id;
                 editor_manager.select(editor_id);

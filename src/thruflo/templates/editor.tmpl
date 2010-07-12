@@ -17,6 +17,19 @@
     <link rel="stylesheet" type="text/css"
         href="http://static.jquery.com/ui/css/demo-docs-theme/ui.theme.css" 
     />
+    <script type="text/javascript"
+        src="${static_url('js/jquery.min.js')}">
+    </script>
+    <script type="text/javascript"
+        src="${static_url('js/jquery-ui.min.js')}">
+    </script>
+  % else:
+    <script type="text/javascript"
+        src="${gapis}/jquery/1.4.2/jquery.min.js">
+    </script>
+    <script type="text/javascript"
+        src="${gapis}/jqueryui/1.8.1/jquery-ui.min.js">
+    </script>
   % endif
   <link rel="stylesheet" type="text/css"
       href="${static_url('bespin/BespinEmbedded.css')}"
@@ -24,12 +37,6 @@
   <link rel="stylesheet" type="text/css"
       href="${static_url('css/editor.css')}"
   />
-  <script type="text/javascript"
-      src="${gapis}/jquery/1.4.2/jquery.min.js">
-  </script>
-  <script type="text/javascript"
-      src="${gapis}/jqueryui/1.8.1/jquery-ui.min.js">
-  </script>
   <script type="text/javascript" 
       src="${static_url('js/jquery.cookie.js')}">
   </script>
@@ -41,6 +48,9 @@
   </script>
   <script type="text/javascript" 
       src="${static_url('js/jquery.tinysort.js')}">
+  </script>
+  <script type="text/javascript" 
+      src="${static_url('js/jquery.fixClick.js')}">
   </script>
   <link id="bespin_base" href="${static_url('bespin')}" />
   <script type="text/javascript"

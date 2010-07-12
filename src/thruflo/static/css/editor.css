@@ -23,11 +23,20 @@ a.disabled {
   .ui-tabs .ui-tabs-panel {
     padding: 0px 0px 0px 5px;
   }
+  .ui-tabs .ui-tabs-hide {
+    position: absolute;
+    display: block !important;
+    margin-left: 8000px;
+  }
 .accordion {
   width: 358px;
   float: right;
 }
-
+.bespin-container {
+  width: 574px;
+  height: 355px;
+  margin-left: 2px;
+}
 .preview-container {
   margin: 2em 0px; padding: 1em 0.2em; border-top: 2px dashed black; font-size: 50%;
 }

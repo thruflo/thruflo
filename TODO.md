@@ -1,17 +1,4 @@
 
-# 0.3.2
-
-## Minimally debug listings
-
-* remove event handlers on deleted listing
-* rerender sections if showing (render sections and click click down the tree)
-* ensure bugs fixed:
-  * save => makes new listing => click on it and and it dissapears
-  * double click on a listing isn't reliable: opens the wrong one
-* clear the preview area on delete
-* the doubleclick show / hide flash is a bit village: try fixclick just for the listing sections
-
-
 # 0.4
 
 ## Drag to insert
@@ -23,6 +10,7 @@
 
 ## Syntax highlighted UI
 
+* sort out the trimming so it's consistent coming back from the db
 * use bespin syntax highlighting to visually demarkate `<!-- section:... -->` comment blocks
   * write syntax highlighter plugin
   * `dryrun` rake / bundle a custom embedded bespin
@@ -42,7 +30,9 @@
 * if save without a heading, prompt for a heading and *write into the markdown*
 * saveas and move dialog with folders
 * prompt for save on `close`
+* rerender sections if showing (render sections and click click down the tree)
 * handle conflicting saves
+
 
 ## Listing options
 

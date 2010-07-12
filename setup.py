@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'thruflo',
-    version = '0.3.1',
+    version = '0.3.2',
     description = 'Generate documents from markdown files in a github repository',
     long_description = open('README.md').read(),
     author = 'James Arthur',
@@ -24,6 +24,8 @@ setup(
         'greenlet>=0.2',
         'gevent',
         'Paste>=1.7.3',
+        'PasteDeploy>=1.3.3',
+        'PasteScript>=1.7.3',
         'gunicorn>=0.9.1',
         'thruflo.webapp>=0.1',
         'FormEncode>=1.2.2',
