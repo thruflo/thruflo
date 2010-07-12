@@ -6,15 +6,10 @@
 * remove event handlers on deleted listing
 * rerender sections if showing (render sections and click click down the tree)
 * ensure bugs fixed:
-  * editor._get_tabs_index is not a function
   * save => makes new listing => click on it and and it dissapears
   * double click on a listing isn't reliable: opens the wrong one
 * clear the preview area on delete
 * the doubleclick show / hide flash is a bit village: try fixclick just for the listing sections
-
-## Bespin now supports multiple editors
-
-* strip out the iframe fandango and init editors within the main page
 
 
 # 0.4

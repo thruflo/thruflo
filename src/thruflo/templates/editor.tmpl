@@ -6,7 +6,7 @@
   ${handler.repository.name}
 </%def>
 
-<%def name="sub_headers()" cached="True">
+<%def name="sub_headers()">
   <%
     gapis = 'http://ajax.googleapis.com/ajax/libs'
   %>
@@ -18,6 +18,9 @@
         href="http://static.jquery.com/ui/css/demo-docs-theme/ui.theme.css" 
     />
   % endif
+  <link rel="stylesheet" type="text/css"
+      href="${static_url('bespin/BespinEmbedded.css')}"
+  />
   <link rel="stylesheet" type="text/css"
       href="${static_url('css/editor.css')}"
   />
@@ -39,6 +42,10 @@
   <script type="text/javascript" 
       src="${static_url('js/jquery.tinysort.js')}">
   </script>
+  <link id="bespin_base" href="${static_url('bespin')}" />
+  <script type="text/javascript"
+      src="${static_url('bespin/BespinEmbedded.js')}">
+  </script>
   <script type="text/javascript" 
       src="${static_url('js/showdown.js')}">
   </script>
@@ -48,7 +55,7 @@
   <script type="text/javascript" 
       src="${static_url('js/thruflo.markdown.js')}">
   </script>
-  <script type="text/javascript" 
+  <script type="text/javascript"
       src="${static_url('js/thruflo.js')}">
   </script>
 </%def>
@@ -61,7 +68,7 @@
     <div id="editor">
       <ul id="file-menu">
         <li>
-          <a class="add-new-document-link" href="#add">
+          <a class="add-new-document" href="#add">
             Add new document
           </a>
         </li>

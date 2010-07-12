@@ -1,471 +1,15220 @@
-bespin.tiki.register("::text_editor",{name:"text_editor",dependencies:{completion:"0.0.0",undomanager:"0.0.0",settings:"0.0.0",canon:"0.0.0",rangeutils:"0.0.0",traits:"0.0.0",theme_manager:"0.0.0",keyboard:"0.0.0",edit_session:"0.0.0",syntax_manager:"0.0.0"}});
-bespin.tiki.module("text_editor:commands/editing",function(y,s){var v=y("settings").settings,r=y("environment").env,l=y("rangeutils:utils/range");s.backspace=function(){r.view.performBackspaceOrDelete(true)};s.deleteCommand=function(){r.view.performBackspaceOrDelete(false)};s.deleteLines=function(){if(!r.model.readOnly)if(r.model.lines.length!=1){var d=r.view;d.groupChanges(function(){var f=d.getSelectedRange(),m=r.model.lines,i=m.length-1,g;g=f.start.row==i?{col:m[i-1].length,row:i-1}:{col:0,row:f.start.row};
-d.replaceCharacters({start:g,end:f.end.row==i?{col:m[i].length,row:i}:{col:0,row:f.end.row+1}},"");d.moveCursorTo(g)})}};var h=function(d,f){var m=f.getSelectedRange().start;d=/^\s*/.exec(d.lines[m.row].substring(0,m.col));f.insertText("\n"+d)};s.insertText=function(d){r.view.insertText(d.text)};s.newline=function(){h(r.model,r.view)};s.joinLines=function(){var d=r.model;if(!d.readOnly){var f=r.view,m=f.getSelectedRange(),i=d.lines,g=m.end.row;i.length!=g&&f.groupChanges(function(){f.replaceCharacters({start:{col:i[g].length,
-row:g},end:{col:/^\s*/.exec(i[g+1])[0].length,row:g+1}},"")})}};s.openLine=function(){if(!r.model.readOnly){var d=r.model,f=r.view,m=f.getSelectedRange().end.row;f.moveCursorTo({row:m,col:d.lines[m].length});h(d,f)}};s.tab=function(){var d=r.view;d.groupChanges(function(){var f=v.get("tabstop"),m=d.getSelectedRange(),i="";if(l.isZeroLength(m)){var g=r.model.lines[m.start.row].substring(m.start.col).match(/^\s*/)[0].length;f=f-(m.start.col+g)%f;for(var j=0;j<f;j++)i+=" ";d.replaceCharacters({start:m.start,
-end:m.start},i);d.moveCursorTo({col:m.start.col+f+g,row:m.end.row})}else{for(j=0;j<f;j++)i+=" ";for(j=m.start.row-1;j++<m.end.row;){g=j==m.start.row?m.start.col:0;d.replaceCharacters({start:{row:j,col:g},end:{row:j,col:g}},i)}d.setSelection({start:m.start,end:{col:m.end.col+f,row:m.end.row}})}}.bind(this))};s.untab=function(){var d=r.view;d.groupChanges(function(){var f=v.get("tabstop"),m=d.getSelectedRange(),i=r.model.lines,g=0;if(l.isZeroLength(m)){g=Math.min(i[m.start.row].substring(0,m.start.col).match(/\s*$/)[0].length,
-(m.start.col-f)%f||f);d.replaceCharacters({start:{col:m.start.col-g,row:m.start.row},end:m.start},"");d.moveCursorTo({row:m.start.row,col:m.end.col-g})}else{for(var j,q=m.start.row-1;q++<m.end.row;){j=q==m.start.row?m.start.col:0;g=Math.min(i[q].substring(j).match(/^\s*/)[0].length,f);d.replaceCharacters({start:{row:q,col:j},end:{row:q,col:j+g}},"")}d.setSelection({start:{row:m.start.row,col:m.start.col},end:{row:m.end.row,col:m.end.col-g}})}}.bind(this))}});
-bespin.tiki.module("text_editor:commands/editor",function(y,s){y("bespin:plugins");var v=y("settings").settings,r=y("environment").env;s.findNextCommand=function(){var h=r.view,d=h.editor.searchController,f=h.getSelectedRange();if(d=d.findNext(f.end,true)){h.setSelection(d,true);h.focus()}};s.findPrevCommand=function(){var h=r.view,d=h.editor.searchController,f=h.getSelectedRange();if(d=d.findPrevious(f.start,true)){h.setSelection(d,true);h.focus()}};var l=function(h){var d=r.view,f=d.getSelectedCharacters();
-h=h(f);d=d.getSelectedRange();r.model.replaceCharacters(d,h)};s.replaceCommand=function(h){l(function(d){return d.replace(h.search+"/g",h.replace)})};s.entabCommand=function(){tabstop=v.get("tabstop");l(function(h){return h.replace(" {"+tabstop+"}","\t")})};s.detabCommand=function(){tabstop=v.get("tabstop");l(function(h){return h.replace("\t",(new Array(tabstop+1)).join(" "))})};s.trimCommand=function(h){l(function(d){d=d.split("\n");d=d.map(function(f){if(h.side==="left"||h.side==="both")f=f.replace(/^\s+/,
-"");if(h.side==="right"||h.side==="both")f=f.replace(/\s+$/,"");return f});return d.join("\n")})};s.ucCommand=function(){l(function(h){return h.toUpperCase()})};s.lcCommand=function(){l(function(h){return h.toLowerCase()})}});
-bespin.tiki.module("text_editor:commands/movement",function(y,s){y("rangeutils:utils/range");var v=y("environment").env;s.moveDown=function(){v.view.moveDown()};s.moveLeft=function(){v.view.moveLeft()};s.moveRight=function(){v.view.moveRight()};s.moveUp=function(){v.view.moveUp()};s.selectDown=function(){v.view.selectDown()};s.selectLeft=function(){v.view.selectLeft()};s.selectRight=function(){v.view.selectRight()};s.selectUp=function(){v.view.selectUp()};var r=function(m,i){var g=v.view,j=v.model.lines,
-q=g.getSelectedRange(true);i=i?q.end.row:j.length-1;g.moveCursorTo({row:i,col:j[i].length},m)};s.moveLineEnd=function(){r(false,true)};s.selectLineEnd=function(){r(true,true)};s.moveDocEnd=function(){r(false,false)};s.selectDocEnd=function(){r(true,false)};var l=function(m,i){var g=v.view,j=g.getSelectedRange(true);g.moveCursorTo({row:i?j.end.row:0,col:0},m)};s.moveLineStart=function(){l(false,true)};s.selectLineStart=function(){l(true,true)};s.moveDocStart=function(){l(false,false)};s.selectDocStart=
-function(){l(true,false)};var h=function(m,i,g,j,q){var t=0,B=false;if(j<0){g--;if(q)t=1}for(;g<i.length&&g>-1;){if(q=m.isDelimiter(i[g]))t++;else B=true;if((q||t>1)&&B)break;g+=j}j<0&&g++;return g},d=function(m){var i=v.view,g=v.model.lines,j=i.getSelectedRange(true).end,q=j.row;j=j.col;var t=g[q],B=false;if(j>=t.length){q++;B=true;if(q<g.length){j=0;t=g[q]}else t=""}j=h(i,t,j,1,B);i.moveCursorTo({row:q,col:j},m)},f=function(m){var i=v.view,g=v.model.lines,j=i.getSelectedRange(true).end,q=j.row;
-j=j.col;var t=g[q],B=false;if(j>t.length)j=t.length;else if(j==0){q--;B=true;if(q>-1){t=g[q];j=t.length}else t=""}j=h(i,t,j,-1,B);i.moveCursorTo({row:q,col:j},m)};s.moveNextWord=function(){d(false)};s.selectNextWord=function(){d(true)};s.movePreviousWord=function(){f(false)};s.selectPreviousWord=function(){f(true)};s.selectAll=function(){v.view.selectAll()}});
-bespin.tiki.module("text_editor:commands/scrolling",function(y,s){var v=y("environment").env;s.scrollDocStart=function(){v.view.scrollToPosition({col:0,row:0})};s.scrollDocEnd=function(){v.view.scrollToPosition(v.model.range.end)};s.scrollPageDown=function(){v.view.scrollPageDown()};s.scrollPageUp=function(){v.view.scrollPageUp()}});
-bespin.tiki.module("text_editor:controllers/layoutmanager",function(y,s){var v=y("bespin:util/util"),r=y("events").Event;y("rangeutils:utils/range");var l=y("syntax_manager").SyntaxManager,h=y("models/textstorage").TextStorage,d=y("bespin:plugins").catalog,f=y("settings").settings,m=y("bespin:util/scratchcanvas"),i={};y=function(){var g=f.get("fontsize"),j=f.get("fontface");j=g+"px "+j;for(var q=m.get(),t="",B=0;B<100;B++)t+="M";j=q.measureStringWidth(j,t)/100;i.characterWidth=j;i.lineHeight=Math.floor(g*
-1.6);i.lineAscent=Math.floor(g*1.3)};y();d.registerExtension("settingChange",{match:"font[size|face]",pointer:y});s.LayoutManager=function(g){this.changedTextAtRow=new r;this.invalidatedRects=new r;this.fontDimension=i;if(g.textStorage){g._textStorage=g.textStorage;delete g.textStorage}else this._textStorage=new h;v.mixin(this,g);this._textStorage.changed.add(this.textStorageChanged.bind(this));this.textLines=[{characters:"",colors:[{start:0,end:0,color:"plain"}]}];this.syntaxManager=g=new l(this);
-g.attrsChanged.add(this._attrsChanged.bind(this));this._size={width:0,height:0};this.sizeChanged=new r;this._height=0;this._recomputeEntireLayout()};s.LayoutManager.prototype={_maximumWidth:0,_textStorage:null,_size:null,sizeChanged:null,_theme:{},margin:{left:5,bottom:6,top:0,right:12},pluginCatalog:d,syntaxManager:null,textLines:null,_attrsChanged:function(g,j){this.updateTextRows(g,j);this.invalidatedRects(this,this.rectsForRange({start:{row:g,col:0},end:{row:j,col:0}}))},_computeInvalidRects:function(g,
-j){var q=this.characterRectForPosition(g.start),t={x:q.x,y:q.y,width:Number.MAX_VALUE,height:q.height};return g.end.row===j.end.row?[t]:[t,{x:0,y:q.y+i.lineHeight,width:Number.MAX_VALUE,height:Number.MAX_VALUE}]},_lastCharacterPosition:function(){return{row:this.textLines.length-1,col:this._maximumWidth}},_recalculateMaximumWidth:function(){var g=0;this.textLines.forEach(function(j){j=j.characters.length;if(g<j)g=j});this._maximumWidth=g;this.size={width:g,height:this.textLines.length}},_recomputeEntireLayout:function(){var g=
-this._textStorage.range;this._recomputeLayoutForRanges(g,g)},_recomputeLayoutForRanges:function(g,j){for(var q=g.start.row,t=g.end.row,B=j.end.row,C=B-q+1,e=this._textStorage.lines,K=this._theme.plain,L=[],n=0;n<C;n++)L[n]={characters:e[q+n],colors:[{start:0,end:null,color:K}]};this.textLines=v.replace(this.textLines,q,t-q+1,L);this._recalculateMaximumWidth();t=this.textLines.length;C=this.syntaxManager;if(this._height!==t)this._height=t;C.invalidateRow(q);this.updateTextRows(q,B+1);this.changedTextAtRow(this,
-q);this.invalidatedRects(this,this._computeInvalidRects(g,j))},boundingRect:function(){return this.rectsForRange({start:{row:0,col:0},end:{row:this.textLines.length-1,col:this._maximumWidth}})[0]},characterAtPoint:function(g){var j=this.margin,q=g.x-j.left,t=i.characterWidth,B=this._textStorage;g=B.clampPosition({row:Math.floor((g.y-j.top)/i.lineHeight),col:Math.floor(q/t)});B=B.lines[g.row].length;g.partialFraction=q<0||g.col===B?0:q%t/t;return g},characterRangeForBoundingRect:function(g){var j=
-i.lineHeight,q=i.characterWidth,t=this.margin,B=g.x-t.left;t=g.y-t.top;return{start:{row:Math.max(Math.floor(t/j),0),col:Math.max(Math.floor(B/q),0)},end:{row:Math.floor((t+g.height-1)/j),col:Math.floor((B+g.width-1)/q)+1}}},characterRectForPosition:function(g){return this.rectsForRange({start:g,end:{row:g.row,col:g.col+1}})[0]},lineRectForRow:function(g){return this.rectsForRange({start:{row:g,col:0},end:{row:g,col:this._maximumWidth}})[0]},rectForPosition:function(g){var j=this.margin,q=i.characterWidth,
-t=i.lineHeight;return{x:j.left+q*g.col,y:j.top+t*g.row,width:q,height:t}},rectsForRange:function(g){var j=i.characterWidth,q=i.lineHeight,t=this._maximumWidth,B=this.margin,C=g.start,e=g.end;g=C.row;var K=C.col;C=e.row;e=e.col;if(g===C)return[{x:B.left+j*K,y:B.top+q*g,width:j*(e-K),height:q}];var L=[],n;if(K===0)n=g;else{n=g+1;L.push({x:B.left+j*K,y:B.top+q*g,width:99999,height:q})}if(e===0)t=C-1;else if(e===t)t=C;else{t=C-1;L.push({x:B.left,y:B.top+q*C,width:j*e,height:q})}L.push({x:B.left,y:B.top+
-q*n,width:99999,height:q*(t-n+1)});return L},textStorageChanged:function(g,j){this._recomputeLayoutForRanges(g,j)},updateTextRows:function(g,j){var q=this.textLines;j=this.syntaxManager.getAttrsForRows(g,j);for(var t=0;t<j.length;t++)q[g+t].colors=j[t]}};Object.defineProperties(s.LayoutManager.prototype,{size:{set:function(g){if(g.width!==this._size.width||g.height!==this._size.height){this.sizeChanged(g);this._size=g}},get:function(){return this._size}},textStorage:{get:function(){return this._textStorage}}})});
-bespin.tiki.module("text_editor:controllers/search",function(y,s){var v=y("bespin:util/util");y("rangeutils:utils/range");y("bespin:console");s.EditorSearchController=function(r){this.editor=r};s.EditorSearchController.prototype={editor:null,_escapeString:/(\/|\.|\*|\+|\?|\||\(|\)|\[|\]|\{|\}|\\)/g,_findMatchesInString:function(r){var l=[],h=this.searchRegExp,d;for(h.lastIndex=0;;){d=h.exec(r);if(d===null)break;l.push(d);h.lastIndex=d.index+d[0].length}return l},_makeRange:function(r,l){return{start:{row:l,
-col:r.index},end:{row:l,col:r.index+r[0].length}}},isRegExp:null,searchRegExp:null,searchText:null,setSearchText:function(r,l){this.searchRegExp=l?new RegExp(r):new RegExp(r.replace(this._escapeString,"\\$1"),"gi");this.isRegExp=l;this.searchText=r},findNext:function(r,l){var h=this.searchRegExp;if(v.none(h))return null;r=r||this.editor.textView.getSelectedRange().end;var d=this.editor.layoutManager.textStorage.lines,f;h.lastIndex=r.col;var m;for(m=r.row;m<d.length;m++){f=h.exec(d[m]);if(!v.none(f))return this._makeRange(f,
-m)}if(!l)return null;for(m=0;m<=r.row;m++){f=h.exec(d[m]);if(!v.none(f))return this._makeRange(f,m)}return null},findPrevious:function(r,l){if(v.none(this.searchRegExp))return null;r=r||this.editor.textView.getSelectedRange().start;var h=this.editor.buffer.layoutManager.textStorage.lines,d;d=this._findMatchesInString(h[r.row].substring(0,r.col));if(d.length!==0)return this._makeRange(d[d.length-1],r.row);var f;for(f=r.row-1;f!==-1;f--){d=this._findMatchesInString(h[f]);if(d.length!==0)return this._makeRange(d[d.length-
-1],f)}if(!l)return null;for(f=h.length-1;f>=r.row;f--){d=this._findMatchesInString(h[f]);if(d.length!==0)return this._makeRange(d[d.length-1],f)}return null}}});
-bespin.tiki.module("text_editor:controllers/undo",function(y,s){var v=y("bespin:console").console,r=y("environment").env;s.EditorUndoController=function(l){this.editor=l;l=this.textView=l.textView;l.beganChangeGroup.add(function(h,d){this._beginTransaction();this._record.selectionBefore=d}.bind(this));l.endedChangeGroup.add(function(h,d){this._record.selectionAfter=d;this._endTransaction()}.bind(this));l.replacedCharacters.add(function(h,d,f){if(!this._inTransaction)throw new Error("UndoController.textViewReplacedCharacters() called outside a transaction");
-this._record.patches.push({oldCharacters:this._deletedCharacters,oldRange:d,newCharacters:f,newRange:this.editor.layoutManager.textStorage.resultingRangeForReplacement(d,f.split("\n"))});this._deletedCharacters=null}.bind(this));l.willReplaceRange.add(function(h,d){if(!this._inTransaction)throw new Error("UndoController.textViewWillReplaceRange() called outside a transaction");this._deletedCharacters=this.editor.layoutManager.textStorage.getCharacters(d)}.bind(this))};s.EditorUndoController.prototype=
-{_inTransaction:false,_record:null,textView:null,_beginTransaction:function(){if(this._inTransaction){v.trace();throw new Error("UndoController._beginTransaction() called with a transaction already in place");}this._inTransaction=true;this._record={patches:[]}},_endTransaction:function(){if(!this._inTransaction)throw new Error("UndoController._endTransaction() called without a transaction in place");this.editor.buffer.undoManager.registerUndo(this,this._record);this._record=null;this._inTransaction=
-false},_tryApplyingPatches:function(l){var h=this.editor.layoutManager.textStorage;l.forEach(function(d){h.replaceCharacters(d.oldRange,d.newCharacters)});return true},_undoOrRedo:function(l,h){if(this._inTransaction)throw new Error("UndoController._undoOrRedo() called while in a transaction");if(!this._tryApplyingPatches(l))return false;this.textView.setSelection(h,true);return true},redo:function(l){var h=l.patches.concat();h.reverse();return this._undoOrRedo(h,l.selectionAfter)},undo:function(l){return this._undoOrRedo(l.patches.map(function(h){return{oldCharacters:h.newCharacters,
-oldRange:h.newRange,newCharacters:h.oldCharacters,newRange:h.oldRange}}),l.selectionBefore)}};s.undoManagerCommand=function(l,h){r.editor.buffer.undoManager[h.commandExt.name]()}});
-bespin.tiki.module("text_editor:models/buffer",function(y,s){var v=y("environment").env,r=y("bespin:util/util"),l=y("bespin:promise").Promise,h=y("models/textstorage").TextStorage,d=y("controllers/layoutmanager").LayoutManager,f=y("undomanager").UndoManager;s.Buffer=function(m,i){this._file=m;this._model=new h(i);this._layoutManager=new d({textStorage:this._model});this.undoManager=new f;if(m)this.reload().then(function(){this._updateSyntaxManagerInitialContext()}.bind(this));else{this.loadPromise=
-new l;this.loadPromise.resolve()}i=v.session?v.session.history:null;var g,j,q;if(i&&m&&(g=i.getHistoryForPath(m.path))){j=g.selection;q=g.scroll}this._selectedRange=j||{start:{row:0,col:0},end:{row:0,col:0}};this._scrollOffset=q||{x:0,y:0}};s.Buffer.prototype={undoManager:null,loadPromise:null,_scrollOffset:null,_selectedRange:null,_selectedRangeEndVirtual:null,_layoutManager:null,_file:null,_model:null,save:function(){return this._file.saveContents(this._model.value)},saveAs:function(m){var i=new l;
-m.saveContents(this._model.value).then(function(){this._file=m;this._updateSyntaxManagerInitialContext();i.resolve()}.bind(this),function(g){i.reject(g)});return i},reload:function(){var m=this,i;return this.loadPromise=i=this._file.loadContents().then(function(g){m._model.value=g})},_updateSyntaxManagerInitialContext:function(){var m=this._file.extension();this._layoutManager.syntaxManager.setSyntaxFromFileExt(m===null?"":m)},untitled:function(){return r.none(this._file)}};Object.defineProperties(s.Buffer.prototype,
-{layoutManager:{get:function(){return this._layoutManager}},syntaxManager:{get:function(){}},file:{get:function(){return this._file}},model:{get:function(){return this._model}}})});
-bespin.tiki.module("text_editor:models/textstorage",function(y,s){var v=y("events").Event,r=y("bespin:util/util");y=function(l){this._lines=l!==null&&l!==undefined?l.split("\n"):[""];this.changed=new v;return this};y.prototype={_lines:null,readOnly:false,clampPosition:function(l){var h=this._lines,d=l.row;if(d<0)return{row:0,col:0};else if(d>=h.length)return this.range.end;l=Math.max(0,Math.min(l.col,h[d].length));return{row:d,col:l}},clampRange:function(l){var h=this.clampPosition(l.start);l=this.clampPosition(l.end);
-return{start:h,end:l}},deleteCharacters:function(l){this.replaceCharacters(l,"")},displacePosition:function(l,h){var d=h>0,f=this._lines,m=f.length;for(h=Math.abs(h);h!==0;h--)if(d){var i=f[l.row].length;if(l.row===m-1&&l.col===i)return l;l=l.col===i?{row:l.row+1,col:0}:{row:l.row,col:l.col+1}}else{if(l.row===0&&l.col==0)return l;if(l.col===0){f=this._lines;l={row:l.row-1,col:f[l.row-1].length}}else l={row:l.row,col:l.col-1}}return l},getCharacters:function(l){var h=this._lines,d=l.start,f=l.end,
-m=d.row;l=f.row;var i=d.col;d=f.col;if(m===l)return h[m].substring(i,d);f=h[m].substring(i);m=h.slice(m+1,l);h=h[l].substring(0,d);return[f].concat(m,h).join("\n")},getLines:function(){return this._lines},getRange:function(){var l=this._lines,h=l.length-1;return{start:{row:0,col:0},end:{row:h,col:l[h].length}}},getValue:function(){return this._lines.join("\n")},insertCharacters:function(l,h){this.replaceCharacters({start:l,end:l},h)},replaceCharacters:function(l,h){if(this.readOnly)throw new Error("Attempt to modify a read-only text storage object");
-var d=h.split("\n"),f=d.length,m=this.resultingRangeForReplacement(l,d),i=l.start,g=l.end,j=i.row,q=g.row,t=this._lines;d[0]=t[j].substring(0,i.col)+d[0];d[f-1]+=t[q].substring(g.col);this._lines=r.replace(t,j,q-j+1,d);this.changed(l,m,h)},resultingRangeForReplacement:function(l,h){var d=h.length;l=l.start;return{start:l,end:{row:l.row+d-1,col:(d===1?l.col:0)+h[d-1].length}}},setLines:function(l){this.setValue(l.join("\n"))},setValue:function(l){this.replaceCharacters(this.range,l)}};s.TextStorage=
-y;Object.defineProperties(s.TextStorage.prototype,{lines:{get:function(){return this.getLines()},set:function(l){return this.setLines(l)}},range:{get:function(){return this.getRange()}},value:{get:function(){return this.getValue()},set:function(l){this.setValue(l)}}})});
-bespin.tiki.module("text_editor:utils/rect",function(y,s){s._distanceFromBounds=function(v,r,l){if(v<r)return v-r;if(v>=l)return v-l;return 0};s.merge=function(v){var r;do{r=false;for(var l=[],h=0;h<v.length;h++){var d=v[h];l.push(d);for(var f=h+1;f<v.length;f++){var m=v[f];if(s.rectsSideBySide(d,m)||s.rectsIntersect(d,m)){v.splice(f,1);l[l.length-1]=s.unionRects(d,m);r=true;break}}}v=l}while(r);return v};s.offsetFromRect=function(v,r){return{x:s._distanceFromBounds(r.x,v.x,s.maxX(v)),y:s._distanceFromBounds(r.y,
-v.y,s.maxY(v))}};s.rectsIntersect=function(v,r){v=s.intersectRects(v,r);return v.width!==0&&v.height!==0};s.rectsSideBySide=function(v,r){if(v.x==r.x&&v.width==r.width)return v.y<r.y?v.y+v.height==r.y:r.y+r.height==v.y;else if(v.y==r.y&&v.height==r.height)return v.x<r.x?v.x+v.width==r.x:r.x+r.width==v.x;return false};s.intersectRects=function(v,r){v={x:Math.max(s.minX(v),s.minX(r)),y:Math.max(s.minY(v),s.minY(r)),width:Math.min(s.maxX(v),s.maxX(r)),height:Math.min(s.maxY(v),s.maxY(r))};v.width=Math.max(0,
-v.width-v.x);v.height=Math.max(0,v.height-v.y);return v};s.minX=function(v){return v.x||0};s.maxX=function(v){return(v.x||0)+(v.width||0)};s.minY=function(v){return v.y||0};s.maxY=function(v){return(v.y||0)+(v.height||0)};s.pointInRect=function(v,r){return v.x>=s.minX(r)&&v.y>=s.minY(r)&&v.x<=s.maxX(r)&&v.y<=s.maxY(r)};s.unionRects=function(v,r){v={x:Math.min(s.minX(v),s.minX(r)),y:Math.min(s.minY(v),s.minY(r)),width:Math.max(s.maxX(v),s.maxX(r)),height:Math.max(s.maxY(v),s.maxY(r))};v.width=Math.max(0,
-v.width-v.x);v.height=Math.max(0,v.height-v.y);return v};s.rectsEqual=function(v,r,l){if(!v||!r)return v==r;if(!l&&l!==0)l=0.1;if(v.y!=r.y&&Math.abs(v.y-r.y)>l)return false;if(v.x!=r.x&&Math.abs(v.x-r.x)>l)return false;if(v.width!=r.width&&Math.abs(v.width-r.width)>l)return false;if(v.height!=r.height&&Math.abs(v.height-r.height)>l)return false;return true}});
-bespin.tiki.module("text_editor:views/canvas",function(y,s){var v=y("bespin:util/util"),r=y("utils/rect"),l=y("events").Event;s.CanvasView=function(h,d,f){if(h){this._preventDownsize=d||false;this._clearOnFullInvalid=f||false;this._clippingFrame=this._frame={x:0,y:0,width:0,height:0};this._invalidRects=[];d=document.createElement("canvas");d.setAttribute("style","position: absolute");d.innerHTML="canvas tag not supported by your browser";h.appendChild(d);this.domNode=d;this.clippingChanged=new l;
-this.clippingChanged.add(this.clippingFrameChanged.bind(this))}};s.CanvasView.prototype={domNode:null,clippingChanged:null,_canvasContext:null,_canvasId:null,_invalidRects:null,_lastRedrawTime:null,_redrawTimer:null,_clippingFrame:null,_preventDownsize:false,_clearOnFullInvalid:false,_frame:null,_getContext:function(){if(this._canvasContext===null)this._canvasContext=this.domNode.getContext("2d");return this._canvasContext},computeWithClippingFrame:function(h,d){var f=this.clippingFrame;return{x:h+
-f.x,y:d+f.y}},minimumRedrawDelay:1E3/30,clippingFrameChanged:function(){this.invalidate()},drawRect:function(){},render:function(){if(!(this._renderTimer||this._redrawTimer))this._renderTimer=setTimeout(this._tryRedraw.bind(this),0)},invalidate:function(){this._invalidRects="all";this.render()},invalidateRect:function(h){var d=this._invalidRects;if(d!=="all"){d.push(h);this.render()}},_tryRedraw:function(){this._renderTimer=null;var h=(new Date).getTime(),d=this._lastRedrawTime,f=this.minimumRedrawDelay;
-if(d===null||h-d>=f)this._redraw();else if(this._redrawTimer===null)this._redrawTimer=window.setTimeout(this._redraw.bind(this),f)},_redraw:function(){var h=this.clippingFrame;h={x:Math.round(h.x),y:Math.round(h.y),width:h.width,height:h.height};var d=this._getContext();d.save();d.translate(-h.x,-h.y);var f=this._invalidRects;if(f==="all"){this._clearOnFullInvalid&&d.clearRect(0,0,this.domNode.width,this.domNode.height);this.drawRect(h,d)}else r.merge(f).forEach(function(m){m=r.intersectRects(m,h);
-if(m.width!==0&&m.height!==0){d.save();var i=m.x,g=m.y,j=m.width,q=m.height;d.beginPath();d.moveTo(i,g);d.lineTo(i+j,g);d.lineTo(i+j,g+q);d.lineTo(i,g+q);d.closePath();d.clip();this.drawRect(m,d);d.restore()}},this);d.restore();this._invalidRects=[];this._redrawTimer=null;this._lastRedrawTime=(new Date).getTime()}};Object.defineProperties(s.CanvasView.prototype,{clippingFrame:{get:function(){return this._clippingFrame},set:function(h){h=v.mixin(v.clone(this._clippingFrame),h);if(this._clippingFrame===
-null||!r.rectsEqual(h,this._clippingFrame)){this._clippingFrame=h;this.clippingChanged()}}},frame:{get:function(){return this._frame},set:function(h){var d=this.domNode,f=d.style,m=this._preventDownsize,i=d.width,g=d.height;f=d.style;f.left=h.x+"px";f.top=h.y+"px";var j,q;if(h.width!==i)if(h.width<i)m||(j=true);else j=true;if(h.height!==g)if(h.height<g)m||(q=true);else q=true;if(j)this.domNode.width=h.width;if(q)this.domNode.height=h.height;this._frame=h;this.clippingFrame={width:h.width,height:h.height}}}})});
-bespin.tiki.module("text_editor:views/editor",function(y,s){function v(n){var w=C.plugins.text_editor.provides,D=w.length,J={};if(n){n=n.themestyles;if(n.currentThemeVariables&&n.currentThemeVariables.text_editor)J=n.currentThemeVariables.text_editor}for(;D--;)if(w[D].ep==="themevariable"){n=h.mixin(h.clone(w[D].defaultValue),J[w[D].name]);switch(w[D].name){case "gutter":case "editor":case "scroller":case "highlighter":L[w[D].name]=n}}}var r=y("rangeutils:utils/range"),l=y("views/scroller"),h=y("bespin:util/util"),
-d=y("models/buffer").Buffer,f=y("completion:controller").CompletionController,m=y("controllers/search").EditorSearchController,i=y("controllers/undo").EditorUndoController,g=y("events").Event,j=y("views/gutter").GutterView;y("controllers/layoutmanager");var q=l.ScrollerCanvasView,t=y("views/text").TextView,B=y("underscore")._,C=y("bespin:plugins").catalog,e=y("keyboard:keyboard").keyboardManager,K=y("settings").settings,L={};v();C.registerExtension("themeChange",{pointer:v});s.EditorView=function(n){this.elementAppended=
-new g;var w=this.element=this.container=document.createElement("div");w.style.overflow="visible";w.style.position="relative";this.scrollOffsetChanged=new g;this.willChangeBuffer=new g;this.selectionChanged=new g;this.textChanged=new g;this.gutterView=new j(w,this);this.textView=new t(w,this);var D=new q(this,l.LAYOUT_VERTICAL),J=new q(this,l.LAYOUT_HORIZONTAL);this.verticalScroller=D;this.horizontalScroller=J;this.completionController=new f(this);this.editorUndoController=new i(this);this.searchController=
-new m(this);this._textViewSize=this._oldSize={width:0,height:0};this._themeData=L;this.buffer=new d(null,n);this.elementAppended.add(function(){var Q=K.get("fontsize"),Z=K.get("fontface");this._font=Q+"px "+Z;C.registerExtension("themeChange",{pointer:this._themeVariableChange.bind(this)});C.registerExtension("settingChange",{match:"font[size|face]",pointer:this._fontSettingChanged.bind(this)});C.registerExtension("dimensionsChanged",{pointer:this.dimensionsChanged.bind(this)});this._dontRecomputeLayout=
-false;this._recomputeLayout();w.addEventListener(h.isMozilla?"DOMMouseScroll":"mousewheel",this._onMouseWheel.bind(this),false);D.valueChanged.add(function(T){this.scrollOffset={y:T}}.bind(this));J.valueChanged.add(function(T){this.scrollOffset={x:T}}.bind(this));this.scrollOffsetChanged.add(function(T){this._updateScrollOffsetChanged(T)}.bind(this))}.bind(this))};s.EditorView.prototype={elementAppended:null,textChanged:null,selectionChanged:null,scrollOffsetChanged:null,willChangeBuffer:null,_textViewSize:null,
-_textLinesCount:0,_gutterViewWidth:0,_oldSize:null,_buffer:null,_dontRecomputeLayout:true,_themeData:null,_layoutManagerSizeChanged:function(n){var w=this.layoutManager.fontDimension;this._textViewSize={width:n.width*w.characterWidth,height:n.height*w.lineHeight};if(this._textLinesCount!==n.height){this.gutterView.computeWidth()!==this._gutterViewWidth?this._recomputeLayout(true):this.gutterView.invalidate();this._textLinesLength=n.height}this._updateScrollers();this.scrollOffset={}},_updateScrollers:function(){if(!this._dontRecomputeLayout){var n=
-this.textViewPaddingFrame,w=this._textViewSize.width,D=this._textViewSize.height,J=this.scrollOffset,Q=this.verticalScroller,Z=this.horizontalScroller;if(D<n.height)Q.isVisible=false;else{Q.isVisible=true;Q.proportion=n.height/D;Q.maximum=D-n.height;Q.value=J.y}if(w<n.width)Z.isVisible=false;else{Z.isVisible=true;Z.proportion=n.width/w;Z.maximum=w-n.width;Z.value=J.x}}},_onMouseWheel:function(n){var w=0;if(n.wheelDelta)w=-n.wheelDelta;else if(n.detail)w=n.detail*40;var D=true;if(n.axis){if(n.axis==
-n.HORIZONTAL_AXIS)D=false}else if(n.wheelDeltaY||n.wheelDeltaX){if(n.wheelDeltaX==n.wheelDelta)D=false}else if(n.shiftKey)D=false;D?this.scrollBy(0,w):this.scrollBy(w*5,0);h.stopEvent(n)},scrollTo:function(n){this.scrollOffset=n},scrollBy:function(n,w){this.scrollOffset={x:this.scrollOffset.x+n,y:this.scrollOffset.y+w}},_recomputeLayout:function(n){if(!this._dontRecomputeLayout){var w=this.container.offsetWidth,D=this.container.offsetHeight;if(!(!n&&w==this._oldSize.width&&D==this._oldSize.height)){this._oldSize=
-{width:w,height:D};this._gutterViewWidth=n=this.gutterView.computeWidth();this.gutterView.frame={x:0,y:0,width:n,height:D};this.textView.frame={x:n,y:0,width:w-n,height:D};var J=this._themeData.scroller.padding,Q=this._themeData.scroller.thickness;this.horizontalScroller.frame={x:n+J,y:D-(Q+J),width:w-(n+2*J+Q),height:Q};this.verticalScroller.frame={x:w-(J+Q),y:J,width:Q,height:D-(2*J+Q)};this.scrollOffset={};this._updateScrollers();this.gutterView.invalidate();this.textView.invalidate();this.verticalScroller.invalidate();
-this.horizontalScroller.invalidate()}}},dimensionsChanged:function(){this._recomputeLayout()},_font:null,_fontSettingChanged:function(){var n=K.get("fontsize"),w=K.get("fontface");this._font=n+"px "+w;this.layoutManager._recalculateMaximumWidth();this._layoutManagerSizeChanged(this.layoutManager.size);this.textView.invalidate()},_themeVariableChange:function(){this._recomputeLayout(true)},_updateScrollOffsetChanged:function(n){this.verticalScroller.value=n.y;this.horizontalScroller.value=n.x;this.textView.clippingFrame=
-{x:n.x,y:n.y};this.gutterView.clippingFrame={y:n.y};this._updateScrollers();this.gutterView.invalidate();this.textView.invalidate()},processKeyEvent:function(n,w,D){D=B(D).clone();D.completing=this.completionController.isCompleting();return e.processKeyEvent(n,w,D)},convertTextViewPoint:function(n){var w=this.scrollOffset;return{x:n.x-w.x+this._gutterViewWidth,y:n.y-w.y}},replace:function(n,w,D){if(!r.isRange(n))throw new Error('replace(): expected range but found "'+n+"'");if(!h.isString(w))throw new Error('replace(): expected text string but found "'+
-text+'"');var J=r.normalizeRange(n),Q=this.textView,Z=Q.getSelectedRange(false);return Q.groupChanges(function(){Q.replaceCharacters(J,w);if(D)Q.setSelection(Z);else{var T=w.split("\n");T=T.length>1?{row:n.start.row+T.length-1,col:T[T.length-1].length}:r.addPositions(n.start,{row:0,col:w.length});Q.moveCursorTo(T)}})},getText:function(n){if(!r.isRange(n))throw new Error('getText(): expected range but found "'+n+'"');return this.layoutManager.textStorage.getCharacters(r.normalizeRange(n))},setLineNumber:function(n){if(!h.isNumber(n))throw new Error("setLineNumber(): lineNumber must be a number");
-this.textView.moveCursorTo({row:n-1,col:0})},setCursor:function(n){if(!r.isPosition(n))throw new Error('setCursor(): expected position but found "'+n+'"');this.textView.moveCursorTo(n)},changeGroup:function(n){return this.textView.groupChanges(function(){n(this)}.bind(this))},addTags:function(n){this.completionController.tags.add(n)}};Object.defineProperties(s.EditorView.prototype,{themeData:{get:function(){return this._themeData},set:function(){throw new Error("themeData can't be changed directly. Use themeManager.");
-}},font:{get:function(){return this._font},set:function(){throw new Error("font can't be changed directly. Use settings fontsize and fontface.");}},buffer:{set:function(n){if(n!==this._buffer){if(!n.loadPromise.isResolved())throw new Error("buffer.set(): the new buffer must first be loaded!");if(this._buffer!==null){this.layoutManager.sizeChanged.remove(this);this.layoutManager.textStorage.changed.remove(this);this.textView.selectionChanged.remove(this)}this.willChangeBuffer(n);C.publish(this,"editorChange",
-"buffer",n);this.layoutManager=n.layoutManager;this._buffer=n;var w=this.layoutManager,D=this.textView;w.sizeChanged.add(this,this._layoutManagerSizeChanged.bind(this));w.textStorage.changed.add(this,this.textChanged.bind(this));D.selectionChanged.add(this,this.selectionChanged.bind(this));this.textView.setSelection(n._selectedRange,false);this.scrollOffsetChanged(n._scrollOffset);this.layoutManager.sizeChanged(this.layoutManager.size);this._recomputeLayout()}},get:function(){return this._buffer}},
-frame:{get:function(){return{width:this.container.offsetWidth,height:this.container.offsetHeight}}},textViewPaddingFrame:{get:function(){var n=h.clone(this.textView.frame),w=this.textView.padding;n.width-=w.left+w.right;n.height-=w.top+w.bottom;return n}},scrollOffset:{set:function(n){if(n.x===undefined)n.x=this.scrollOffset.x;if(n.y===undefined)n.y=this.scrollOffset.y;var w=this.textViewPaddingFrame;if(n.y<0)n.y=0;else if(this._textViewSize.height<w.height)n.y=0;else if(n.y+w.height>this._textViewSize.height)n.y=
-this._textViewSize.height-w.height;if(n.x<0)n.x=0;else if(this._textViewSize.width<w.width)n.x=0;else if(n.x+w.width>this._textViewSize.width)n.x=this._textViewSize.width-w.width;if(!(n.x===this.scrollOffset.x&&n.y===this.scrollOffset.y)){this.buffer._scrollOffset=n;this.scrollOffsetChanged(n);C.publish(this,"editorChange","scrollOffset",n)}},get:function(){return this.buffer._scrollOffset}},readOnly:{get:function(){return this._buffer.model.readOnly},set:function(n){this._buffer.model.readOnly=n}},
-focus:{get:function(){return this.textView.hasFocus},set:function(n){if(!h.isBoolean(n))throw new Error('set focus: expected boolean but found "'+n+'"');this.textView.hasFocus=n}},selection:{get:function(){return h.clone(this.textView.getSelectedRange(false))},set:function(n){if(!r.isRange(n))throw new Error("set selection: position/selection must be supplied");this.textView.setSelection(n)}},selectedText:{get:function(){return this.getText(this.selection)},set:function(n){if(!h.isString(n))throw new Error('set selectedText: expected string but found "'+
-n+'"');return this.replace(this.selection,n)}},value:{get:function(){return this.layoutManager.textStorage.value},set:function(n){if(!h.isString(n))throw new Error('set value: expected string but found "'+n+'"');return this.replace(this.layoutManager.textStorage.range,n,false)}},syntax:{get:function(){return this.layoutManager.syntaxManager.getSyntax()},set:function(n){if(!h.isString(n))throw new Error('set syntax: expected string but found "'+newValue+'"');return this.layoutManager.syntaxManager.setSyntax(n)}}})});
-bespin.tiki.module("text_editor:views/gutter",function(y,s){var v=y("bespin:util/util"),r=y("views/canvas").CanvasView;s.GutterView=function(l,h){r.call(this,l,true);this.editor=h};s.GutterView.prototype=new r;v.mixin(s.GutterView.prototype,{drawRect:function(l,h){var d=this.editor.themeData.gutter;h.fillStyle=d.backgroundColor;h.fillRect(l.x,l.y,l.width,l.height);h.save();h.translate(d.paddingLeft,0);var f=this.editor.layoutManager,m=f.characterRangeForBoundingRect(l);l=Math.min(m.end.row,f.textLines.length-
-1);var i=f.fontDimension.lineAscent;h.fillStyle=d.color;h.font=this.editor.font;for(d=m.start.row;d<=l;d++)h.fillText(""+(d+1),-0.5,f.lineRectForRow(d).y+i-0.5);h.restore()},computeWidth:function(){var l=this.editor.themeData.gutter,h=this.editor.layoutManager;return h.fontDimension.characterWidth*(""+h.textLines.length).length+(l.paddingLeft+l.paddingRight)}})});
-bespin.tiki.module("text_editor:views/scroller",function(y,s){var v=y("bespin:util/util"),r=y("events").Event,l=y("bespin:console").console,h=y("utils/rect"),d=y("views/canvas").CanvasView,f=s.LAYOUT_HORIZONTAL=0,m=s.LAYOUT_VERTICAL=1;s.ScrollerCanvasView=function(i,g){d.call(this,i.container,false,true);this.editor=i;this.layoutDirection=g;i=function(j,q,t){t=t||this.domNode;t.addEventListener(j,function(B){q.call(this,B);v.stopEvent(B)}.bind(this),false)}.bind(this);i("mouseover",this.mouseEntered);
-i("mouseout",this.mouseExited);i("mousedown",this.mouseDown);i("mouseup",this.mouseUp,window);i("mousemove",this.mouseMove,window);this.valueChanged=new r};s.ScrollerCanvasView.prototype=new d;v.mixin(s.ScrollerCanvasView.prototype,{lineHeight:20,proportion:0,layoutDirection:m,_isVisible:false,_maximum:0,_value:0,valueChanged:null,padding:{left:0,bottom:0,top:0,right:0},_mouseDownScreenPoint:null,_mouseDownValue:null,_isMouseOver:false,_scrollTimer:null,_mouseEventPosition:null,_mouseOverHandle:false,
-_drawNib:function(i){var g=this.editor.themeData.scroller,j,q;j=g.nibStyle;q=g.nibArrowStyle;g=g.nibStrokeStyle;var t=Math.floor(7.5);i.fillStyle=j;i.beginPath();i.arc(0,0,Math.floor(7.5),0,Math.PI*2,true);i.closePath();i.fill();i.strokeStyle=g;i.stroke();i.fillStyle=q;i.beginPath();i.moveTo(0,-t+3);i.lineTo(-t+3,t-5);i.lineTo(t-3,t-5);i.closePath();i.fill()},_drawNibs:function(i,g){var j=this._getClientThickness(),q=this._value,t=this._maximum,B=this._isHighlighted();if(B||q!==0){i.save();i.translate(8,
-j/2);i.rotate(Math.PI*1.5);i.moveTo(0,0);this._drawNib(i,g);i.restore()}if(B||q!==t){i.save();i.translate(this._getClientLength()-8,j/2);i.rotate(Math.PI*0.5);i.moveTo(0,0);this._drawNib(i,g);i.restore()}},_getClientFrame:function(){var i=this.frame,g=this.padding;return{x:g.left,y:g.top,width:i.width-(g.left+g.right),height:i.height-(g.top+g.bottom)}},_getClientLength:function(){var i=this._getClientFrame();switch(this.layoutDirection){case f:return i.width;case m:return i.height;default:l.error("unknown layout direction");
-return null}},_getClientThickness:function(){var i=this.padding,g=this.editor.themeData.scroller.thickness;switch(this.layoutDirection){case m:return g-(i.left+i.right);case f:return g-(i.top+i.bottom);default:l.error("unknown layout direction");return null}},_getFrameLength:function(){switch(this.layoutDirection){case f:return this.frame.width;case m:return this.frame.height;default:l.error("unknown layout direction");return null}},_getGutterFrame:function(){var i=this._getClientFrame(),g=this._getClientThickness();
-switch(this.layoutDirection){case m:return{x:i.x,y:i.y+15,width:g,height:Math.max(0,i.height-30)};case f:return{x:i.x+15,y:i.y,width:Math.max(0,i.width-30),height:g};default:l.error("unknown layout direction");return null}},_getGutterLength:function(){var i=this._getGutterFrame(),g;switch(this.layoutDirection){case f:g=i.width;break;case m:g=i.height;break;default:l.error("unknown layout direction");break}return g},_getHandleFrame:function(){var i=this._getGutterFrame(),g=this._getHandleOffset(),
-j=this._getHandleLength();switch(this.layoutDirection){case m:return{x:i.x,y:i.y+g,width:i.width,height:j};case f:return{x:i.x+g,y:i.y,width:j,height:i.height}}},_getHandleLength:function(){var i=this._getGutterLength();return Math.max(i*this.proportion,20)},_getHandleOffset:function(){var i=this._maximum;if(i===0)return 0;var g=this._getGutterLength(),j=this._getHandleLength();return(g-j)*this._value/i},_isHighlighted:function(){return this._isMouseOver===true||this._mouseDownScreenPoint!==null},
-_segmentForMouseEvent:function(i){i={x:i.layerX,y:i.layerY};var g=this._getClientFrame(),j=this.padding;if(!h.pointInRect(i,g))return null;var q=this.layoutDirection;switch(q){case f:if(i.x-j.left<15)return"nib-start";else if(i.x>=g.width-15)return"nib-end";break;case m:if(i.y-j.top<15)return"nib-start";else if(i.y>=g.height-15)return"nib-end";break;default:l.error("unknown layout direction");break}j=this._getHandleFrame();if(h.pointInRect(i,j))return"handle";switch(q){case f:if(i.x<j.x)return"gutter-before";
-else if(i.x>=j.x+j.width)return"gutter-after";break;case m:if(i.y<j.y)return"gutter-before";else if(i.y>=j.y+j.height)return"gutter-after";break;default:l.error("unknown layout direction");break}l.error("_segmentForMouseEvent: point ",i," outside view with handle frame ",j," and client frame ",g);return null},adjustFrame:function(){var i=this.frame;this.set("layout",{left:0,top:0,width:i.width,height:i.height})},drawRect:function(i,g){if(this._isVisible){var j=this._isHighlighted();i=this.editor.themeData.scroller;
-var q=j?i.fullAlpha:i.particalAlpha,t=this.frame;g.clearRect(0,0,t.width,t.height);g.save();t=this.padding;g.translate(t.left,t.top);this._getHandleFrame();t=this._getGutterLength();var B=this._getClientThickness(),C=B/2,e=this.layoutDirection,K=this._getHandleOffset()+15,L=this._getHandleLength();if(e===m){g.translate(B+1,0);g.rotate(Math.PI*0.5)}if(!(t<=L)){g.globalAlpha=q;if(j){j=this._getClientLength();g.fillStyle=i.trackFillStyle;g.fillRect(8.5,0.5,j-16,B-1);g.strokeStyle=i.trackStrokeStyle;
-g.strokeRect(8.5,0.5,j-16,B-1)}j=function(){g.beginPath();g.arc(K+C+0.5,C,C-0.5,Math.PI/2,3*Math.PI/2,false);g.arc(K+L-C-0.5,C,C-0.5,3*Math.PI/2,Math.PI/2,false);g.lineTo(K+C+0.5,B-0.5);g.closePath()};j();t=g.createLinearGradient(K,0,K,B);t.addColorStop(0,i.barFillGradientTopStart);t.addColorStop(0.4,i.barFillGradientTopStop);t.addColorStop(0.41,i.barFillStyle);t.addColorStop(0.8,i.barFillGradientBottomStart);t.addColorStop(1,i.barFillGradientBottomStop);g.fillStyle=t;g.fill();g.save();g.clip();g.fillStyle=
-i.barFillStyle;g.beginPath();g.moveTo(K+C*0.4,C*0.6);g.lineTo(K+C*0.9,B*0.4);g.lineTo(K,B*0.4);g.closePath();g.fill();g.beginPath();g.moveTo(K+L-C*0.4,0+C*0.6);g.lineTo(K+L-C*0.9,0+B*0.4);g.lineTo(K+L,0+B*0.4);g.closePath();g.fill();g.restore();g.save();j();g.strokeStyle=i.trackStrokeStyle;g.stroke();g.restore();this._drawNibs(g,q);g.restore()}}},_repeatAction:function(i,g){if(i()!==false){var j=function(){this._repeatAction(i,100)}.bind(this);this._scrollTimer=setTimeout(j,g)}},_scrollByDelta:function(i){this.value=
-this._value+i},_scrollUpOneLine:function(){this._scrollByDelta(-this.lineHeight);return true},_scrollDownOneLine:function(){this._scrollByDelta(this.lineHeight);return true},_scrollPage:function(){switch(this._segmentForMouseEvent(this._mouseEventPosition)){case "gutter-before":this._scrollByDelta(this._getGutterLength()*-1);break;case "gutter-after":this._scrollByDelta(this._getGutterLength());break;case null:break;default:return false}return true},mouseDown:function(i){this._mouseEventPosition=
-i;this._mouseOverHandle=false;this._getGutterLength();switch(this._segmentForMouseEvent(i)){case "nib-start":this._repeatAction(this._scrollUpOneLine.bind(this),500);break;case "nib-end":this._repeatAction(this._scrollDownOneLine.bind(this),500);break;case "gutter-before":this._repeatAction(this._scrollPage.bind(this),500);break;case "gutter-after":this._repeatAction(this._scrollPage.bind(this),500);break;case "handle":break;default:l.error("_segmentForMouseEvent returned an unknown value");break}switch(this.layoutDirection){case f:this._mouseDownScreenPoint=
-i.pageX;break;case m:this._mouseDownScreenPoint=i.pageY;break;default:l.error("unknown layout direction");break}},mouseMove:function(i){if(this._mouseDownScreenPoint!==null){if(this._segmentForMouseEvent(i)=="handle"||this._mouseOverHandle===true){this._mouseOverHandle=true;if(this._scrollTimer!==null){clearTimeout(this._scrollTimer);this._scrollTimer=null}var g;switch(this.layoutDirection){case f:g=i.pageX;break;case m:g=i.pageY;break;default:l.error("unknown layout direction");break}var j=g-this._mouseDownScreenPoint,
-q=this._maximum,t=this._value,B=this._getGutterLength(),C=this._getHandleLength();this.value=t+q*j/(B-C);this._mouseDownScreenPoint=g}this._mouseEventPosition=i}},mouseEntered:function(){this._isMouseOver=true;this.invalidate()},mouseExited:function(){this._isMouseOver=false;this.invalidate()},mouseUp:function(){this._mouseDownValue=this._mouseDownScreenPoint=null;if(this._scrollTimer){clearTimeout(this._scrollTimer);this._scrollTimer=null}this.invalidate()}});Object.defineProperties(s.ScrollerCanvasView.prototype,
-{isVisible:{set:function(i){if(this._isVisible!==i){this._isVisible=i;this.domNode.style.display=i?"block":"none";i&&this.invalidate()}}},maximum:{set:function(i){if(this._value>this._maximum)this._value=this._maximum;if(i!==this._maximum){this._maximum=i;this.invalidate()}}},value:{set:function(i){if(i<0)i=0;else if(i>this._maximum)i=this._maximum;if(i!==this._value){this._value=i;this.valueChanged(i);this.invalidate()}}}})});
-bespin.tiki.module("text_editor:views/text",function(y,s){var v=y("bespin:plugins").catalog,r=y("bespin:util/util"),l=y("events").Event,h=y("views/canvas").CanvasView;y("controllers/layoutmanager");var d=y("rangeutils:utils/range"),f=y("utils/rect"),m=y("views/textinput").TextInput,i=y("bespin:console").console,g=y("settings").settings;s.TextView=function(j,q){h.call(this,j,true);this.editor=q;this.textInput=new m(j,this);this.padding={top:0,bottom:30,left:0,right:30};this.clippingChanged.add(this.clippingFrameChanged.bind(this));
-j=this.domNode;j.style.cursor="text";j.addEventListener("mousedown",this.mouseDown.bind(this),false);j.addEventListener("mousemove",this.mouseMove.bind(this),false);window.addEventListener("mouseup",this.mouseUp.bind(this),false);q.willChangeBuffer.add(this.editorWillChangeBuffer.bind(this));this.selectionChanged=new l;this.beganChangeGroup=new l;this.endedChangeGroup=new l;this.willReplaceRange=new l;this.replacedCharacters=new l};s.TextView.prototype=new h;r.mixin(s.TextView.prototype,{_dragPoint:null,
-_dragTimer:null,_enclosingScrollView:null,_inChangeGroup:false,_insertionPointBlinkTimer:null,_insertionPointVisible:true,_keyBuffer:"",_keyMetaBuffer:"",_keyState:"start",_hasFocus:false,_mouseIsDown:false,selectionChanged:null,beganChangeGroup:null,endedChangeGroup:null,willReplaceRange:null,replacedCharacters:null,editorWillChangeBuffer:function(j){if(this.editor.layoutManager){var q=this.editor.layoutManager;q.invalidatedRects.remove(this);q.changedTextAtRow.remove(this)}q=j.layoutManager;q.invalidatedRects.add(this,
-this.layoutManagerInvalidatedRects.bind(this));q.changedTextAtRow.add(this,this.layoutManagerChangedTextAtRow.bind(this))},didFocus:function(){this._setFocus(true,true)},didBlur:function(){this._setFocus(false,true)},_drag:function(){var j=this._dragPoint,q=f.offsetFromRect(this.clippingFrame,j);this.moveCursorTo(this._selectionPositionForPoint({x:j.x-q.x,y:j.y-q.y}),true)},_drawInsertionPoint:function(j,q){if(this._insertionPointVisible){var t=this.editor.layoutManager.characterRectForPosition(this.editor.buffer._selectedRange.start);
-j=Math.floor(t.x);var B=t.y,C=Math.ceil(t.width);t=t.height;q.save();var e=this.editor.themeData.editor;if(this._hasFocus){q.strokeStyle=e.cursorColor;q.beginPath();q.moveTo(j+0.5,B);q.lineTo(j+0.5,B+t);q.closePath();q.stroke()}else{q.fillStyle=e.unfocusedCursorBackgroundColor;q.fillRect(j+0.5,B,C-0.5,t);q.strokeStyle=e.unfocusedCursorColor;q.strokeRect(j+0.5,B+0.5,C-1,t-1)}q.restore()}},_drawLines:function(j,q){var t=this.editor.layoutManager,B=t.textLines,C=t.fontDimension.lineAscent,e=this.editor.themeData.highlighter;
-q.save();q.font=this.editor.font;var K=t.characterRangeForBoundingRect(j),L=K.start;K=K.end;for(var n=K.row,w=L.row;w<=n;w++){var D=B[w];if(!r.none(D)){var J=D.characters,Q=J.length,Z=Math.min(K.col,Q),T=L.col;if(!(T>=Q)){D=D.colors;if(D==null)D=[];for(Q=0;Q<D.length&&T<D[Q].start;)Q++;for(var ca=Q<D.length?D[Q].start:T;ca<Z;){j=D[Q];T=j!=null?j.end:Z;j=j!=null?j.tag:"plain";j=e.hasOwnProperty(j)?e[j]:"red";q.fillStyle=j;j=t.characterRectForPosition({row:w,col:ca});ca=J.substring(ca,T);q.fillText(ca,
-j.x,j.y+C);ca=T;Q++}}}}q.restore()},_drawSelectionHighlight:function(j,q){j=this.editor.themeData.editor;j=this._hasFocus?j.selectedTextBackgroundColor:j.unfocusedCursorBackgroundColor;var t=this.editor.layoutManager;q.save();var B=d.normalizeRange(this.editor.buffer._selectedRange);q.fillStyle=j;t.rectsForRange(B).forEach(function(C){q.fillRect(C.x,C.y,C.width,C.height)});q.restore()},_drawSelection:function(j,q){this._rangeIsInsertionPoint(this.editor.buffer._selectedRange)?this._drawInsertionPoint(j,
-q):this._drawSelectionHighlight(j,q)},_getVirtualSelection:function(j){var q=this.editor.buffer._selectedRange,t=this.editor.buffer._selectedRangeEndVirtual;return{start:j&&t?t:q.start,end:t||q.end}},_invalidateSelection:function(){var j=function(B){return{x:B.x-1,y:B.y,width:B.width+2,height:B.height}},q=this.editor.layoutManager,t=d.normalizeRange(this.editor.buffer._selectedRange);if(this._rangeIsInsertionPoint(t)){q=q.characterRectForPosition(t.start);this.invalidateRect(j(q))}else q.rectsForRange(t).forEach(function(B){this.invalidateRect(j(B))},
-this)},_isReadOnly:function(){return this.editor.layoutManager.textStorage.readOnly},_keymappingChanged:function(){this._keyBuffer="";this._keyState="start"},_performVerticalKeyboardSelection:function(j){var q=this.editor.buffer._selectedRangeEndVirtual;this.moveCursorTo(d.addPositions(q!==null?q:this.editor.buffer._selectedRange.end,{row:j,col:0}),true,true)},_rangeIsInsertionPoint:function(j){return d.isZeroLength(j)},_rearmInsertionPointBlinkTimer:function(){this._insertionPointVisible||this.blinkInsertionPoint();
-this._insertionPointBlinkTimer!==null&&clearInterval(this._insertionPointBlinkTimer);this._insertionPointBlinkTimer=setInterval(this.blinkInsertionPoint.bind(this),750)},_repositionSelection:function(){var j=this.editor.layoutManager.textLines,q=j.length,t=this.editor.buffer._selectedRange,B=Math.min(t.start.row,q-1);q=Math.min(t.end.row,q-1);var C=j[q];this.setSelection({start:{row:B,col:Math.min(t.start.col,j[B].characters.length)},end:{row:q,col:Math.min(t.end.col,C.characters.length)}})},_scrollPage:function(j){this.editor.scrollBy(0,
-(this.clippingFrame.height+this.editor.layoutManager.fontDimension.lineAscent)*(j?-1:1))},_scrollWhileDragging:function(){var j=this._dragPoint;j=this.computeWithClippingFrame(j.layerX,j.layerY);r.mixin(this._dragPoint,j);this._drag()},_selectionPositionForPoint:function(j){j=this.editor.layoutManager.characterAtPoint(j);return j.partialFraction<0.5?j:d.addPositions(j,{row:0,col:1})},_syntaxManagerUpdatedSyntaxForRows:function(j,q){if(j!==q){var t=this.editor.layoutManager;t.updateTextRows(j,q);t.rectsForRange({start:{row:j,
-col:0},end:{row:q,col:0}}).forEach(this.invalidateRect,this)}},blinkInsertionPoint:function(){this._insertionPointVisible=!this._insertionPointVisible;this._invalidateSelection()},copy:function(){return this.getSelectedCharacters()},cut:function(){var j=this.getSelectedCharacters();j!=""&&this.performBackspaceOrDelete(false);return j},drawRect:function(j,q){q.fillStyle=this.editor.themeData.editor.backgroundColor;q.fillRect(j.x,j.y,j.width,j.height);this._drawSelection(j,q);this._drawLines(j,q)},
-focus:function(){this.textInput.focus()},getInsertionPointPosition:function(){var j=this.editor;j=j.layoutManager.characterRectForPosition(j.buffer._selectedRange.start);return{x:j.x,y:j.y}},getSelectedCharacters:function(){return this._rangeIsInsertionPoint(this.editor.buffer._selectedRange)?"":this.editor.layoutManager.textStorage.getCharacters(d.normalizeRange(this.editor.buffer._selectedRange))},getSelectedRange:function(j){return j?this.editor.buffer._selectedRange:d.normalizeRange(this.editor.buffer._selectedRange)},
-groupChanges:function(j){if(this._isReadOnly())return false;if(this._inChangeGroup){j();return true}this._inChangeGroup=true;this.beganChangeGroup(this,this.editor.buffer._selectedRange);try{j()}catch(q){i.error("Error in groupChanges(): "+q);this._inChangeGroup=false;this.endedChangeGroup(this,this.editor.buffer._selectedRange);return false}finally{this._inChangeGroup=false;this.endedChangeGroup(this,this.editor.buffer._selectedRange);return true}},insertText:function(j){if(this._isReadOnly())return false;
-this.groupChanges(function(){var q=d.normalizeRange(this.editor.buffer._selectedRange);this.replaceCharacters(q,j);var t=j.split("\n");this.moveCursorTo(t.length>1?{row:q.start.row+t.length-1,col:t[t.length-1].length}:d.addPositions(q.start,{row:0,col:j.length}))}.bind(this));return true},isDelimiter:function(j){return"\"',;.!~@#$%^&*?[]<>():/\\-+ \t".indexOf(j)!==-1},keyDown:function(j){if(j.charCode===0||j._charCode===0)return this.editor.processKeyEvent(j,this,{isTextView:true});else if(j.keyCode===
-9)j.preventDefault();else return false},layoutManagerChangedTextAtRow:function(){this._repositionSelection()},layoutManagerInvalidatedRects:function(j,q){q.forEach(this.invalidateRect,this)},mouseDown:function(j){r.stopEvent(j);this._mouseIsDown=this.hasFocus=true;var q=this.computeWithClippingFrame(j.layerX,j.layerY);r.mixin(q,{layerX:j.layerX,layerY:j.layerY});switch(j.detail){case 1:var t=this._selectionPositionForPoint(q);this.moveCursorTo(t,j.shiftKey);break;case 2:t=this._selectionPositionForPoint(q);
-var B=this.editor.layoutManager.textStorage.lines[t.row];if(B.length===0)return true;t.col-=t.col==B.length?1:0;var C=!this.isDelimiter(B[t.col]),e=this,K=function(L,n){for(;L>-1&&L<B.length;L+=n)if(e.isDelimiter(B[L])===C)break;return L+(n==1?0:1)};j=K(t.col,-1);K=K(t.col,1);this.moveCursorTo({row:t.row,col:j});this.moveCursorTo({row:t.row,col:K},true);break;case 3:j=this.editor.layoutManager.textStorage.lines;t=this._selectionPositionForPoint(q);this.setSelection({start:{row:t.row,col:0},end:{row:t.row,
-col:j[t.row].length}});break}this._dragPoint=q;this._dragTimer=setInterval(this._scrollWhileDragging.bind(this),100)},mouseMove:function(j){if(this._mouseIsDown){this._dragPoint=this.computeWithClippingFrame(j.layerX,j.layerY);r.mixin(this._dragPoint,{layerX:j.layerX,layerY:j.layerY});this._drag()}},mouseUp:function(){this._mouseIsDown=false;if(this._dragTimer!==null){clearInterval(this._dragTimer);this._dragTimer=null}},moveCursorTo:function(j,q,t){var B=this.editor.layoutManager.textStorage,C=B.clampPosition(j);
-this.setSelection({start:q?this.editor.buffer._selectedRange.start:C,end:C});if(t){q=B.lines.length;t=j.row;B=j.col;this.editor.buffer._selectedRangeEndVirtual=t>0&&t<q?j:{row:t<1?0:q-1,col:B}}else this.editor.buffer._selectedRangeEndVirtual=null;this.scrollToPosition(this.editor.buffer._selectedRange.end)},moveDown:function(){var j=this._getVirtualSelection();j=d.normalizeRange(j);j=this._rangeIsInsertionPoint(this.editor.buffer._selectedRange)?j.end:{row:j.end.row,col:j.start.col};j=d.addPositions(j,
-{row:1,col:0});this.moveCursorTo(j,false,true)},moveLeft:function(){var j=d.normalizeRange(this.editor.buffer._selectedRange);this._rangeIsInsertionPoint(j)?this.moveCursorTo(this.editor.layoutManager.textStorage.displacePosition(j.start,-1)):this.moveCursorTo(j.start)},moveRight:function(){var j=d.normalizeRange(this.editor.buffer._selectedRange);this._rangeIsInsertionPoint(j)?this.moveCursorTo(this.editor.layoutManager.textStorage.displacePosition(j.end,1)):this.moveCursorTo(j.end)},moveUp:function(){var j=
-d.normalizeRange(this._getVirtualSelection(true));position=d.addPositions({row:j.start.row,col:this._getVirtualSelection().end.col},{row:-1,col:0});this.moveCursorTo(position,false,true)},parentViewFrameChanged:function(){arguments.callee.base.apply(this,arguments);this._resize()},replaceCharacters:function(j,q){if(this._isReadOnly())return false;this.groupChanges(function(){j=d.normalizeRange(j);this.willReplaceRange(this,j);this.editor.layoutManager.textStorage.replaceCharacters(j,q);this.replacedCharacters(this,
-j,q)}.bind(this));return true},performBackspaceOrDelete:function(j){if(this._isReadOnly())return false;var q=this.editor.layoutManager.textStorage,t=q.lines,B="";B=0;var C=g.get("tabstop"),e=this.getSelectedRange();if(d.isZeroLength(e))if(j){j=e.start;B=t[j.row];B=B.substring(0,j.col).match(/\s*$/)[0].length<C||(j.col-C)%C!=0?1:C;e={start:q.displacePosition(j,B*-1),end:e.end}}else{j=e.end;B=t[j.row];B=B.substring(j.col).match(/^\s*/)[0].length<C?1:C;e={start:e.start,end:q.displacePosition(e.end,B)}}this.groupChanges(function(){this.replaceCharacters(e,
-"");this.moveCursorTo(e.start)}.bind(this));return true},resetKeyBuffers:function(){this._keyMetaBuffer=this._keyBuffer=""},scrollPageDown:function(){this._scrollPage(false)},scrollPageUp:function(){this._scrollPage(true)},scrollToPosition:function(j){var q=this.editor.layoutManager.characterRectForPosition(j);j=q.x;var t=q.y,B=q.width;q=q.height;var C=this.clippingFrame,e=C.x,K=C.y,L=this.padding,n=C.width-L.right;C=C.height-L.bottom;this.editor.scrollTo({x:j>=e+30&&j+B<e+n?e:j-n/2+B/2,y:t>=K&&t+
-q<K+C?K:t-C/2+q/2})},selectAll:function(){var j=this.editor.layoutManager.textStorage.lines,q=j.length-1;this.setSelection({start:{row:0,col:0},end:{row:q,col:j[q].length}})},selectDown:function(){this._performVerticalKeyboardSelection(1)},selectLeft:function(){this.moveCursorTo(this.editor.layoutManager.textStorage.displacePosition(this.editor.buffer._selectedRange.end,-1),true)},selectRight:function(){this.moveCursorTo(this.editor.layoutManager.textStorage.displacePosition(this.editor.buffer._selectedRange.end,
-1),true)},selectUp:function(){this._performVerticalKeyboardSelection(-1)},setSelection:function(j,q){var t=this.editor.layoutManager.textStorage;j=t.clampRange(j);if(!d.equal(j,this.editor.buffer._selectedRange)){this._invalidateSelection();this.editor.buffer._selectedRange=j=t.clampRange(j);this._invalidateSelection();this._hasFocus&&this._rearmInsertionPointBlinkTimer();q&&this.scrollToPosition(j.end);this.selectionChanged(j);v.publish(this.editor,"editorChange","selection",j)}},textInserted:function(j){if(j!==
-"\n")if(!this.editor.processKeyEvent(j,this,{isTextView:true,isCommandKey:false})){this.insertText(j);this.resetKeyBuffers()}},_setFocus:function(j,q){if(j!=this._hasFocus)if(this._hasFocus=j){this._rearmInsertionPointBlinkTimer();this._invalidateSelection();q||this.textInput.focus()}else{if(this._insertionPointBlinkTimer){clearInterval(this._insertionPointBlinkTimer);this._insertionPointBlinkTimer=null}this._insertionPointVisible=true;this._invalidateSelection();q||this.textInput.blur()}}});Object.defineProperties(s.TextView.prototype,
-{hasFocus:{get:function(){return this._hasFocus},set:function(j){this._setFocus(j,false)}}})});
-bespin.tiki.module("text_editor:views/textinput",function(y,s){var v=y("bespin:util/util");y("events");var r=y("keyboard:keyutil");s.TextInput=function(l,h){var d=this.domNode=document.createElement("textarea");d.setAttribute("style","position: absolute; z-index: -99999; width: 0px; height: 0px; margin: 0px; outline: none; border: 0;");l.appendChild(d);this.delegate=h;this._attachEvents()};s.TextInput.prototype={_composing:false,domNode:null,delegate:null,_textFieldChanged:function(){if(!(this._composing||
-this._ignore)){var l=this.domNode,h=l.value;if(h!=""){l.value="";this._textInserted(h)}}},_copy:function(){var l=false,h=this.delegate;if(h&&h.copy)l=h.copy();return l},_cut:function(){var l=false,h=this.delegate;if(h&&h.cut)l=h.cut();return l},_textInserted:function(l){var h=this.delegate;h&&h.textInserted&&h.textInserted(l)},_setValueAndSelect:function(l){var h=this.domNode;h.value=l;h.select()},focus:function(){this.domNode.focus()},blur:function(){this.domNode.blur()},_attachEvents:function(){var l=
-this.domNode,h=this;l.addEventListener("focus",function(){h.delegate&&h.delegate.didFocus&&h.delegate.didFocus()},false);l.addEventListener("blur",function(){h.delegate&&h.delegate.didBlur&&h.delegate.didBlur()},false);r.addKeyDownListener(l,function(g){return h.delegate&&h.delegate.keyDown?h.delegate.keyDown(g):false});if(v.isWebKit){v.isChrome||l.addEventListener("compositionend",function(g){h._textInserted(g.data)},false);l.addEventListener("textInput",function(g){h._textInserted(g.data)},false);
-l.addEventListener("paste",function(g){h._textInserted(g.clipboardData.getData("text/plain"));g.preventDefault()},false)}else{var d=h._textFieldChanged.bind(h);l.addEventListener("keydown",function(){window.setTimeout(d,0)},false);l.addEventListener("keypress",d,false);l.addEventListener("keyup",d,false);l.addEventListener("compositionstart",function(){h._composing=true},false);l.addEventListener("compositionend",function(){h._composing=false;h._textFieldChanged()},false);l.addEventListener("paste",
-function(){h._setValueAndSelect("");window.setTimeout(function(){h._textFieldChanged()},0)},false)}var f=function(g){g=g.type.indexOf("copy")!=-1?h._copy():h._cut();h._setValueAndSelect(g)};if(v.isWebKit&&!v.isChrome&&v.isMac){var m=(new Date).getTime(),i=function(g){var j=g.type.indexOf("cut")!=-1;if(!(j&&(new Date).getTime()-m<10)){f(g);if(j)m=(new Date).getTime()}};l.addEventListener("beforecopy",i,false);l.addEventListener("beforecut",i,false)}else{i=false;if(v.isMozilla)i=function(g){f(g);h._ignore=
-true;window.setTimeout(function(){h._setValueAndSelect("");h._ignore=false},0)};l.addEventListener("copy",i||f,false);l.addEventListener("cut",i||f,false)}}}});bespin.tiki.module("text_editor:index",function(){});bespin.tiki.register("::less",{name:"less",dependencies:{}});
-bespin.tiki.module("less:index",function(y,s){function v(d){if(d instanceof h.Dimension)return parseFloat(d.unit=="%"?d.value/100:d.value);else if(typeof d==="number")return d;else throw{error:"RuntimeError",message:"color functions take numbers as parameters"};}function r(d){return Math.min(1,Math.max(0,d))}if(!Array.isArray)Array.isArray=function(d){return Object.prototype.toString.call(d)==="[object Array]"||d instanceof Array};if(!Array.prototype.forEach)Array.prototype.forEach=function(d,f){for(var m=
-this.length>>>0,i=0;i<m;i++)i in this&&d.call(f,this[i],i,this)};if(!Array.prototype.map)Array.prototype.map=function(d,f){for(var m=this.length>>>0,i=new Array(m),g=0;g<m;g++)if(g in this)i[g]=d.call(f,this[g],g,this);return i};if(!Array.prototype.filter)Array.prototype.filter=function(d,f){for(var m=[],i=0;i<this.length;i++)d.call(f,this[i])&&m.push(this[i]);return m};if(!Array.prototype.reduce)Array.prototype.reduce=function(d){var f=this.length>>>0,m=0;if(f===0&&arguments.length===1)throw new TypeError;
-if(arguments.length>=2)var i=arguments[1];else{do{if(m in this){i=this[m++];break}if(++m>=f)throw new TypeError;}while(1)}for(;m<f;m++)if(m in this)i=d.call(null,i,this[m],m,this);return i};if(!Array.prototype.indexOf)Array.prototype.indexOf=function(d,f){var m=this.length;f=f||0;if(!m)return-1;if(f>=m)return-1;if(f<0)f+=m;for(;f<m;f++)if(Object.prototype.hasOwnProperty.call(this,f))if(d===this[f])return f;return-1};if(!Object.keys)Object.keys=function(d){var f=[];for(var m in d)Object.prototype.hasOwnProperty.call(d,
-m)&&f.push(m);return f};if(!String.prototype.trim)String.prototype.trim=function(){return String(this).replace(/^\s\s*/,"").replace(/\s\s*$/,"")};if(typeof y!=="undefined")var l=s,h={};else l=h={};l.Parser=function(d){function f(n){var w,D,J;if(n instanceof Function)return n.call(C.parsers);else if(typeof n==="string"){w=i.charAt(g)===n?n:null;D=1}else{if(g>=B+t[j].length&&j<t.length-1)B+=t[j++].length;n.lastIndex=J=g-B;if(w=n.exec(t[j])){D=w[0].length;if(n.lastIndex-D!==J)return}}if(w){g+=D;for(D=
-B+t[j].length;g<=D;){n=i.charCodeAt(g);if(!(n===32||n===10||n===9))break;g++}return typeof w==="string"?w:w.length===1?w[0]:w}}function m(n){var w;if(typeof n==="string")return i.charAt(g)===n;else{n.lastIndex=g;if((w=n.exec(i))&&n.lastIndex-w[0].length===g)return w}}var i,g,j,q,t,B,C,e=this,K=function(){},L=this.imports={paths:d&&d.paths||[],queue:[],files:{},push:function(n,w){var D=this;this.queue.push(n);l.Parser.importer(n,this.paths,function(J){D.queue.splice(D.queue.indexOf(n),1);D.files[n]=
-J;w(J);D.queue.length===0&&K()})}};this.env=d||{};this.optimization="optimization"in this.env?this.env.optimization:1;return C={imports:L,parse:function(n,w){var D,J,Q=null;g=j=B=q=0;t=[];i=n.replace(/\r\n/g,"\n");if(e.optimization>0){i=i.replace(/\/\*(?:[^*]|\*+[^\/*])*\*+\//g,function(ca){return e.optimization>1?"":ca.replace(/\n(\s*\n)+/g,"\n")});t=i.split(/^(?=\n)/mg)}else t=[i];D=new h.Ruleset([],f(this.parsers.primary));D.root=true;D.toCSS=function(ca){var ha,ga;return function(){try{return ca.call(this)}catch(la){ga=
-i.split("\n");ha=(i.slice(0,la.index).match(/\n/g)||"").length+1;for(var ma=la.index,na=-1;ma>=0&&i.charAt(ma)!=="\n";ma--)na++;throw{name:"NameError",message:la.message,line:ha,column:na,extract:[ga[ha-2],ga[ha-1],ga[ha]]};}}}(D.toCSS);if(g<i.length-1){g=q;J=i.split("\n");n=(i.slice(0,g).match(/\n/g)||"").length+1;for(var Z=g,T=-1;Z>=0&&i.charAt(Z)!=="\n";Z--)T++;Q={name:"ParseError",message:"Syntax Error on line "+n,filename:d.filename,line:n,column:T,extract:[J[n-2],J[n-1],J[n]]}}if(this.imports.queue.length>
-0)K=function(){w(Q,D)};else w(Q,D)},parsers:{primary:function(){for(var n,w=[];n=f(this.mixin.definition)||f(this.rule)||f(this.ruleset)||f(this.mixin.call)||f(this.comment)||f(/[\n\s]+/g)||f(this.directive);)w.push(n);return w},comment:function(){var n;if(i.charAt(g)==="/")return(n=f(/\/\*(?:[^*]|\*+[^\/*])*\*+\/\n?/g))?new h.Comment(n):f(/\/\/.*/g)},entities:{quoted:function(){var n;if(!(i.charAt(g)!=='"'&&i.charAt(g)!=="'"))if(n=f(/"((?:[^"\\\r\n]|\\.)*)"|'((?:[^'\\\r\n]|\\.)*)'/g))return new h.Quoted(n[0],
-n[1]||n[2])},keyword:function(){var n;if(n=f(/[A-Za-z-]+/g))return new h.Keyword(n)},call:function(){var n,w;if(n=f(/([a-zA-Z0-9_-]+|%)\(/g)){if(n[1].toLowerCase()==="alpha")return f(this.alpha);w=f(this.entities.arguments);if(f(")"))if(n)return new h.Call(n[1],w)}},arguments:function(){for(var n=[],w;w=f(this.expression);){n.push(w);if(!f(","))break}return n},literal:function(){return f(this.entities.dimension)||f(this.entities.color)||f(this.entities.quoted)},url:function(){var n;if(!(i.charAt(g)!==
-"u"||!f(/url\(/g))){n=f(this.entities.quoted)||f(/[-a-zA-Z0-9_%@$\/.&=:;#+?]+/g);if(!f(")"))throw new Error("missing closing ) for url()");return new h.URL(n.value?n:new h.Anonymous(n))}},variable:function(){var n,w=g;if(i.charAt(g)==="@"&&(n=f(/@[a-zA-Z0-9_-]+/g)))return new h.Variable(n,w)},color:function(){var n;if(i.charAt(g)==="#"&&(n=f(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})/g)))return new h.Color(n[1])},dimension:function(){var n;n=i.charCodeAt(g);if(!(n>57||n<45||n===47))if(n=f(/(-?[0-9]*\.?[0-9]+)(px|%|em|pc|ex|in|deg|s|ms|pt|cm|mm)?/g))return new h.Dimension(n[1],
-n[2])}},variable:function(){var n;if(i.charAt(g)==="@"&&(n=f(/(@[a-zA-Z0-9_-]+)\s*:/g)))return n[1]},shorthand:function(){var n,w;if(m(/[@\w.-]+\/[@\w.-]+/g))if((n=f(this.entity))&&f("/")&&(w=f(this.entity)))return new h.Shorthand(n,w)},mixin:{call:function(){for(var n=[],w,D,J,Q=g;w=f(/[#.][a-zA-Z0-9_-]+/g);){n.push(new h.Element(D,w));D=f(">")}f("(")&&(J=f(this.entities.arguments))&&f(")");if(n.length>0&&(f(";")||m("}")))return new h.mixin.Call(n,J,Q)},definition:function(){var n,w=[],D,J;if(!(i.charAt(g)!==
-"."||m(/[^{]*(;|})/g)))if(n=f(/([#.][a-zA-Z0-9_-]+)\s*\(/g)){for(n=n[1];D=f(/@[\w-]+/g)||f(this.entities.literal)||f(this.entities.keyword);){if(D[0]==="@")if(f(":"))if(J=f(this.expression))w.push({name:D,value:J});else throw new Error("Expected value");else w.push({name:D});else w.push({value:D});if(!f(","))break}if(!f(")"))throw new Error("Expected )");if(D=f(this.block))return new h.mixin.Definition(n,w,D)}}},entity:function(){return f(this.entities.literal)||f(this.entities.variable)||f(this.entities.url)||
-f(this.entities.call)||f(this.entities.keyword)},end:function(){return f(";")||m("}")},alpha:function(){var n;if(f(/opacity=/gi))if(n=f(/[0-9]+/g)||f(this.entities.variable)){if(!f(")"))throw new Error("missing closing ) for alpha()");return new h.Alpha(n)}},element:function(){var n;c=f(this.combinator);if(n=f(/[.#:]?[a-zA-Z0-9_-]+/g)||f("*")||f(this.attribute)||f(/\([^)@]+\)/g))return new h.Element(c,n)},combinator:function(){var n;return(n=f(/[+>~]/g)||f("&")||f(/::/g))?new h.Combinator(n):new h.Combinator(i.charAt(g-
-1)===" "?" ":null)},selector:function(){for(var n,w=[];n=f(this.element);)w.push(n);if(w.length>0)return new h.Selector(w)},tag:function(){return f(/[a-zA-Z][a-zA-Z-]*[0-9]?/g)||f("*")},attribute:function(){var n="",w,D,J;if(f("[")){if(w=f(/[a-z-]+/g)||f(this.entities.quoted))n=(J=f(/[|~*$^]?=/g))&&(D=f(this.entities.quoted)||f(/[\w-]+/g))?[w,J,D.toCSS?D.toCSS():D].join(""):w;if(f("]"))if(n)return"["+n+"]"}},block:function(){var n;if(f("{")&&(n=f(this.primary))&&f("}"))return n},ruleset:function(){var n=
-[],w,D,J=g;if(w=m(/([a-z.#: _-]+)[\s\n]*\{/g)){g+=w[0].length-1;n=[new h.Selector([new h.Element(null,w[1])])]}else{for(;w=f(this.selector);){n.push(w);if(!f(","))break}w&&f(this.comment)}if(n.length>0&&(D=f(this.block)))return new h.Ruleset(n,D);else{q=g;g=J}},rule:function(){var n,w=g;if(name=f(this.property)||f(this.variable)){if(name.charAt(0)!="@"&&(match=m(/([^@+\/*(;{}-]*);/g))){g+=match[0].length-1;n=new h.Anonymous(match[1])}else n=name==="font"?f(this.font):f(this.value);if(f(this.end))return new h.Rule(name,
-n,w);else{q=g;g=w}}},"import":function(){var n;if(f(/@import\s+/g)&&(n=f(this.entities.quoted)||f(this.entities.url))&&f(";"))return new h.Import(n,L)},directive:function(){var n,w,D;if(i.charAt(g)==="@")if(w=f(this["import"]))return w;else if(n=f(/@media|@page/g)){D=f(/[^{]+/g).trim();if(w=f(this.block))return new h.Directive(n+" "+D,w)}else if(n=f(/@[-a-z]+/g))if(n==="@font-face"){if(w=f(this.block))return new h.Directive(n,w)}else if((w=f(this.entity))&&f(";"))return new h.Directive(n,w)},font:function(){for(var n=
-[],w=[],D;D=f(this.shorthand)||f(this.entity);)w.push(D);n.push(new h.Expression(w));if(f(","))for(;D=f(this.expression);){n.push(D);if(!f(","))break}return new h.Value(n,f(this.important))},value:function(){for(var n,w=[];n=f(this.expression);){w.push(n);if(!f(","))break}n=f(this.important);if(w.length>0)return new h.Value(w,n)},important:function(){return f(/!\s*important/g)},sub:function(){var n;if(f("(")&&(n=f(this.expression))&&f(")"))return n},multiplication:function(){var n,w,D,J;if(n=f(this.operand)){for(;(D=
-f(/[\/*]/g))&&(w=f(this.operand));)J=new h.Operation(D,[J||n,w]);return J||n}},addition:function(){var n,w,D,J;if(n=f(this.multiplication)){for(;(D=f(/[-+]\s+/g)||i.charAt(g-1)!=" "&&f(/[-+]/g))&&(w=f(this.multiplication));)J=new h.Operation(D,[J||n,w]);return J||n}},operand:function(){return f(this.sub)||f(this.entities.dimension)||f(this.entities.color)||f(this.entities.variable)},expression:function(){for(var n,w=[];n=f(this.addition)||f(this.entity);)w.push(n);if(w.length>0)return new h.Expression(w)},
-property:function(){var n;if(n=f(/(\*?-?[-a-z_0-9]+)\s*:/g))return n[1]}}}};l.Parser.importer=null;h.functions={rgb:function(d,f,m){return this.rgba(d,f,m,1)},rgba:function(d,f,m,i){d=[d,f,m].map(function(g){return v(g)});i=v(i);return new h.Color(d,i)},hsl:function(d,f,m){return this.hsla(d,f,m,1)},hsla:function(d,f,m,i){function g(t){t=t<0?t+1:t>1?t-1:t;return t*6<1?q+(j-q)*t*6:t*2<1?j:t*3<2?q+(j-q)*(2/3-t)*6:q}d=(v(d)%360+360)%360/360;f=v(f);m=v(m);i=v(i);var j=m<=0.5?m*(f+1):m+f-m*f,q=m*2-j;return this.rgba(g(d+
-1/3)*255,g(d)*255,g(d-1/3)*255,i)},opacity:function(d,f){v(f);return new h.Color(d.rgb,v(f))},saturate:function(d,f){d=d.toHSL();d.s+=f.value/100;d.s=r(d.s);return this.hsl(d.h,d.s,d.l)},desaturate:function(d,f){d=d.toHSL();d.s-=f.value/100;d.s=r(d.s);return this.hsl(d.h,d.s,d.l)},lighten:function(d,f){d=d.toHSL();d.l*=1+f.value/100;d.l=r(d.l);return this.hsl(d.h,d.s,d.l)},darken:function(d,f){d=d.toHSL();d.l*=1-f.value/100;d.l=r(d.l);return this.hsl(d.h,d.s,d.l)},greyscale:function(d){return this.desaturate(d,
-new h.Dimension(100))},e:function(d){return new h.Anonymous(d)},"%":function(d){for(var f=Array.prototype.slice.call(arguments,1),m=d.content,i=0;i<f.length;i++)m=m.replace(/%s/,f[i].content).replace(/%[da]/,f[i].toCSS());m=m.replace(/%%/g,"%");return new h.Quoted('"'+m+'"',m)}};h.Alpha=function(d){this.value=d};h.Alpha.prototype={toCSS:function(){return"alpha(opacity="+this.value.toCSS()+")"},eval:function(){return this}};h.Anonymous=function(d){this.value=d.content||d};h.Anonymous.prototype={toCSS:function(){return this.value},
-eval:function(){return this}};h.Call=function(d,f){this.name=d;this.args=f};h.Call.prototype={eval:function(d){var f=this.args.map(function(m){return m.eval(d)});return this.name in h.functions?h.functions[this.name].apply(h.functions,f):new h.Anonymous(this.name+"("+f.map(function(m){return m.toCSS()}).join(", ")+")")},toCSS:function(d){return this.eval(d).toCSS()}};h.Color=function(d,f){if(Array.isArray(d)){this.rgb=d;this.alpha=f}else this.rgb=d.length==6?d.match(/.{2}/g).map(function(m){return parseInt(m,
-16)}):d.split("").map(function(m){return parseInt(m+m,16)})};h.Color.prototype={eval:function(){return this},toCSS:function(){return this.alpha&&this.alpha<1?"rgba("+this.rgb.concat(this.alpha).join(", ")+")":"#"+this.rgb.map(function(d){d=Math.round(d);d=(d>255?255:d<0?0:d).toString(16);return d.length===1?"0"+d:d}).join("")},operate:function(d,f){var m=[];f instanceof h.Color||(f=f.toColor());for(var i=0;i<3;i++)m[i]=h.operate(d,this.rgb[i],f.rgb[i]);return new h.Color(m)},toHSL:function(){var d=
-this.rgb[0]/255,f=this.rgb[1]/255,m=this.rgb[2]/255,i=Math.max(d,f,m),g=Math.min(d,f,m),j,q=(i+g)/2,t=i-g;if(i===g)j=g=0;else{g=q>0.5?t/(2-i-g):t/(i+g);switch(i){case d:j=(f-m)/t+(f<m?6:0);break;case f:j=(m-d)/t+2;break;case m:j=(d-f)/t+4;break}j/=6}return{h:j*360,s:g,l:q}}};h.Comment=function(d){this.value=d};h.Comment.prototype={toCSS:function(){return this.value}};h.Dimension=function(d,f){this.value=parseFloat(d);this.unit=f||null};h.Dimension.prototype={eval:function(){return this},toColor:function(){return new h.Color([this.value,
-this.value,this.value])},toCSS:function(){return this.value+this.unit},operate:function(d,f){return new h.Dimension(h.operate(d,this.value,f.value),this.unit||f.unit)}};h.Directive=function(d,f){this.name=d;if(Array.isArray(f))this.ruleset=new h.Ruleset([],f);else this.value=f};h.Directive.prototype={toCSS:function(d,f){if(this.ruleset){this.ruleset.root=true;return this.name+" {\n  "+this.ruleset.toCSS(d,f).trim().replace(/\n/g,"\n  ")+"\n}\n"}else return this.name+" "+this.value.toCSS()+";\n"},
-eval:function(d){d.frames.unshift(this);this.ruleset&&this.ruleset.evalRules(d);d.frames.shift();return this},variable:function(d){return h.Ruleset.prototype.variable.call(this.ruleset,d)},find:function(){return h.Ruleset.prototype.find.apply(this.ruleset,arguments)},rulesets:function(){return h.Ruleset.prototype.rulesets.apply(this.ruleset)}};h.Element=function(d,f){this.combinator=d instanceof h.Combinator?d:new h.Combinator(d);this.value=f.trim()};h.Element.prototype.toCSS=function(){return this.combinator.toCSS()+
-this.value};h.Combinator=function(d){this.value=d===" "?" ":d?d.trim():""};h.Combinator.prototype.toCSS=function(){switch(this.value){case "":return"";case " ":return" ";case "&":return"";case ":":return" :";case "::":return"::";case "+":return" + ";case "~":return" ~ ";case ">":return" > "}};h.Expression=function(d){this.value=d};h.Expression.prototype={eval:function(d){return this.value.length>1?new h.Expression(this.value.map(function(f){return f.eval(d)})):this.value[0].eval(d)},toCSS:function(){return this.value.map(function(d){return d.toCSS()}).join(" ")}};
-h.Import=function(d,f){var m=this;this._path=d;this.path=d instanceof h.Quoted?/\.(le?|c)ss$/.test(d.content)?d.content:d.content+".less":d.value.content||d.value;(this.css=/css$/.test(this.path))||f.push(this.path,function(i){m.root=i})};h.Import.prototype={toCSS:function(){return this.css?"@import "+this._path.toCSS()+";\n":""},eval:function(){if(this.css)return this;else{for(var d=0;d<this.root.rules.length;d++)this.root.rules[d]instanceof h.Import&&Array.prototype.splice.apply(this.root.rules,
-[d,1].concat(this.root.rules[d].eval()));return this.root.rules}}};h.Keyword=function(d){this.value=d};h.Keyword.prototype={eval:function(){return this},toCSS:function(){return this.value}};h.mixin={};h.mixin.Call=function(d,f,m){this.selector=new h.Selector(d);this.arguments=f;this.index=m};h.mixin.Call.prototype={eval:function(d){for(var f,m=[],i=false,g=0;g<d.frames.length;g++)if((f=d.frames[g].find(this.selector)).length>0){for(g=0;g<f.length;g++)if(f[g].match(this.arguments,d))try{Array.prototype.push.apply(m,
-f[g].eval(this.arguments,d).rules);i=true}catch(j){throw{message:j.message,index:this.index};}if(i)return m;else throw{message:"No matching definition was found for `"+this.selector.toCSS().trim()+"("+this.arguments.map(function(q){return q.toCSS()}).join(", ")+")`",index:this.index};}throw{message:this.selector.toCSS().trim()+" is undefined",index:this.index};}};h.mixin.Definition=function(d,f,m){this.name=d;this.selectors=[new h.Selector([new h.Element(null,d)])];this.params=f;this.arity=f.length;
-this.rules=m;this._lookups={};this.required=f.reduce(function(i,g){return g.name&&!g.value?i+1:i},0)};h.mixin.Definition.prototype={toCSS:function(){return""},variable:function(d){return h.Ruleset.prototype.variable.call(this,d)},find:function(){return h.Ruleset.prototype.find.apply(this,arguments)},rulesets:function(){return h.Ruleset.prototype.rulesets.apply(this)},eval:function(d,f){for(var m=new h.Ruleset(null,[]),i=0,g;i<this.params.length;i++)if(this.params[i].name)if(g=d&&d[i]||this.params[i].value)m.rules.unshift(new h.Rule(this.params[i].name,
-g.eval(f)));else throw{message:"wrong number of arguments for "+this.name+" ("+d.length+" for "+this.arity+")"};return(new h.Ruleset(null,this.rules)).evalRules({frames:[this,m].concat(f.frames)})},match:function(d,f){var m=d&&d.length||0;if(m<this.required)return false;for(var i=0;i<Math.min(m,this.arity);i++)if(!this.params[i].name)if(!d[i].wildcard)if(d[i].eval(f).toCSS()!=this.params[i].value.eval(f).toCSS())return false;return true}};h.Operation=function(d,f){this.op=d.trim();this.operands=f};
-h.Operation.prototype.eval=function(d){var f=this.operands[0].eval(d);d=this.operands[1].eval(d);var m;if(f instanceof h.Dimension&&d instanceof h.Color)if(this.op==="*"||this.op==="+"){m=d;d=f;f=m}else throw{name:"OperationError",message:"Can't substract or divide a color from a number"};return f.operate(this.op,d)};h.operate=function(d,f,m){switch(d){case "+":return f+m;case "-":return f-m;case "*":return f*m;case "/":return f/m}};h.Quoted=function(d,f){this.value=d;this.content=f};h.Quoted.prototype=
-{toCSS:function(){return this.value},eval:function(){return this}};h.Rule=function(d,f,m){this.name=d;this.value=f instanceof h.Value?f:new h.Value([f]);this.index=m;this.variable=d.charAt(0)==="@"?true:false};h.Rule.prototype.toCSS=function(){return this.variable?"":this.name+": "+this.value.toCSS()+";"};h.Rule.prototype.eval=function(d){return new h.Rule(this.name,this.value.eval(d))};h.Value=function(d){this.value=d;this.is="value"};h.Value.prototype={eval:function(d){return this.value.length===
-1?this.value[0].eval(d):new h.Value(this.value.map(function(f){return f.eval(d)}))},toCSS:function(){return this.value.map(function(d){return d.toCSS()}).join(", ")}};h.Shorthand=function(d,f){this.a=d;this.b=f};h.Shorthand.prototype={toCSS:function(d){return this.a.toCSS(d)+"/"+this.b.toCSS(d)},eval:function(){return this}};h.Ruleset=function(d,f){this.selectors=d;this.rules=f;this._lookups={}};h.Ruleset.prototype={eval:function(){return this},evalRules:function(d){var f=[];this.rules.forEach(function(m){if(m.evalRules)f.push(m.evalRules(d));
-else m instanceof h.mixin.Call?Array.prototype.push.apply(f,m.eval(d)):f.push(m.eval(d))});this.rules=f;return this},match:function(d){return!d||d.length===0},variable:function(d){return this._variables?this._variables[d]:(this._variables=this.rules.reduce(function(f,m){if(m instanceof h.Rule&&m.variable===true)f[m.name]=m;return f},{}))[d]},rulesets:function(){return this._rulesets?this._rulesets:(this._rulesets=this.rules.filter(function(d){if(d instanceof h.Ruleset||d instanceof h.mixin.Definition)return d}))},
-find:function(d,f){f=f||this;var m=[],i=d.toCSS();if(i in this._lookups)return this._lookups[i];this.rulesets().forEach(function(g){if(g!==f)for(var j=0;j<g.selectors.length;j++)if(d.match(g.selectors[j])){d.elements.length>1?Array.prototype.push.apply(m,g.find(new h.Selector(d.elements.slice(1)),f)):m.push(g);break}});return this._lookups[i]=m},toCSS:function(d,f){var m=[],i=[],g=[],j=[];if(this.root){d=[];f={frames:[]};for(var q=0;q<this.rules.length;q++)this.rules[q]instanceof h.Import&&Array.prototype.splice.apply(this.rules,
-[q,1].concat(this.rules[q].eval(f)))}else if(d.length===0)j=this.selectors.map(function(B){return[B]});else for(q=0;q<this.selectors.length;q++)for(var t=0;t<d.length;t++)j.push(d[t].concat([this.selectors[q]]));f.frames.unshift(this);for(q=0;q<this.rules.length;q++)this.rules[q]instanceof h.mixin.Call&&Array.prototype.splice.apply(this.rules,[q,1].concat(this.rules[q].eval(f)));for(q=0;q<this.rules.length;q++){d=this.rules[q];if(d instanceof h.Directive)g.push(d.eval(f).toCSS(j,f));else if(d.rules)g.push(d.toCSS(j,
-f));else if(d instanceof h.Comment)this.root?g.push(d.toCSS()):i.push(d.toCSS());else if(d.toCSS&&!d.variable)i.push(d.eval(f).toCSS());else d.value&&!d.variable&&i.push(d.value.toString())}g=g.join("");if(this.root)m.push(i.join("\n"));else if(i.length>0){j=j.map(function(B){return B.map(function(C){return C.toCSS()}).join("").trim()}).join(j.length>3?",\n":", ");m.push(j," {\n  "+i.join("\n  ")+"\n}\n")}m.push(g);f.frames.shift();return m.join("")}};h.Selector=function(d){this.elements=d;if(this.elements[0].combinator.value===
-"")this.elements[0].combinator.value=" "};h.Selector.prototype.match=function(d){return this.elements[0].value===d.elements[0].value?true:false};h.Selector.prototype.toCSS=function(){if(this._css)return this._css;return this._css=this.elements.map(function(d){return typeof d==="string"?" "+d.trim():d.toCSS()}).join("")};h.URL=function(d){this.value=d};h.URL.prototype={toCSS:function(){return"url("+this.value.toCSS()+")"},eval:function(){return this}};h.Variable=function(d,f){this.name=d;this.index=
-f};h.Variable.prototype={eval:function(d){var f,m,i=this.name;if(f=h.find(d.frames,function(g){if(m=g.variable(i))return m.value.eval(d)}))return f;else throw{message:"variable "+this.name+" is undefined",index:this.index};}};h.find=function(d,f){for(var m=0,i;m<d.length;m++)if(i=f.call(d,d[m]))return i;return null};(function(){function d(C){for(var e=0;e<t.length;e++)f(t[e],C)}function f(C,e){var K=typeof localStorage!=="undefined"&&localStorage.getItem(C.href),L=K&&JSON.parse(K);i(C.href,function(n,
-w){if(L&&(new Date(w)).valueOf()===(new Date(L.timestamp)).valueOf()){m(L.css,C);e(null,C,{local:true})}else(new l.Parser({optimization:3})).parse(n,function(D,J){if(D)return q(D,C.href);try{e(J,C,{local:false,lastModified:w})}catch(Q){q(Q,C.href)}})},function(n){throw new Error("Couldn't load "+C.href+" ("+n+")");})}function m(C,e,K){var L=document.createElement("style");L.type="text/css";L.media="screen";L.title="less-sheet";if(e){L.title=e.title||e.href.match(/(?:^|\/)([-\w]+)\.[a-z]+$/i)[1];K&&
-typeof localStorage!=="undefined"&&localStorage.setItem(e.href,JSON.stringify({timestamp:K,css:C}))}if(L.styleSheet)L.styleSheet.cssText=C;else L.appendChild(document.createTextNode(C));document.getElementsByTagName("head")[0].appendChild(L)}function i(C,e,K){var L=g();if(window.location.protocol==="file:"){L.open("GET",C,false);L.send(null);L.status===0?e(L.responseText):K(L.status)}else{L.open("GET",C,true);L.onreadystatechange=function(){if(L.readyState==4)if(L.status>=200&&L.status<300)e(L.responseText,
-L.getResponseHeader("Last-Modified"));else typeof K==="function"&&K(L.status)};L.send(null)}}function g(){if(window.XMLHttpRequest)return new XMLHttpRequest;else try{return new ActiveXObject("MSXML2.XMLHTTP.3.0")}catch(C){j("less: browser doesn't support AJAX.");return null}}function j(C){l.env=="development"&&typeof console!=="undefined"&&console.log(C)}function q(C,e){var K=document.createElement("div"),L;K.id="less-error-message";K.innerHTML="<h3>"+(C.message||"There is an error in your .less file")+
-'</h3><p><a href="'+e+'">'+e+"</a> on line "+C.line+", column "+(C.column+1)+":</p>"+'<div>\n<pre class="ctx"><span>[-1]</span>{0}</pre>\n<pre><span>[0]</span>{current}</pre>\n<pre class="ctx"><span>[1]</span>{2}</pre>\n</div>'.replace(/\[(-?\d)\]/g,function(n,w){return C.line+parseInt(w)}).replace(/\{(\d)\}/g,function(n,w){return C.extract[parseInt(w)]}).replace(/\{current\}/,C.extract[1].slice(0,C.column)+'<span class="error">'+C.extract[1].slice(C.column)+"</span>");m("#less-error-message span {margin-right: 15px;}#less-error-message pre {color: #ee4444;padding: 4px 0;margin: 0;}#less-error-message pre.ctx {color: #dd7777;}#less-error-message h3 {padding: 15px 0 5px 0;margin: 0;}#less-error-message a {color: #10a}#less-error-message .error {color: red;font-weight: bold;padding-bottom: 2px;border-bottom: 1px dashed red;}");
-K.style.cssText="font-family: Arial, sans-serif;border: 1px solid #e00;background-color: #eee;border-radius: 5px;color: #e00;padding: 15px;margin-bottom: 15px";if(l.env=="development")L=setInterval(function(){if(document.body){document.body.insertBefore(K,document.body.childNodes[0]);clearInterval(L)}},10)}var t=[];l.env=location.hostname=="127.0.0.1"||location.hostname=="0.0.0.0"||location.hostname=="localhost"||location.protocol=="file:"?"development":"production";var B=setInterval(function(){if(document.body){if(!document.querySelectorAll&&
-typeof jQuery==="undefined")j("No selector method found");else t=(document.querySelectorAll||jQuery).call(document,'link[rel="stylesheet/less"]');clearInterval(B);d(function(C,e,K){m(C.toCSS(),e,K.lastModified);K.local?j("less: loading "+e.href+" from local storage."):j("less: parsed "+e.href+" successfully.")})}},10);if(l.env==="development")refreshTimer=setInterval(function(){/!refresh/.test(location.hash)&&d(function(C,e,K){m(C.toCSS(),e,K)})},1E3);l.Parser.importer=function(C,e,K){f({href:C,title:C},
-function(L){K(L)})}})()});bespin.tiki.register("::theme_manager_base",{name:"theme_manager_base",dependencies:{}});bespin.tiki.module("theme_manager_base:index",function(){});bespin.tiki.register("::canon",{name:"canon",dependencies:{environment:"0.0.0",events:"0.0.0",settings:"0.0.0"}});
-bespin.tiki.module("canon:history",function(y,s){var v=y("bespin:util/stacktrace").Trace,r=y("bespin:plugins").catalog;s.requests=[];s.addRequestOutput=function(l){for(s.requests.push(l);s.requests.length>100;)s.requests.shiftObject();r.publish(this,"addedRequestOutput",null,l)};s.execute=function(l,h){if(h.command)try{h.command(l,h)}catch(d){var f=new v(d,true);console.group("Error executing command '"+h.typed+"'");console.log("command=",h.commandExt);console.log("args=",l);console.error(d);f.log(3);
-console.groupEnd();h.doneWithError(d)}else h.doneWithError("Command not found.")}});
-bespin.tiki.module("canon:request",function(y,s){var v=y("events").Event,r=y("canon:history");s.Request=function(l){l=l||{};this.command=l.command;this.commandExt=l.commandExt;this.args=l.args;this.typed=l.typed;this._begunOutput=false;this.start=new Date;this.end=null;this.error=this.completed=false;this.changed=new v};s.Request.prototype._beginOutput=function(){this._begunOutput=true;this.outputs=[];r.addRequestOutput(this)};s.Request.prototype.doneWithError=function(l){this.error=true;this.done(l)};
-s.Request.prototype.async=function(){this._begunOutput||this._beginOutput()};s.Request.prototype.output=function(l){this._begunOutput||this._beginOutput();if(typeof l!=="string"&&!(l instanceof Node))l=l.toString();this.outputs.push(l);this.changed();return this};s.Request.prototype.done=function(l){this.completed=true;this.end=new Date;this.duration=this.end.getTime()-this.start.getTime();l?this.output(l):this.changed()}});bespin.tiki.module("canon:index",function(){});
-bespin.tiki.register("::traits",{name:"traits",dependencies:{}});
-bespin.tiki.module("traits:index",function(y,s){s.Trait=function(){function v(O){var P=function(){throw new Error("Conflicting property: "+O);};T(P.prototype);return T(P)}function r(){return T({value:undefined,enumerable:false,required:true})}function l(O){O=v(O);return n?T({get:O,set:O,enumerable:false,conflict:true}):T({value:O,enumerable:false,conflict:true})}function h(O,P){return O===P?O!==0||1/O===1/P:O!==O&&P!==P}function d(O,P){return O.conflict&&P.conflict?true:O.get===P.get&&O.set===P.set&&
-h(O.value,P.value)&&O.enumerable===P.enumerable&&O.required===P.required&&O.conflict===P.conflict}function f(O,P){return T(D(O,P))}function m(O){var P={};Z(O,function(S){P[S]=true});return T(P)}function i(O){var P={};Z(ca(O),function(S){var U=ha(O,S);if(U.value===na)U=r(S);else if(typeof U.value==="function"){U.method=true;"prototype"in U.value&&T(U.value.prototype)}else{U.get&&U.get.prototype&&T(U.get.prototype);U.set&&U.set.prototype&&T(U.set.prototype)}P[S]=U});return P}function g(){var O=Q(arguments,
-0),P={};Z(O,function(S){Z(ca(S),function(U){var aa=S[U];if(J(P,U)&&!P[U].required)aa.required||d(P[U],aa)||(P[U]=l(U));else P[U]=aa})});return T(P)}function j(O,P){var S=m(O),U={};Z(ca(P),function(aa){U[aa]=!J(S,aa)||P[aa].required?P[aa]:r(aa)});return T(U)}function q(){var O=Q(arguments,0),P={};Z(O,function(S){Z(ca(S),function(U){var aa=S[U];if(!J(P,U)||P[U].required)P[U]=aa})});return T(P)}function t(O,P){var S={};Z(ca(P),function(U){if(J(O,U)&&!P[U].required){var aa=O[U];S[aa]=J(S,aa)&&!S[aa].required?
-l(aa):P[U];J(S,U)||(S[U]=r(U))}else if(J(S,U))P[U].required||(S[U]=l(U));else S[U]=P[U]});return T(S)}function B(O,P){var S={},U=[];for(var aa in O)if(J(O,aa))if(O[aa])S[aa]=O[aa];else U.push(aa);return t(S,j(U,P))}function C(O,P){var S=ma(O),U={};Z(ca(P),function(aa){var fa=P[aa];if(fa.required&&!(aa in O))throw new Error("Missing required property: "+aa);else if(fa.conflict)throw new Error("Remaining conflicting property: "+aa);else U[aa]="value"in fa?fa.method?{value:f(fa.value,S),enumerable:fa.enumerable,
-configurable:fa.configurable,writable:fa.writable}:fa:{get:fa.get?f(fa.get,S):undefined,set:fa.set?f(fa.set,S):undefined,enumerable:fa.enumerable,configurable:fa.configurable,writable:fa.writable}});la(S,U);return T(S)}function e(O,P){return C(Object.prototype,i(O),P)}function K(O,P){var S=ca(O),U=ca(P);if(S.length!==U.length)return false;for(var aa=0;aa<S.length;aa++){U=S[aa];if(!P[U]||!d(O[U],P[U]))return false}return true}function L(O){return i(O)}var n=!!Object.defineProperty,w=Function.prototype.call,
-D=Function.prototype.bind?function(O,P){return Function.prototype.bind.call(O,P)}:function(O,P){function S(){return O.apply(P,arguments)}return S},J=D(w,Object.prototype.hasOwnProperty),Q=D(w,Array.prototype.slice),Z=Array.prototype.forEach?D(w,Array.prototype.forEach):function(O,P){for(var S=0,U=O.length;S<U;S++)P(O[S])},T=Object.freeze||function(O){return O},ca=Object.getOwnPropertyNames||function(O){var P=[];for(var S in O)J(O,S)&&P.push(S);return P},ha=Object.getOwnPropertyDescriptor||function(O,
-P){return{value:O[P],enumerable:true,writable:true,configurable:true}},ga=Object.defineProperty||function(O,P,S){O[P]=S.value},la=Object.defineProperties||function(O,P){for(var S in P)J(P,S)&&ga(O,S,P[S])},ma=Object.create||function(O,P){function S(){}S.prototype=O||Object.prototype;O=new S;P&&la(O,P);return O};w=Object.getOwnProperties||function(O){var P={};Z(ca(O),function(S){P[S]=ha(O,S)});return P};var na=T({toString:function(){return"<Trait.required>"}});if(!Object.create)Object.create=ma;if(!Object.getOwnProperties)Object.getOwnProperties=
-w;L.required=T(na);L.compose=T(g);L.resolve=T(B);L.override=T(q);L.create=T(C);L.eqv=T(K);L.object=T(e);return T(L)}()});bespin.tiki.register("::keyboard",{name:"keyboard",dependencies:{canon:"0.0.0",settings:"0.0.0"}});
-bespin.tiki.module("keyboard:keyboard",function(y,s){var v=y("bespin:plugins").catalog;y("bespin:console");y("bespin:util/stacktrace");var r=y("bespin:util/util"),l=y("settings").settings,h=y("keyboard:keyutil"),d=y("canon:history"),f=y("canon:request").Request,m=y("environment").env;s.buildFlags=function(i){i.context=m.contexts[0];return i};y=function(){};r.mixin(y.prototype,{_customKeymappingCache:{states:{}},processKeyEvent:function(i,g,j){i=h.commandCodes(i,true)[0];if(r.none(i))return false;
-s.buildFlags(j);j.isCommandKey=true;return this._matchCommand(i,g,j)},_matchCommand:function(i,g,j){var q=this._findCommandExtension(i,g,j);if(q&&q.commandExt!=="no command"){j.isTextView&&g.resetKeyBuffers();var t=q.commandExt;t.load(function(B){B=new f({command:B,commandExt:t});d.execute(q.args,B)});return true}return q&&q.commandExt==="no command"?true:false},_buildBindingsRegex:function(i){i.forEach(function(g){if(r.none(g.key))if(Array.isArray(g.regex)){g.key=new RegExp("^"+g.regex[1]+"$");g.regex=
-new RegExp(g.regex.join("")+"$")}else g.regex=new RegExp(g.regex+"$");else g.key=new RegExp("^"+g.key+"$")})},_buildKeymappingRegex:function(i){for(state in i.states)this._buildBindingsRegex(i.states[state]);i._convertedRegExp=true},_findCommandExtension:function(i,g,j){if(j.isTextView){var q=g._keyState;if(!j.isCommandKey||i.indexOf("alt_")===-1){g._keyBuffer+=i.replace(/ctrl_meta|meta/,"ctrl");g._keyMetaBuffer+=i}var t=[this._customKeymappingCache];t=t.concat(v.getExtensions("keymapping"));for(var B=
-0;B<t.length;B++)if(!r.none(t[B].states[q])){r.none(t[B]._convertedRegExp)&&this._buildKeymappingRegex(t[B]);var C=this._bindingsMatch(i,j,g,t[B]);if(!r.none(C))return C}}g=v.getExtensions("command");var e=null;q={};i=i.replace(/ctrl_meta|meta/,"ctrl");g.some(function(K){if(this._commandMatches(K,i,j)){e=K;return true}return false}.bind(this));return r.none(e)?null:{commandExt:e,args:q}},_bindingsMatch:function(i,g,j,q){var t,B=null,C={},e;e=r.none(q.hasMetaKey)?j._keyMetaBuffer:j._keyBuffer;if(i.indexOf("alt_")===
-0&&g.isCommandKey)e+=i;q.states[j._keyState].some(function(K){if(K.key&&!K.key.test(i))return false;if(K.regex&&!(t=K.regex.exec(e)))return false;if(K.disallowMatches)for(var L=0;L<K.disallowMatches.length;L++)if(t[K.disallowMatches[L]])return true;if(!s.flagsMatch(K.predicates,g))return false;if(K.exec){B=v.getExtensionByKey("command",K.exec);if(r.none(B))throw new Error("Can't find command "+K.exec+" in state="+j._keyState+", symbolicName="+i);if(K.params){var n;K.params.forEach(function(w){n=!r.none(w.match)&&
-!r.none(t)?t[w.match]||w.defaultValue:w.defaultValue;if(w.type==="number")n=parseInt(n);C[w.name]=n})}j.resetKeyBuffers()}if(K.then){j._keyState=K.then;j.resetKeyBuffers()}if(r.none(B))B="no command";return true});if(r.none(B))return null;return{commandExt:B,args:C}},_commandMatches:function(i,g,j){var q=i.key;if(!q)return false;if(!s.flagsMatch(i.predicates,j))return false;if(typeof q==="string"){if(q!=g)return false;return true}if(!Array.isArray(q)){q=[q];i.key=q}for(i=0;i<q.length;i++){var t=q[i];
-if(typeof t==="string"){if(t==g)return true}else if(t.key==g)return s.flagsMatch(t.predicates,j)}return false},_customKeymappingChanged:function(){var i=this._customKeymappingCache=JSON.parse(l.get("customKeymapping"));i.states=i.states||{};for(state in i.states)this._buildBindingsRegex(i.states[state]);i._convertedRegExp=true}});s.flagsMatch=function(i,g){if(r.none(i))return true;if(!g)return false;for(var j in i)if(g[j]!==i[j])return false;return true};s.keyboardManager=new y;v.registerExtension("settingChange",
-{match:"customKeymapping",pointer:s.keyboardManager._customKeymappingChanged.bind(s.keyboardManager)})});
-bespin.tiki.module("keyboard:keyutil",function(y,s){var v=y("bespin:util/util");s.KeyHelper=function(){var l={MODIFIER_KEYS:{16:"shift",17:"ctrl",18:"alt",224:"meta"},FUNCTION_KEYS:{8:"backspace",9:"tab",13:"return",19:"pause",27:"escape",33:"pageup",34:"pagedown",35:"end",36:"home",37:"left",38:"up",39:"right",40:"down",44:"printscreen",45:"insert",46:"delete",112:"f1",113:"f2",114:"f3",115:"f4",116:"f5",117:"f7",119:"f8",120:"f9",121:"f10",122:"f11",123:"f12",144:"numlock",145:"scrolllock"},PRINTABLE_KEYS:{32:" ",
-48:"0",49:"1",50:"2",51:"3",52:"4",53:"5",54:"6",55:"7",56:"8",57:"9",59:";",61:"=",65:"a",66:"b",67:"c",68:"d",69:"e",70:"f",71:"g",72:"h",73:"i",74:"j",75:"k",76:"l",77:"m",78:"n",79:"o",80:"p",81:"q",82:"r",83:"s",84:"t",85:"u",86:"v",87:"w",88:"x",89:"y",90:"z",107:"+",109:"-",110:".",188:",",190:".",191:"/",192:"`",219:"[",220:"\\",221:"]",222:'"'},PRINTABLE_KEYS_CHARCODE:{},KEY:{}};for(var h in l.PRINTABLE_KEYS){var d=l.PRINTABLE_KEYS[h];l.PRINTABLE_KEYS_CHARCODE[d.charCodeAt(0)]=h;if(d.toUpperCase()!=
-d)l.PRINTABLE_KEYS_CHARCODE[d.toUpperCase().charCodeAt(0)]=h}for(h in l.FUNCTION_KEYS){d=l.FUNCTION_KEYS[h].toUpperCase();l.KEY[d]=parseInt(h,10)}return l}();var r=function(l){return!!(l.altKey||l.ctrlKey||l.metaKey||l.charCode!==l.which&&s.KeyHelper.FUNCTION_KEYS[l.which])};s.commandCodes=function(l,h){var d=l._keyCode||l.keyCode,f=l._charCode===undefined?l.charCode:l._charCode,m=null,i=null,g="",j=true;if(d===0&&l.which===0)return false;if(f!==0)return false;if(s.KeyHelper.MODIFIER_KEYS[f])return[s.KeyHelper.MODIFIER_KEYS[f],
-null];if(d){m=s.KeyHelper.FUNCTION_KEYS[d];if(!m&&(l.altKey||l.ctrlKey||l.metaKey)){m=s.KeyHelper.PRINTABLE_KEYS[d];if(d>47&&d<58)j=l.altKey}if(m){if(l.altKey)g+="alt_";if(l.ctrlKey)g+="ctrl_";if(l.metaKey)g+="meta_"}else if(l.ctrlKey||l.metaKey)return false}if(!m){d=l.which;i=m=String.fromCharCode(d);d=m.toLowerCase();if(l.metaKey){g="meta_";m=d}else m=null}if(l.shiftKey&&m&&j)g+="shift_";if(m)m=g+m;if(!h&&m)m=m.replace(/ctrl_meta|meta/,"ctrl");return[m,i]};s.addKeyDownListener=function(l,h){var d=
-function(f){var m=h(f);m&&v.stopEvent(f);return m};l.addEventListener("keydown",function(f){if(v.isMozilla)if(s.KeyHelper.FUNCTION_KEYS[f.keyCode])return true;else if((f.ctrlKey||f.metaKey)&&s.KeyHelper.PRINTABLE_KEYS[f.keyCode])return true;if(r(f))return d(f);return true},false);l.addEventListener("keypress",function(f){if(v.isMozilla)if(s.KeyHelper.FUNCTION_KEYS[f.keyCode])return d(f);else if((f.ctrlKey||f.metaKey)&&s.KeyHelper.PRINTABLE_KEYS_CHARCODE[f.charCode]){f._keyCode=s.KeyHelper.PRINTABLE_KEYS_CHARCODE[f.charCode];
-f._charCode=0;return d(f)}if(f.charCode!==undefined&&f.charCode===0)return true;return d(f)},false)}});bespin.tiki.module("keyboard:index",function(){});bespin.tiki.register("::worker_manager",{name:"worker_manager",dependencies:{canon:"0.0.0",events:"0.0.0",underscore:"0.0.0"}});
-bespin.tiki.module("worker_manager:index",function(y,s){function v(g){var j=/^([^#:]+)(?::([^#:]+))?#([^#:]+)$/.exec(g);if(j==null)throw new Error('WorkerSupervisor: invalid pointer specification: "'+g+'"');g=j[1];var q=j[3];j=g+":"+(j[2]!=null?j[2]:"index");var t=bespin!=null&&bespin.base!=null?bespin.base:"";this._packageId=g;this._moduleId=j;this._base=t;this._target=q;this._worker=null;this._currentId=0;this.started=new f}function r(){i.restartAll()}if(window==null)throw new Error('The "worker_manager" plugin can only be loaded in the browser, not a web worker. Use "worker" instead.');
-var l=y("bespin:proxy");y("bespin:plugins");var h=y("bespin:console").console,d=y("underscore")._,f=y("events").Event,m=y("bespin:promise").Promise;y("environment");var i={_workers:[],add:function(g){this._workers.push(g)},remove:function(g){this._workers=d(this._workers).without(g)},restartAll:function(){var g=this._workers;d(g).invoke("kill");d(g).invoke("start")}};v.prototype={_onError:function(g){this._worker=null;i.remove(this);h.error("WorkerSupervisor: worker failed at file "+g.filename+":"+
-g.lineno+"; fix the worker and use 'worker restart' to restart it")},_onMessage:function(g){g=JSON.parse(g.data);switch(g.op){case "finish":if(g.id===this._currentId){var j=this._promise;this._promise=null;j.resolve(g.result)}break;case "log":h[g.method].apply(h,g.args);break}},_promise:null,started:null,kill:function(){var g=this._promise;if(g!=null){g.reject("killed");this._promise=null}this._worker.terminate();this._worker=null;i.remove(this)},send:function(g,j){var q=this._promise;if(q!=null){q.reject("interrupted");
-this._currentId++}q=this._currentId;var t=new m;this._promise=t;this._worker.postMessage(JSON.stringify({op:"invoke",id:q,method:g,args:j}));return t},start:function(){if(this._worker!=null)throw new Error("WorkerSupervisor: worker already started");var g=this._base,j=this._target,q=this._packageId,t=this._moduleId,B=new l.Worker(g+"BespinEmbedded.js");B.onmessage=this._onMessage.bind(this);B.onerror=this._onError.bind(this);B.postMessage(JSON.stringify({op:"load",base:g,pkg:q,module:t,target:j}));
-this._worker=B;this._currentId=0;i.add(this);this.started()}};s.WorkerSupervisor=v;s.workerManager=i;s.workerRestartCommand=r});bespin.tiki.register("::edit_session",{name:"edit_session",dependencies:{events:"0.0.0"}});
-bespin.tiki.module("edit_session:index",function(y,s){y("bespin:promise");y("bespin:plugins");y("bespin:util/util");y("events");s.EditSession=function(){};s.EditSession.prototype={_currentView:null,currentUser:null,history:null,getCompletePath:function(v){if(v==null)v="";if(v==null||v.substring(0,1)!="/"){var r;if(this._currentView&&this._currentView.buffer)r=this._currentView.buffer;var l;if(r)l=r.file;v=l?l.parentdir()+v:"/"+v}return v}};Object.defineProperties(s.EditSession.prototype,{currentView:{set:function(v){if(v!==
-this._currentView)this._currentView=v},get:function(){return this._currentView}}});s.createSession=function(v,r){var l=new s.EditSession;if(v)l.currentView=v.textView;if(r)l.currentUser=r;return l}});bespin.tiki.register("::syntax_manager",{name:"syntax_manager",dependencies:{worker_manager:"0.0.0",events:"0.0.0",underscore:"0.0.0",syntax_directory:"0.0.0"}});
-bespin.tiki.module("syntax_manager:index",function(y,s){function v(g,j,q,t){for(;g.length<j;)g.push(d(t).clone());j=[j,q.length].concat(q);Array.prototype.splice.apply(g,j);return g}function r(){this._lines=[];this._syms={}}function l(g,j){this._syntaxInfo=g;this._syntaxManager=j;this._invalidRow=0;this._states=[];this._active=false;this.symbols=new r}function h(g){this.layoutManager=g;this.attrsChanged=new f;this.syntaxChanged=new f;this._contextRanges=this._invalidRows=this._context=null;this._attrs=
-[];this._symbols=new r;this._syntax="plain";this._reset()}var d=y("underscore")._,f=y("events").Event,m=y("worker_manager").WorkerSupervisor;y("bespin:console");y("rangeutils:utils/range");var i=y("syntax_directory").syntaxDirectory;r.prototype={get:function(g){return this._syms["-"+g]},replaceLine:function(g,j){function q(C){return C.substring(1)}var t=this._lines,B=this._syms;g<t.length&&d(t[g]).isArray()&&d(t[g]).each(function(C){delete B["-"+C]});t[g]=d(j).keys().map(q);d(B).extend(j)}};l.prototype=
-{_annotate:function(){if(this._invalidRow==null)throw new Error("syntax_manager.Context: attempt to annotate without any invalid row");if(!this._active)throw new Error("syntax_manager.Context: attempt to annotate while inactive");if(this._worker==null)this._createWorker();else{var g=this._syntaxManager.getTextLines(),j=this._invalidRow,q=j===0?this.getName()+":start":this._states[j],t=Math.min(g.length,j+100);g=g.slice(j,t);var B={start:{row:j,col:0},end:{row:t-1,col:d(g).last().length}};this._worker.send("annotate",
-[q,g,B]).then(d(this._annotationFinished).bind(this,j,t))}},_annotationFinished:function(g,j,q){if(this._active){var t=this._syntaxManager;t.mergeAttrs(g,q.attrs);t.mergeSymbols(g,q.symbols);v(this._states,g,q.states);if(j>=this._getRowCount()){this._invalidRow=null;this._active=false}else{this._invalidRow=j;this._annotate()}}},_createWorker:function(){if(this._syntaxInfo==null)return false;var g=new m("syntax_worker#syntaxWorker");this._worker=g;g.started.add(this._workerStarted.bind(this));g.start();
-return true},_getRowCount:function(){return this._syntaxManager.getTextLines().length},_workerStarted:function(){this._worker.send("loadSyntax",[this._syntaxInfo.name]);this._active&&this._annotate()},activateAndAnnotate:function(){this._active=true;this._annotate()},contextsAtPosition:function(){var g=this._syntaxInfo;if(g==null)return["plain"];return[g.name]},cut:function(g){var j=this._getRowCount();if(g<0||g>=j)throw new Error("Attempt to cut the context at an invalid row");if(!(this._invalidRow!=
-null&&this._invalidRow<g)){this._invalidRow=g;this._active=false}},getName:function(){return this._syntaxInfo.name},kill:function(){var g=this._worker;if(g!=null){g.kill();this._worker=null}}};h.prototype={_getTextStorage:function(){return this.layoutManager.textStorage},_reset:function(){var g=this._context;if(g!=null){g.kill();this._context=null}g=this._syntax;g=g==="plain"?null:i.get(g);this._context=g=new l(g,this);g.activateAndAnnotate()},attrsChanged:null,syntaxChanged:null,contextsAtPosition:function(g){return this._context.contextsAtPosition(g)},
-getAttrsForRows:function(g,j){return this._attrs.slice(g,j)},getSymbol:function(g){return this._symbols.get(g)},getSyntax:function(){return this._syntax},getTextLines:function(){return this._getTextStorage().lines},invalidateRow:function(g){var j=this._context;j.cut(g);j.activateAndAnnotate()},mergeAttrs:function(g,j){v(this._attrs,g,j,[]);this.attrsChanged(g,g+j.length)},mergeSymbols:function(g,j){var q=this._symbols;d(j).each(function(t,B){q.replaceLine(g+B,t)})},setSyntax:function(g){this._syntax=
-i.hasSyntax(g)?g:"plain";this.syntaxChanged(g);this._reset()},setSyntaxFromFileExt:function(g){return this.setSyntax(i.syntaxForFileExt(g))}};s.SyntaxManager=h});bespin.tiki.register("::completion",{name:"completion",dependencies:{jquery:"0.0.0",ctags:"0.0.0",rangeutils:"0.0.0",canon:"0.0.0",underscore:"0.0.0"}});
-bespin.tiki.module("completion:controller",function(y,s){function v(i){this._editorView=i;i.selectionChanged.add(this._selectionChanged.bind(this));i.willChangeBuffer.add(this._willChangeBuffer.bind(this));this._syntaxChanged=this._syntaxChanged.bind(this);this.tags=new l.Tags;this.ui=new d(i.element)}function r(i){return function(){return m.editor.completionController[i](m)}}var l=y("ctags"),h=y("rangeutils:utils/range"),d=y("completion:ui").CompletionUI,f=y("bespin:plugins").catalog,m=y("environment").env;
-v.prototype={_buffer:null,_completionEngine:null,_completions:null,_stem:null,_hideCompletions:function(){this.ui.hide()},_selectionChanged:function(i){var g=this._completionEngine;if(!(g==null||!h.isZeroLength(i))){var j=this._buffer.layoutManager,q=j.syntaxManager,t=i.start;i=t.col;t=j.textStorage.lines[t.row];j=t.substring(0,i);i=t.substring(i);g=g.getCompletions(j,i,q);if(g==null)this._hideCompletions();else{q=g.tags;this._stem=g.stem;this._showCompletions(q)}}},_showCompletions:function(i){var g=
-this._editorView,j=g.textView.getInsertionPointPosition();j=g.convertTextViewPoint(j);this.ui.show(i,j,g.layoutManager.fontDimension.lineHeight)},_syntaxChanged:function(i){i=f.getExtensionByKey("completion",i);if(i==null)this._completionEngine=null;else i.load().then(function(g){this._completionEngine=new g(this.tags)}.bind(this))},_willChangeBuffer:function(i){var g=this._buffer;g!=null&&g.layoutManager.syntaxManager.syntaxChanged.remove(this._syntaxChanged);i.layoutManager.syntaxManager.syntaxChanged.add(this._syntaxChanged);
-this._buffer=i},cancel:function(){this.ui.hide()},complete:function(i){var g=this.ui,j=g.getCompletion().name;i.view.insertText(j.substring(this._stem.length));g.hide()},isCompleting:function(){return this.ui.visible},moveDown:function(){this.ui.move("down")},moveUp:function(){this.ui.move("up")},tags:null};s.CompletionController=v;s.completeCommand=r("complete");s.completeCancelCommand=r("cancel");s.completeDownCommand=r("moveDown");s.completeUpCommand=r("moveUp")});
-bespin.tiki.module("completion:ui",function(y,s){function v(m){var i=l.uniqueId("bespin-completion-panel"),g=document.createElement("div");g.id=i;g.className="bespin-completion-panel";g.style.display="none";g.innerHTML='<div class="bespin-completion-pointer"></div><div class="bespin-completion-bubble-outer"><div class="bespin-completion-bubble-inner"><div class="bespin-completion-highlight"></div><ul></ul></div></div>';r(m).append(g);this.panel=r(g);this.parent=r(m)}var r=y("jquery").$,l=y("underscore")._,
-h=l.template('<span class="bespin-completion-container"> &mdash; <%= container %></span>'),d=l.template('<div class="bespin-completion-second-row"><%= type %></div>'),f=l.template('<li><div class="bespin-completion-top-row"><span class="bespin-completion-kind bespin-completion-kind-<%= kind %>"><%= kind %></span><span class="bespin-completion-ident"><%= ident %></span><%= container %></div><%= second_row %></li>');v.prototype={_fromBottom:false,_index:0,_tags:null,_getHighlightDimensions:function(m){var i=
-m.position(),g=m.outerHeight()-2;m=m.outerWidth()-2;return{left:i.left,top:i.top,height:g,width:m}},_listItemForIndex:function(m){return this.panel.find("li:eq("+m+")")},_populate:function(){var m=l(this._tags).map(function(i){var g=i["class"],j=i.module,q=i.namespace;g=g!=null?g:q!=null?q:"";if(j!=null)g=j+(g!=""?"#"+g:"");j=g==""?"":h({container:g});g=i.type;g=g==null?"":d({type:g});return f({kind:i.kind,ident:i.name,container:j,second_row:g})});this.panel.find("ul").html(m.join("\n"))},panel:null,
-visible:false,getCompletion:function(){return this.visible?this._tags[this._index]:null},hide:function(){if(this.visible){this.panel.fadeOut(100);this.visible=false}},move:function(m){var i=this._index,g=this._listItemForIndex(i),j=m==="up"?g.prev():g.next();if(j.length!==0){this._index=i=m==="up"?i-1:i+1;i=r(g).find(".bespin-completion-top-row");var q=r(g).find(".bespin-completion-second-row");g=r(j).find(".bespin-completion-top-row");var t=r(j).find(".bespin-completion-second-row");q.hide();t.show();
-var B=this.panel.find(".bespin-completion-highlight");B.stop(true,true);j=this._getHighlightDimensions(j);B.animate(j,100);t.hide();if(m==="down"){m=q.height();g.css("top",m);g.animate({top:0},100)}else{m=t.height();i.css("top",-m);i.animate({top:0},100)}t.fadeIn()}},show:function(m,i,g){this._tags=m=l(m).clone();this._populate();var j=this.visible,q=this.panel;q.stop(true,true);j||q.show();var t=this.parent.offset(),B=t.left,C=B+i.x,e=t.top+i.y;t=q.outerWidth();var K=q.outerHeight(),L=r(window).width(),
-n=r(window).height();this._fromBottom=e=e+K+g>n;if(this._index>=m.length)this._index=m.length-1;if(e){e=q.find(".bespin-completion-pointer");e.removeClass("bespin-completion-pointer-up");e.addClass("bespin-completion-pointer-down");q.css({bottom:-i.y,top:""});this._tags.reverse();this._populate();if(!j)this._index=m.length-1}else{e=q.find(".bespin-completion-pointer");e.removeClass("bespin-completion-pointer-down");e.addClass("bespin-completion-pointer-up");q.css({top:i.y+g,bottom:""});if(!j)this._index=
-0}if(!j){if(C+i.x+t>L){e.css({left:"",right:32});q.css("left",Math.min(L-t-B,i.x-t+43))}else{e.css({left:32,right:""});q.css("left",Math.max(B,i.x-43))}q.hide().animate({opacity:"show"},100)}m=q.find(".bespin-completion-highlight");m.stop(true,true);i=this._listItemForIndex(this._index);i.find(".bespin-completion-second-row").show();i=this._getHighlightDimensions(i);m.css(i);this.visible=true}};s.CompletionUI=v});bespin.tiki.module("completion:index",function(){});
-bespin.tiki.register("::rangeutils",{name:"rangeutils",dependencies:{}});
-bespin.tiki.module("rangeutils:utils/range",function(y,s){var v=y("bespin:util/util");s.addPositions=function(r,l){return{row:r.row+l.row,col:r.col+l.col}};s.cloneRange=function(r){var l=r.start;r=r.end;return{start:{row:l.row,col:l.col},end:{row:r.row,col:r.col}}};s.comparePositions=function(r,l){var h=r.row-l.row;return h===0?r.col-l.col:h};s.equal=function(r,l){return s.comparePositions(r.start,l.start)===0&&s.comparePositions(r.end,l.end)===0};s.extendRange=function(r,l){var h=r.end;return{start:r.start,
-end:{row:h.row+l.row,col:h.col+l.col}}};s.intersectRangeSets=function(r,l){r=v.clone(r);l=v.clone(l);for(var h=[];r.length>0&&l.length>0;){var d=r.shift(),f=l.shift(),m=s.comparePositions(d.start,f.start),i=s.comparePositions(d.end,f.end);if(s.comparePositions(d.end,f.start)<0){h.push(d);l.unshift(f)}else if(s.comparePositions(f.end,d.start)<0){h.push(f);r.unshift(d)}else if(m<0){h.push({start:d.start,end:f.start});r.unshift({start:f.start,end:d.end});l.unshift(f)}else if(m===0)if(i<0)l.unshift({start:d.end,
-end:f.end});else i>0&&r.unshift({start:f.end,end:d.end});else if(m>0){h.push({start:f.start,end:d.start});r.unshift(d);l.unshift({start:d.start,end:f.end})}}return h.concat(r,l)};s.isZeroLength=function(r){return r.start.row===r.end.row&&r.start.col===r.end.col};s.maxPosition=function(r,l){return s.comparePositions(r,l)>0?r:l};s.normalizeRange=function(r){return this.comparePositions(r.start,r.end)<0?r:{start:r.end,end:r.start}};s.rangeSetBoundaries=function(r){return{start:r[0].start,end:r[r.length-
-1].end}};s.toString=function(r){var l=r.start;r=r.end;return"[ "+l.row+", "+l.col+" "+r.row+","+ +r.col+" ]"};s.unionRanges=function(r,l){return{start:r.start.row<l.start.row||r.start.row===l.start.row&&r.start.col<l.start.col?r.start:l.start,end:r.end.row>l.end.row||r.end.row===l.end.row&&r.end.col>l.end.col?r.end:l.end}};s.isPosition=function(r){return!v.none(r)&&!v.none(r.row)&&!v.none(r.col)};s.isRange=function(r){return!v.none(r)&&s.isPosition(r.start)&&s.isPosition(r.end)}});
-bespin.tiki.module("rangeutils:index",function(){});bespin.tiki.register("::undomanager",{name:"undomanager",dependencies:{}});
-bespin.tiki.module("undomanager:index",function(y,s){var v=y("bespin:util/util");y("environment");s.UndoManager=function(){};v.mixin(s.UndoManager.prototype,{_redoStack:[],_undoStack:[],_undoOrRedo:function(r,l,h){if(l.length===0)return false;l=l.pop();if(!l.target[r](l.context)){this._redoStack=[];this._undoStack=[];return false}h.push(l);return true},redo:function(){return this._undoOrRedo("redo",this._redoStack,this._undoStack)},registerUndo:function(r,l){this._redoStack=[];this._undoStack.push({target:r,
-context:l})},undo:function(){return this._undoOrRedo("undo",this._undoStack,this._redoStack)}});s.global=new s.UndoManager;s.undoManagerCommand=function(r,l){s.global[l.commandExt.name]()}});bespin.tiki.register("::environment",{name:"environment",dependencies:{settings:"0.0.0"}});
-bespin.tiki.module("environment:index",function(y,s){var v=y("bespin:util/util"),r=y("bespin:console").console,l=y("bespin:plugins").catalog,h=y("settings").settings;s.Environment=function(){this.commandLine=null;window.addEventListener("resize",this.dimensionsChanged.bind(this),false)};Object.defineProperties(s.Environment.prototype,{settings:{value:{set:function(d,f){if(v.none(d))throw new Error("setSetting(): key must be supplied");if(v.none(f))throw new Error("setSetting(): value must be supplied");
-h.set(d,f)},get:function(d){if(v.none(d))throw new Error("getSetting(): key must be supplied");return h.get(d)}}},dimensionsChanged:{value:function(){l.publish(this,"dimensionsChanged")}},session:{get:function(){return l.getObject("session")}},view:{get:function(){if(!this.session)return null;return this.session.currentView}},editor:{get:function(){if(!this.session)return null;return this.session.currentView.editor}},contexts:{get:function(){if(!this.view)return[];var d=this.view.editor.layoutManager.syntaxManager,
-f=this.view.getSelectedRange().start;return d.contextsAtPosition(f)}},buffer:{get:function(){if(this.session)return this.view.editor.buffer;else r.error("command attempted to get buffer but there's no session")}},model:{get:function(){if(this.buffer)return this.view.editor.layoutManager.textStorage;else r.error("Session has no current buffer")}},file:{get:function(){if(this.buffer)return this.buffer.file;else r.error("Session has no current buffer")}},files:{get:function(){return l.getObject("files")}}});
-s.env=new s.Environment});bespin.tiki.register("::ctags",{name:"ctags",dependencies:{traits:"0.0.0",underscore:"0.0.0"}});
-bespin.tiki.module("ctags:index",function(y,s){var v=y("underscore")._,r=y("./reader").TagReader;y=y("traits").Trait;s.Tags=function(){this.tags=[]};s.Tags.prototype=Object.create(Object.prototype,y.compose(y({_search:function(l,h){var d={name:l};l=this.tags;var f=v(l).sortedIndex(d,function(m){return m.name});for(f=d=f;d>=0&&d<l.length&&h(l[d]);)d--;for(;f>=0&&f<l.length&&h(l[f]);)f++;return l.slice(d+1,f)},add:function(l){var h=this.tags;Array.prototype.push.apply(h,l);h.sort(function(d,f){d=d.name;
-f=f.name;if(d<f)return-1;if(d===f)return 0;return 1})},get:function(l){return this._search(l,function(h){return h.name===l})},scan:function(l,h,d){if(d===null||d===undefined)d={};var f=l.split("\n");l=parse(l,h,1);h=new Interpreter(l,h,f,d);h.interpret();this.add(h.tags)},stem:function(l){var h=l.length;return this._search(l,function(d){return d.name.substring(0,h)===l})}}),r))});
-bespin.tiki.module("ctags:reader",function(y,s){var v=y("underscore")._;y=y("traits").Trait;s.TagReader=y({readLines:function(r){var l=[];v(r).each(function(h){h=h.split("\t");if(!(h.length<3)){var d=h[0];if(!/^!_TAG_/.test(d)){d={name:d,tagfile:h[1],addr:h[2]};var f;if(h.length>3&&h[3].indexOf(":")===-1){d.kind=h[3];f=4}else f=3;var m={};v(h.slice(f)).each(function(i){i=/^([^:]+):(.*)/.exec(i);m[i[1]]=i[2]});d.fields=m;l.push(d)}}});this.add(l)},readString:function(r){this.readLines(r.split("\n"))}})});
-bespin.tiki.register("::theme_manager",{name:"theme_manager",dependencies:{theme_manager_base:"0.0.0",settings:"0.0.0",events:"0.0.0",less:"0.0.0"}});
-bespin.tiki.module("theme_manager:index",function(y,s){y("bespin:promise");var v=y("bespin:plugins").catalog;y("events");var r=y("themestyles"),l=y("settings").settings,h=null,d=null;s.themestyles=r;s.themeSettingChanged=function(f,m,i){var g=v.getExtensionByKey("theme",i);if(i==="standard"||!i||!g){g=null;if(d!==null)g=v.getExtensionByKey("theme",d)}if(g)g.load().then(function(j){h&&r.unregisterThemeStyles(h);r.currentThemeVariables=j();h=g;r.parseGlobalVariables();r.reparse();g.url&&r.registerThemeStyles(g);
-v.publish(s,"themeChange")});else if(h){r.unregisterThemeStyles(h);h=null;r.currentThemeVariables=null;r.parseGlobalVariables();r.reparse();v.publish(this,"themeChange")}};v.registerExtension("settingChange",{match:"theme",pointer:s.themeSettingChanged.bind(s)});s.setStandardTheme=function(f){d=f;f!==l.get("theme")&&s.themeSettingChanged(this)};s.setBasePlugin=function(f){r.basePluginName=f};s.startParsing=function(){r.preventParsing=false;return r.reparse()};s.registerTheme=function(f){var m=l.get("theme");
-f.name===m&&s.themeSettingChanged(this,"theme",f.name)};s.unregisterTheme=function(f){f.name===l.get("theme")&&s.themeSettingChanged(this)};s.appLaunched=function(){v.publish(s,"themeChange")}});
-bespin.tiki.module("theme_manager:themestyles",function(y,s){var v=y("bespin:util/util"),r=y("bespin:plugins").catalog,l=y("bespin:console").console,h=y("bespin:promise").Promise,d=y("bespin:promise").group,f=y("bespin:proxy"),m=new (y("less").Parser)({optimization:3}),i=1;s.currentThemeVariables=null;s.basePluginName=null;s.preventParsing=true;var g="";s.globalThemeVariables={};var j={},q={},t=function(w){var D={},J=[],Q=function(Z,T){J.push(Z);if(typeof T!="object")D[J.join("_")]=T;else for(prop in T)Q(prop,
-T[prop]);J.pop()};Q("global",w);return D},B={},C={font:"arial, lucida, helvetica, sans-serif",font_size:"14px",line_height:"1.8em",color:"#DAD4BA",text_shadow:"1px 1px rgba(0, 0, 0, 0.4)",error_color:"#F99",header_color:"white",link_color:"#ACF",control:{color:"#E1B41F",border:"1px solid rgba(0, 0, 0, 0.2)",border_radius:"0.25em",background:"rgba(0, 0, 0, 0.2)",active:{color:"#FF9600",border:"1px solid #E1B41F",inset_color:"#ff9600",background:"rgba(0, 0, 0, 0.2)"}},pane:{h1:{font:"'MuseoSans', Helvetica",
-font_size:"2.8em",color:"white"},color:"#DAD4BA",text_shadow:"1px 1px rgba(0, 0, 0, 0.4)",link_color:"white",background:"#45443C",border_radius:".5em"},form:{color:"white",text_shadow:"1px 1px rgba(0, 0, 0, 0.4)",font:"'Lucida Sans','Lucida Grande',Verdana,Arial,sans-serif",font_size:"@global_font_size",line_height:"@global_line_height"},button:{color:"white",background:"#3E6CB9"},container:{background:"#1E1916",border:"1px solid black"},selectable:{color:"white",border:"0px solid transparent",background:"transparent",
-active:{color:"black",border:"0px solid transparent",background:"#FF8E00"},hover:{color:"black",border:"0px solid transparent",background:"#FF8E00"}},hint:{color:"#AAA",active:{color:"black"},hover:{color:"black"}},accelerator:{color:"#996633",active:{color:"black"},hover:{color:"black"}},menu:{border_color:"black",inset_color_right:"#1E1916",inset_color_top_left:"#3E3936",background:"transparent"}};C=t(C);s.getPluginThemeVariables=function(w){var D=r.plugins[w];if(!D)return null;var J={};if(s.currentThemeVariables&&
-s.currentThemeVariables[w])J=s.currentThemeVariables[w];D.provides.forEach(function(Q){if(Q.ep==="themevariable"){var Z=Q.name;J[Z]=J[Z]||Q.defaultValue}});return J};s.parseGlobalVariables=function(){var w={},D="",J=s.currentThemeVariables;v.mixin(w,C);J&&J.global&&v.mixin(w,t(J.global));s.globalThemeVariables=w;for(prop in w)D+="@"+prop+":"+w[prop]+";";g=D};s.parseGlobalVariables();var e=function(w,D,J){if(j[D])styleElem=document.getElementById("_bespin_theme_style_"+j[D]);else{styleElem=document.createElement("style");
-styleElem.setAttribute("id","_bespin_theme_style_"+i);j[D]=i;i++;document.body.appendChild(styleElem)}m.parse(g+J+q[D],function(Q,Z){if(Q){Q="Error less parsing "+D+" "+Q.message;l.error(Q);w.reject(Q)}else{try{var T=Z.toCSS()}catch(ca){Q="Error less parsing "+D+" "+ca;l.error(Q);w.reject(Q);return}if(styleElem&&styleElem.firstChild)styleElem.firstChild.textContent=T;else{Q=document.createTextNode(T);styleElem.appendChild(Q)}w.resolve()}})},K={};s.parsePlugin=function(w){if(s.preventParsing)return(new h).resolve();
-var D=r.plugins[w];if(!D)throw"reparsePlugin: plugin "+w+" is not defined!";if(!K[w]){K[w]=new h;setTimeout(function(){var J=s.getPluginThemeVariables(w),Q="";for(prop in J)Q+="@"+prop+":"+J[prop]+";";J=new h;J.then(function(Z){K[this.name].resolve(Z);K[this.name]=null}.bind(this),function(){K[this.name].reject(data);K[this.name]=null}.bind(this));e(J,w,Q)}.bind(D),0)}return K[w]};var L=function(w,D,J,Q){J=J.replace(/url\(['"]*([^'")]*)(['"]*)\)/g,"url("+w+"$1)");q[D]+=J;Q&&Q.resolve()},n=null;s.registerThemeStyles=
-function(w){var D=w.getPluginName(),J=r.getResourceURL(D);if(!(w.url instanceof Array))w.url=[w.url];q[D]="";var Q=[],Z=s.preventParsing;w.url.forEach(function(T){if(B[D]&&B[D][T])L(J,D,B[D][T]);else{var ca=new h;Q.push(ca);var ha=J+T+"?"+(new Date).getTime();f.xhr("GET",ha,true,function(ga){ga.overrideMimeType("text/plain")}).then(function(ga){L(J,D,ga,ca)},function(){l.error("registerLessFile: Could not load "+J+T);ca.resolve()})}});if(Q.length===0)s.parsePlugin(D);else{Z||d(Q).then(function(){s.parsePlugin(D)});
-if(n!==null)Q=Q.concat(n);n=d(Q)}};s.reparse=function(){var w=new h;if(s.preventParsing)return w.resolve();n?n.then(function(){var D=[],J=s.basePluginName;J!==null&&q[J]&&D.push(s.parsePlugin(J));for(var Q in q)Q!==J&&D.push(s.parsePlugin(Q));d(D).then(w.resolve.bind(w),w.reject.bind(w))},function(D){w.reject(D)}):w.resolve();return w};s.unregisterThemeStyles=function(w){w=w.getPluginName();if(j[w]){var D=document.getElementById("_bespin_theme_style_"+j[w]);D.parentNode.removeChild(D);delete j[w];
-delete q[w]}}});bespin.tiki.register("::types",{name:"types",dependencies:{}});
-bespin.tiki.module("types:basic",function(y,s){var v=y("bespin:plugins").catalog,r=y("bespin:console").console,l=y("bespin:promise").Promise;s.text={isValid:function(h){return typeof h=="string"},toString:function(h){return h},fromString:function(h){return h}};s.number={isValid:function(h){if(isNaN(h))return false;if(h===null)return false;if(h===undefined)return false;if(h===Infinity)return false;return typeof h=="number"},toString:function(h){if(!h)return null;return""+h},fromString:function(h){if(!h)return null;
-var d=parseInt(h,10);if(isNaN(d))throw new Error("Can't convert \""+h+'" to a number.');return d}};s.bool={isValid:function(h){return typeof h=="boolean"},toString:function(h){return""+h},fromString:function(h){if(h===null)return null;if(!h.toLowerCase)return!!h;var d=h.toLowerCase();if(d=="true")return true;else if(d=="false")return false;return!!h}};s.object={isValid:function(h){return typeof h=="object"},toString:function(h){return JSON.stringify(h)},fromString:function(h){return JSON.parse(h)}};
-s.selection={isValid:function(h,d){if(typeof h!="string")return false;if(!d.data){r.error("Missing data on selection type extension. Skipping");return true}var f=false;d.data.forEach(function(m){if(h==m)f=true});return f},toString:function(h){return h},fromString:function(h){return h},resolveTypeSpec:function(h,d){var f=new l;if(d.data){h.data=d.data;f.resolve()}else if(d.pointer)v.loadObjectForPropertyPath(d.pointer).then(function(m){m=m(d);if(typeof m.then==="function")m.then(function(i){h.data=
-i;f.resolve()});else{h.data=m;f.resolve()}},function(m){f.reject(m)});else{r.warn("Missing data/pointer for selection",d);f.resolve()}return f}}});
-bespin.tiki.module("types:types",function(y,s){function v(d){var f=new h,m=l.getExtensionByKey("type",d.name);m?f.resolve({ext:m,typeSpec:d}):f.reject(new Error("Unknown type: "+d.name));return f}function r(d){if(typeof d==="string")return v({name:d});if(typeof d==="object")if(d.name==="deferred"){var f=new h;s.undeferTypeSpec(d).then(function(m){r(m).then(function(i){f.resolve(i)},function(i){f.reject(i)})});return f}else return v(d);throw new Error("Unknown typeSpec type: "+typeof d);}var l=y("bespin:plugins").catalog;
-y("bespin:console");var h=y("bespin:promise").Promise;s.getSimpleName=function(d){if(!d)throw new Error("null|undefined is not a valid typeSpec");if(typeof d=="string")return d;if(typeof d=="object"){if(!d.name)throw new Error("Missing name member to typeSpec");return d.name}throw new Error("Not a typeSpec: "+d);};s.equals=function(d,f){return s.getSimpleName(d)==s.getSimpleName(f)};s.undeferTypeSpec=function(d){var f=new h;if(!d.pointer){f.reject(new Error("Missing deferred pointer"));return f}l.loadObjectForPropertyPath(d.pointer).then(function(m){m=
-m(d);typeof m.then==="function"?m.then(function(i){f.resolve(i)},function(i){f.reject(i)}):f.resolve(m)},function(m){f.reject(m)});return f};s.resolveType=function(d){var f=new h;r(d).then(function(m){m.ext.load(function(i){typeof i.resolveTypeSpec==="function"?i.resolveTypeSpec(m.ext,m.typeSpec).then(function(){f.resolve({type:i,ext:m.ext})},function(g){f.reject(g)}):f.resolve({type:i,ext:m.ext})})},function(m){f.reject(m)});return f};s.fromString=function(d,f){var m=new h;s.resolveType(f).then(function(i){m.resolve(i.type.fromString(d,
-i.ext))});return m};s.toString=function(d,f){var m=new h;s.resolveType(f).then(function(i){m.resolve(i.type.toString(d,i.ext))});return m};s.isValid=function(d,f){var m=new h;s.resolveType(f).then(function(i){m.resolve(i.type.isValid(d,i.ext))});return m}});bespin.tiki.module("types:index",function(){});bespin.tiki.register("::jquery",{name:"jquery",dependencies:{}});
-bespin.tiki.module("jquery:index",function(y,s){function v(){if(!e.isReady){try{n.documentElement.doScroll("left")}catch(a){setTimeout(v,1);return}e.ready()}}function r(a,b){b.src?e.ajax({url:b.src,async:false,dataType:"script"}):e.globalEval(b.text||b.textContent||b.innerHTML||"");b.parentNode&&b.parentNode.removeChild(b)}function l(a,b,k,p,o,z){var A=a.length;if(typeof b==="object"){for(var I in b)l(a,I,b[I],p,o,k);return a}if(k!==undefined){p=!z&&p&&e.isFunction(k);for(I=0;I<A;I++)o(a[I],b,p?k.call(a[I],
-I,o(a[I],b)):k,z);return a}return A?o(a[0],b):undefined}function h(){return(new Date).getTime()}function d(){return false}function f(){return true}function m(a,b,k){k[0].type=a;return e.event.handle.apply(b,k)}function i(a){var b,k=[],p=[],o=arguments,z,A,I,E,H,R;A=e.data(this,"events");if(!(a.liveFired===this||!A||!A.live||a.button&&a.type==="click")){a.liveFired=this;var W=A.live.slice(0);for(E=0;E<W.length;E++){A=W[E];A.origType.replace(sa,"")===a.type?p.push(A.selector):W.splice(E--,1)}z=e(a.target).closest(p,
-a.currentTarget);H=0;for(R=z.length;H<R;H++)for(E=0;E<W.length;E++){A=W[E];if(z[H].selector===A.selector){I=z[H].elem;p=null;if(A.preType==="mouseenter"||A.preType==="mouseleave")p=e(a.relatedTarget).closest(A.selector)[0];if(!p||p!==I)k.push({elem:I,handleObj:A})}}H=0;for(R=k.length;H<R;H++){z=k[H];a.currentTarget=z.elem;a.data=z.handleObj.data;a.handleObj=z.handleObj;if(z.handleObj.origHandler.apply(z.elem,o)===false){b=false;break}}return b}}function g(a,b){return"live."+(a&&a!=="*"?a+".":"")+
-b.replace(/\./g,"`").replace(/ /g,"&")}function j(a){return!a||!a.parentNode||a.parentNode.nodeType===11}function q(a,b){var k=0;b.each(function(){if(this.nodeName===(a[k]&&a[k].nodeName)){var p=e.data(a[k++]),o=e.data(this,p);if(p=p&&p.events){delete o.handle;o.events={};for(var z in p)for(var A in p[z])e.event.add(this,z,p[z][A],p[z][A].data)}}})}function t(a,b,k){var p,o,z;b=b&&b[0]?b[0].ownerDocument||b[0]:n;if(a.length===1&&typeof a[0]==="string"&&a[0].length<512&&b===n&&!Ha.test(a[0])&&(e.support.checkClone||
-!Ia.test(a[0]))){o=true;if(z=e.fragments[a[0]])if(z!==1)p=z}if(!p){p=b.createDocumentFragment();e.clean(a,b,p,k)}if(o)e.fragments[a[0]]=z?p:1;return{fragment:p,cacheable:o}}function B(a,b){var k={};e.each(Ja.concat.apply([],Ja.slice(0,b)),function(){k[this]=a});return k}function C(a){return"scrollTo"in a&&a.document?a:a.nodeType===9?a.defaultView||a.parentWindow:false}var e=function(a,b){return new e.fn.init(a,b)},K=window.jQuery,L=window.$,n=window.document,w,D=/^[^<]*(<[\w\W]+>)[^>]*$|^#([\w-]+)$/,
-J=/^.[^:#\[\.,]*$/,Q=/\S/,Z=/^(\s|\u00A0)+|(\s|\u00A0)+$/g,T=/^<(\w+)\s*\/?>(?:<\/\1>)?$/;y=navigator.userAgent;var ca=false,ha=[],ga,la=Object.prototype.toString,ma=Object.prototype.hasOwnProperty,na=Array.prototype.push,O=Array.prototype.slice,P=Array.prototype.indexOf;e.fn=e.prototype={init:function(a,b){var k,p;if(!a)return this;if(a.nodeType){this.context=this[0]=a;this.length=1;return this}if(a==="body"&&!b){this.context=n;this[0]=n.body;this.selector="body";this.length=1;return this}if(typeof a===
-"string")if((k=D.exec(a))&&(k[1]||!b))if(k[1]){p=b?b.ownerDocument||b:n;if(a=T.exec(a))if(e.isPlainObject(b)){a=[n.createElement(a[1])];e.fn.attr.call(a,b,true)}else a=[p.createElement(a[1])];else{a=t([k[1]],[p]);a=(a.cacheable?a.fragment.cloneNode(true):a.fragment).childNodes}return e.merge(this,a)}else{if(b=n.getElementById(k[2])){if(b.id!==k[2])return w.find(a);this.length=1;this[0]=b}this.context=n;this.selector=a;return this}else if(!b&&/^\w+$/.test(a)){this.selector=a;this.context=n;a=n.getElementsByTagName(a);
-return e.merge(this,a)}else return!b||b.jquery?(b||w).find(a):e(b).find(a);else if(e.isFunction(a))return w.ready(a);if(a.selector!==undefined){this.selector=a.selector;this.context=a.context}return e.makeArray(a,this)},selector:"",jquery:"1.4.2",length:0,size:function(){return this.length},toArray:function(){return O.call(this,0)},get:function(a){return a==null?this.toArray():a<0?this.slice(a)[0]:this[a]},pushStack:function(a,b,k){var p=e();e.isArray(a)?na.apply(p,a):e.merge(p,a);p.prevObject=this;
-p.context=this.context;if(b==="find")p.selector=this.selector+(this.selector?" ":"")+k;else if(b)p.selector=this.selector+"."+b+"("+k+")";return p},each:function(a,b){return e.each(this,a,b)},ready:function(a){e.bindReady();if(e.isReady)a.call(n,e);else ha&&ha.push(a);return this},eq:function(a){return a===-1?this.slice(a):this.slice(a,+a+1)},first:function(){return this.eq(0)},last:function(){return this.eq(-1)},slice:function(){return this.pushStack(O.apply(this,arguments),"slice",O.call(arguments).join(","))},
-map:function(a){return this.pushStack(e.map(this,function(b,k){return a.call(b,k,b)}))},end:function(){return this.prevObject||e(null)},push:na,sort:[].sort,splice:[].splice};e.fn.init.prototype=e.fn;e.extend=e.fn.extend=function(){var a=arguments[0]||{},b=1,k=arguments.length,p=false,o,z,A,I;if(typeof a==="boolean"){p=a;a=arguments[1]||{};b=2}if(typeof a!=="object"&&!e.isFunction(a))a={};if(k===b){a=this;--b}for(;b<k;b++)if((o=arguments[b])!=null)for(z in o){A=a[z];I=o[z];if(a!==I)if(p&&I&&(e.isPlainObject(I)||
-e.isArray(I))){A=A&&(e.isPlainObject(A)||e.isArray(A))?A:e.isArray(I)?[]:{};a[z]=e.extend(p,A,I)}else if(I!==undefined)a[z]=I}return a};e.extend({noConflict:function(a){window.$=L;if(a)window.jQuery=K;return e},isReady:false,ready:function(){if(!e.isReady){if(!n.body)return setTimeout(e.ready,13);e.isReady=true;if(ha){for(var a,b=0;a=ha[b++];)a.call(n,e);ha=null}e.fn.triggerHandler&&e(n).triggerHandler("ready")}},bindReady:function(){if(!ca){ca=true;if(n.readyState==="complete")return e.ready();if(n.addEventListener){n.addEventListener("DOMContentLoaded",
-ga,false);window.addEventListener("load",e.ready,false)}else if(n.attachEvent){n.attachEvent("onreadystatechange",ga);window.attachEvent("onload",e.ready);var a=false;try{a=window.frameElement==null}catch(b){}n.documentElement.doScroll&&a&&v()}}},isFunction:function(a){return la.call(a)==="[object Function]"},isArray:function(a){return la.call(a)==="[object Array]"},isPlainObject:function(a){if(!a||la.call(a)!=="[object Object]"||a.nodeType||a.setInterval)return false;if(a.constructor&&!ma.call(a,
-"constructor")&&!ma.call(a.constructor.prototype,"isPrototypeOf"))return false;var b;for(b in a);return b===undefined||ma.call(a,b)},isEmptyObject:function(a){for(var b in a)return false;return true},error:function(a){throw a;},parseJSON:function(a){if(typeof a!=="string"||!a)return null;a=e.trim(a);if(/^[\],:{}\s]*$/.test(a.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g,"@").replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,"]").replace(/(?:^|:|,)(?:\s*\[)+/g,"")))return window.JSON&&
-window.JSON.parse?window.JSON.parse(a):(new Function("return "+a))();else e.error("Invalid JSON: "+a)},noop:function(){},globalEval:function(a){if(a&&Q.test(a)){var b=n.getElementsByTagName("head")[0]||n.documentElement,k=n.createElement("script");k.type="text/javascript";if(e.support.scriptEval)k.appendChild(n.createTextNode(a));else k.text=a;b.insertBefore(k,b.firstChild);b.removeChild(k)}},nodeName:function(a,b){return a.nodeName&&a.nodeName.toUpperCase()===b.toUpperCase()},each:function(a,b,k){var p,
-o=0,z=a.length,A=z===undefined||e.isFunction(a);if(k)if(A)for(p in a){if(b.apply(a[p],k)===false)break}else for(;o<z;){if(b.apply(a[o++],k)===false)break}else if(A)for(p in a){if(b.call(a[p],p,a[p])===false)break}else for(k=a[0];o<z&&b.call(k,o,k)!==false;k=a[++o]);return a},trim:function(a){return(a||"").replace(Z,"")},makeArray:function(a,b){b=b||[];if(a!=null)a.length==null||typeof a==="string"||e.isFunction(a)||typeof a!=="function"&&a.setInterval?na.call(b,a):e.merge(b,a);return b},inArray:function(a,
-b){if(b.indexOf)return b.indexOf(a);for(var k=0,p=b.length;k<p;k++)if(b[k]===a)return k;return-1},merge:function(a,b){var k=a.length,p=0;if(typeof b.length==="number")for(var o=b.length;p<o;p++)a[k++]=b[p];else for(;b[p]!==undefined;)a[k++]=b[p++];a.length=k;return a},grep:function(a,b,k){for(var p=[],o=0,z=a.length;o<z;o++)!k!==!b(a[o],o)&&p.push(a[o]);return p},map:function(a,b,k){for(var p=[],o,z=0,A=a.length;z<A;z++){o=b(a[z],z,k);if(o!=null)p[p.length]=o}return p.concat.apply([],p)},guid:1,proxy:function(a,
-b,k){if(arguments.length===2)if(typeof b==="string"){k=a;a=k[b];b=undefined}else if(b&&!e.isFunction(b)){k=b;b=undefined}if(!b&&a)b=function(){return a.apply(k||this,arguments)};if(a)b.guid=a.guid=a.guid||b.guid||e.guid++;return b},uaMatch:function(a){a=a.toLowerCase();a=/(webkit)[ \/]([\w.]+)/.exec(a)||/(opera)(?:.*version)?[ \/]([\w.]+)/.exec(a)||/(msie) ([\w.]+)/.exec(a)||!/compatible/.test(a)&&/(mozilla)(?:.*? rv:([\w.]+))?/.exec(a)||[];return{browser:a[1]||"",version:a[2]||"0"}},browser:{}});
-y=e.uaMatch(y);if(y.browser){e.browser[y.browser]=true;e.browser.version=y.version}if(e.browser.webkit)e.browser.safari=true;if(P)e.inArray=function(a,b){return P.call(b,a)};w=e(n);if(n.addEventListener)ga=function(){n.removeEventListener("DOMContentLoaded",ga,false);e.ready()};else if(n.attachEvent)ga=function(){if(n.readyState==="complete"){n.detachEvent("onreadystatechange",ga);e.ready()}};(function(){e.support={};var a=n.documentElement,b=n.createElement("script"),k=n.createElement("div"),p="script"+
-h();k.style.display="none";k.innerHTML="   <link/><table></table><a href='/a' style='color:red;float:left;opacity:.55;'>a</a><input type='checkbox'/>";var o=k.getElementsByTagName("*"),z=k.getElementsByTagName("a")[0];if(!(!o||!o.length||!z)){e.support={leadingWhitespace:k.firstChild.nodeType===3,tbody:!k.getElementsByTagName("tbody").length,htmlSerialize:!!k.getElementsByTagName("link").length,style:/red/.test(z.getAttribute("style")),hrefNormalized:z.getAttribute("href")==="/a",opacity:/^0.55$/.test(z.style.opacity),
-cssFloat:!!z.style.cssFloat,checkOn:k.getElementsByTagName("input")[0].value==="on",optSelected:n.createElement("select").appendChild(n.createElement("option")).selected,parentNode:k.removeChild(k.appendChild(n.createElement("div"))).parentNode===null,deleteExpando:true,checkClone:false,scriptEval:false,noCloneEvent:true,boxModel:null};b.type="text/javascript";try{b.appendChild(n.createTextNode("window."+p+"=1;"))}catch(A){}a.insertBefore(b,a.firstChild);if(window[p]){e.support.scriptEval=true;delete window[p]}try{delete b.test}catch(I){e.support.deleteExpando=
-false}a.removeChild(b);if(k.attachEvent&&k.fireEvent){k.attachEvent("onclick",function E(){e.support.noCloneEvent=false;k.detachEvent("onclick",E)});k.cloneNode(true).fireEvent("onclick")}k=n.createElement("div");k.innerHTML="<input type='radio' name='radiotest' checked='checked'/>";a=n.createDocumentFragment();a.appendChild(k.firstChild);e.support.checkClone=a.cloneNode(true).cloneNode(true).lastChild.checked;e(function(){var E=n.createElement("div");E.style.width=E.style.paddingLeft="1px";n.body.appendChild(E);
-e.boxModel=e.support.boxModel=E.offsetWidth===2;n.body.removeChild(E).style.display="none"});a=function(E){var H=n.createElement("div");E="on"+E;var R=E in H;if(!R){H.setAttribute(E,"return;");R=typeof H[E]==="function"}return R};e.support.submitBubbles=a("submit");e.support.changeBubbles=a("change");a=b=k=o=z=null}})();e.props={"for":"htmlFor","class":"className",readonly:"readOnly",maxlength:"maxLength",cellspacing:"cellSpacing",rowspan:"rowSpan",colspan:"colSpan",tabindex:"tabIndex",usemap:"useMap",
-frameborder:"frameBorder"};var S="jQuery"+h(),U=0,aa={};e.extend({cache:{},expando:S,noData:{embed:true,object:true,applet:true},data:function(a,b,k){if(!(a.nodeName&&e.noData[a.nodeName.toLowerCase()])){a=a==window?aa:a;var p=a[S],o=e.cache;if(!p&&typeof b==="string"&&k===undefined)return null;p||(p=++U);if(typeof b==="object"){a[S]=p;o[p]=e.extend(true,{},b)}else if(!o[p]){a[S]=p;o[p]={}}a=o[p];if(k!==undefined)a[b]=k;return typeof b==="string"?a[b]:a}},removeData:function(a,b){if(!(a.nodeName&&
-e.noData[a.nodeName.toLowerCase()])){a=a==window?aa:a;var k=a[S],p=e.cache,o=p[k];if(b){if(o){delete o[b];e.isEmptyObject(o)&&e.removeData(a)}}else{if(e.support.deleteExpando)delete a[e.expando];else a.removeAttribute&&a.removeAttribute(e.expando);delete p[k]}}}});e.fn.extend({data:function(a,b){if(typeof a==="undefined"&&this.length)return e.data(this[0]);else if(typeof a==="object")return this.each(function(){e.data(this,a)});var k=a.split(".");k[1]=k[1]?"."+k[1]:"";if(b===undefined){var p=this.triggerHandler("getData"+
-k[1]+"!",[k[0]]);if(p===undefined&&this.length)p=e.data(this[0],a);return p===undefined&&k[1]?this.data(k[0]):p}else return this.trigger("setData"+k[1]+"!",[k[0],b]).each(function(){e.data(this,a,b)})},removeData:function(a){return this.each(function(){e.removeData(this,a)})}});e.extend({queue:function(a,b,k){if(a){b=(b||"fx")+"queue";var p=e.data(a,b);if(!k)return p||[];if(!p||e.isArray(k))p=e.data(a,b,e.makeArray(k));else p.push(k);return p}},dequeue:function(a,b){b=b||"fx";var k=e.queue(a,b),p=
-k.shift();if(p==="inprogress")p=k.shift();if(p){b==="fx"&&k.unshift("inprogress");p.call(a,function(){e.dequeue(a,b)})}}});e.fn.extend({queue:function(a,b){if(typeof a!=="string"){b=a;a="fx"}if(b===undefined)return e.queue(this[0],a);return this.each(function(){var k=e.queue(this,a,b);a==="fx"&&k[0]!=="inprogress"&&e.dequeue(this,a)})},dequeue:function(a){return this.each(function(){e.dequeue(this,a)})},delay:function(a,b){a=e.fx?e.fx.speeds[a]||a:a;b=b||"fx";return this.queue(b,function(){var k=
-this;setTimeout(function(){e.dequeue(k,b)},a)})},clearQueue:function(a){return this.queue(a||"fx",[])}});var fa=/[\n\t]/g,xa=/\s+/,Za=/\r/g,$a=/href|src|style/,ab=/(button|input)/i,bb=/(button|input|object|select|textarea)/i,cb=/^(a|area)$/i,Ka=/radio|checkbox/;e.fn.extend({attr:function(a,b){return l(this,a,b,true,e.attr)},removeAttr:function(a){return this.each(function(){e.attr(this,a,"");this.nodeType===1&&this.removeAttribute(a)})},addClass:function(a){if(e.isFunction(a))return this.each(function(H){var R=
-e(this);R.addClass(a.call(this,H,R.attr("class")))});if(a&&typeof a==="string")for(var b=(a||"").split(xa),k=0,p=this.length;k<p;k++){var o=this[k];if(o.nodeType===1)if(o.className){for(var z=" "+o.className+" ",A=o.className,I=0,E=b.length;I<E;I++)if(z.indexOf(" "+b[I]+" ")<0)A+=" "+b[I];o.className=e.trim(A)}else o.className=a}return this},removeClass:function(a){if(e.isFunction(a))return this.each(function(E){var H=e(this);H.removeClass(a.call(this,E,H.attr("class")))});if(a&&typeof a==="string"||
-a===undefined)for(var b=(a||"").split(xa),k=0,p=this.length;k<p;k++){var o=this[k];if(o.nodeType===1&&o.className)if(a){for(var z=(" "+o.className+" ").replace(fa," "),A=0,I=b.length;A<I;A++)z=z.replace(" "+b[A]+" "," ");o.className=e.trim(z)}else o.className=""}return this},toggleClass:function(a,b){var k=typeof a,p=typeof b==="boolean";if(e.isFunction(a))return this.each(function(o){var z=e(this);z.toggleClass(a.call(this,o,z.attr("class"),b),b)});return this.each(function(){if(k==="string")for(var o,
-z=0,A=e(this),I=b,E=a.split(xa);o=E[z++];){I=p?I:!A.hasClass(o);A[I?"addClass":"removeClass"](o)}else if(k==="undefined"||k==="boolean"){this.className&&e.data(this,"__className__",this.className);this.className=this.className||a===false?"":e.data(this,"__className__")||""}})},hasClass:function(a){a=" "+a+" ";for(var b=0,k=this.length;b<k;b++)if((" "+this[b].className+" ").replace(fa," ").indexOf(a)>-1)return true;return false},val:function(a){if(a===undefined){var b=this[0];if(b){if(e.nodeName(b,
-"option"))return(b.attributes.value||{}).specified?b.value:b.text;if(e.nodeName(b,"select")){var k=b.selectedIndex,p=[],o=b.options;b=b.type==="select-one";if(k<0)return null;var z=b?k:0;for(k=b?k+1:o.length;z<k;z++){var A=o[z];if(A.selected){a=e(A).val();if(b)return a;p.push(a)}}return p}if(Ka.test(b.type)&&!e.support.checkOn)return b.getAttribute("value")===null?"on":b.value;return(b.value||"").replace(Za,"")}}else{var I=e.isFunction(a);return this.each(function(E){var H=e(this),R=a;if(this.nodeType===
-1){if(I)R=a.call(this,E,H.val());if(typeof R==="number")R+="";if(e.isArray(R)&&Ka.test(this.type))this.checked=e.inArray(H.val(),R)>=0;else if(e.nodeName(this,"select")){var W=e.makeArray(R);e("option",this).each(function(){this.selected=e.inArray(e(this).val(),W)>=0});if(!W.length)this.selectedIndex=-1}else this.value=R}})}}});e.extend({attrFn:{val:true,css:true,html:true,text:true,data:true,width:true,height:true,offset:true},attr:function(a,b,k,p){if(!(!a||a.nodeType===3||a.nodeType===8)){if(p&&
-b in e.attrFn)return e(a)[b](k);p=a.nodeType!==1||!e.isXMLDoc(a);var o=k!==undefined;b=p&&e.props[b]||b;if(a.nodeType===1){var z=$a.test(b);if(b in a&&p&&!z){if(o){b==="type"&&ab.test(a.nodeName)&&a.parentNode&&e.error("type property can't be changed");a[b]=k}if(e.nodeName(a,"form")&&a.getAttributeNode(b))return a.getAttributeNode(b).nodeValue;if(b==="tabIndex")return(b=a.getAttributeNode("tabIndex"))&&b.specified?b.value:bb.test(a.nodeName)||cb.test(a.nodeName)&&a.href?0:undefined;return a[b]}if(!e.support.style&&
-p&&b==="style"){if(o)a.style.cssText=""+k;return a.style.cssText}o&&a.setAttribute(b,""+k);a=!e.support.hrefNormalized&&p&&z?a.getAttribute(b,2):a.getAttribute(b);return a===null?undefined:a}return e.style(a,b,k)}}});var sa=/\.(.*)$/,db=function(a){return a.replace(/[^\w\s\.\|`]/g,function(b){return"\\"+b})};e.event={add:function(a,b,k,p){if(!(a.nodeType===3||a.nodeType===8)){if(a.setInterval&&a!==window&&!a.frameElement)a=window;var o,z;if(k.handler){o=k;k=o.handler}if(!k.guid)k.guid=e.guid++;if(z=
-e.data(a)){var A=z.events=z.events||{},I=z.handle;if(!I)z.handle=I=function(){return typeof e!=="undefined"&&!e.event.triggered?e.event.handle.apply(I.elem,arguments):undefined};I.elem=a;b=b.split(" ");for(var E,H=0,R;E=b[H++];){z=o?e.extend({},o):{handler:k,data:p};if(E.indexOf(".")>-1){R=E.split(".");E=R.shift();z.namespace=R.slice(0).sort().join(".")}else{R=[];z.namespace=""}z.type=E;z.guid=k.guid;var W=A[E],ba=e.event.special[E]||{};if(!W){W=A[E]=[];if(!ba.setup||ba.setup.call(a,p,R,I)===false)if(a.addEventListener)a.addEventListener(E,
-I,false);else a.attachEvent&&a.attachEvent("on"+E,I)}if(ba.add){ba.add.call(a,z);if(!z.handler.guid)z.handler.guid=k.guid}W.push(z);e.event.global[E]=true}a=null}}},global:{},remove:function(a,b,k,p){if(!(a.nodeType===3||a.nodeType===8)){var o,z=0,A,I,E,H,R,W,ba=e.data(a),ea=ba&&ba.events;if(ba&&ea){if(b&&b.type){k=b.handler;b=b.type}if(!b||typeof b==="string"&&b.charAt(0)==="."){b=b||"";for(o in ea)e.event.remove(a,o+b)}else{for(b=b.split(" ");o=b[z++];){H=o;A=o.indexOf(".")<0;I=[];if(!A){I=o.split(".");
-o=I.shift();E=new RegExp("(^|\\.)"+e.map(I.slice(0).sort(),db).join("\\.(?:.*\\.)?")+"(\\.|$)")}if(R=ea[o])if(k){H=e.event.special[o]||{};for(da=p||0;da<R.length;da++){W=R[da];if(k.guid===W.guid){if(A||E.test(W.namespace)){p==null&&R.splice(da--,1);H.remove&&H.remove.call(a,W)}if(p!=null)break}}if(R.length===0||p!=null&&R.length===1){if(!H.teardown||H.teardown.call(a,I)===false)La(a,o,ba.handle);delete ea[o]}}else for(var da=0;da<R.length;da++){W=R[da];if(A||E.test(W.namespace)){e.event.remove(a,
-H,W.handler,da);R.splice(da--,1)}}}if(e.isEmptyObject(ea)){if(b=ba.handle)b.elem=null;delete ba.events;delete ba.handle;e.isEmptyObject(ba)&&e.removeData(a)}}}}},trigger:function(a,b,k,p){var o=a.type||a;if(!p){a=typeof a==="object"?a[S]?a:e.extend(e.Event(o),a):e.Event(o);if(o.indexOf("!")>=0){a.type=o=o.slice(0,-1);a.exclusive=true}if(!k){a.stopPropagation();e.event.global[o]&&e.each(e.cache,function(){this.events&&this.events[o]&&e.event.trigger(a,b,this.handle.elem)})}if(!k||k.nodeType===3||k.nodeType===
-8)return;a.result=undefined;a.target=k;b=e.makeArray(b);b.unshift(a)}a.currentTarget=k;(p=e.data(k,"handle"))&&p.apply(k,b);p=k.parentNode||k.ownerDocument;try{if(!(k&&k.nodeName&&e.noData[k.nodeName.toLowerCase()]))if(k["on"+o]&&k["on"+o].apply(k,b)===false)a.result=false}catch(z){}if(!a.isPropagationStopped()&&p)e.event.trigger(a,b,p,true);else if(!a.isDefaultPrevented()){p=a.target;var A,I=e.nodeName(p,"a")&&o==="click",E=e.event.special[o]||{};if((!E._default||E._default.call(k,a)===false)&&!I&&
-!(p&&p.nodeName&&e.noData[p.nodeName.toLowerCase()])){try{if(p[o]){if(A=p["on"+o])p["on"+o]=null;e.event.triggered=true;p[o]()}}catch(H){}if(A)p["on"+o]=A;e.event.triggered=false}}},handle:function(a){var b,k,p,o;a=arguments[0]=e.event.fix(a||window.event);a.currentTarget=this;b=a.type.indexOf(".")<0&&!a.exclusive;if(!b){k=a.type.split(".");a.type=k.shift();p=new RegExp("(^|\\.)"+k.slice(0).sort().join("\\.(?:.*\\.)?")+"(\\.|$)")}o=e.data(this,"events");k=o[a.type];if(o&&k){k=k.slice(0);o=0;for(var z=
-k.length;o<z;o++){var A=k[o];if(b||p.test(A.namespace)){a.handler=A.handler;a.data=A.data;a.handleObj=A;A=A.handler.apply(this,arguments);if(A!==undefined){a.result=A;if(A===false){a.preventDefault();a.stopPropagation()}}if(a.isImmediatePropagationStopped())break}}}return a.result},props:"altKey attrChange attrName bubbles button cancelable charCode clientX clientY ctrlKey currentTarget data detail eventPhase fromElement handler keyCode layerX layerY metaKey newValue offsetX offsetY originalTarget pageX pageY prevValue relatedNode relatedTarget screenX screenY shiftKey srcElement target toElement view wheelDelta which".split(" "),
-fix:function(a){if(a[S])return a;var b=a;a=e.Event(b);for(var k=this.props.length,p;k;){p=this.props[--k];a[p]=b[p]}if(!a.target)a.target=a.srcElement||n;if(a.target.nodeType===3)a.target=a.target.parentNode;if(!a.relatedTarget&&a.fromElement)a.relatedTarget=a.fromElement===a.target?a.toElement:a.fromElement;if(a.pageX==null&&a.clientX!=null){b=n.documentElement;k=n.body;a.pageX=a.clientX+(b&&b.scrollLeft||k&&k.scrollLeft||0)-(b&&b.clientLeft||k&&k.clientLeft||0);a.pageY=a.clientY+(b&&b.scrollTop||
-k&&k.scrollTop||0)-(b&&b.clientTop||k&&k.clientTop||0)}if(!a.which&&(a.charCode||a.charCode===0?a.charCode:a.keyCode))a.which=a.charCode||a.keyCode;if(!a.metaKey&&a.ctrlKey)a.metaKey=a.ctrlKey;if(!a.which&&a.button!==undefined)a.which=a.button&1?1:a.button&2?3:a.button&4?2:0;return a},guid:1E8,proxy:e.proxy,special:{ready:{setup:e.bindReady,teardown:e.noop},live:{add:function(a){e.event.add(this,a.origType,e.extend({},a,{handler:i}))},remove:function(a){var b=true,k=a.origType.replace(sa,"");e.each(e.data(this,
-"events").live||[],function(){if(k===this.origType.replace(sa,""))return b=false});b&&e.event.remove(this,a.origType,i)}},beforeunload:{setup:function(a,b,k){if(this.setInterval)this.onbeforeunload=k;return false},teardown:function(a,b){if(this.onbeforeunload===b)this.onbeforeunload=null}}}};var La=n.removeEventListener?function(a,b,k){a.removeEventListener(b,k,false)}:function(a,b,k){a.detachEvent("on"+b,k)};e.Event=function(a){if(!this.preventDefault)return new e.Event(a);if(a&&a.type){this.originalEvent=
-a;this.type=a.type}else this.type=a;this.timeStamp=h();this[S]=true};e.Event.prototype={preventDefault:function(){this.isDefaultPrevented=f;var a=this.originalEvent;if(a){a.preventDefault&&a.preventDefault();a.returnValue=false}},stopPropagation:function(){this.isPropagationStopped=f;var a=this.originalEvent;if(a){a.stopPropagation&&a.stopPropagation();a.cancelBubble=true}},stopImmediatePropagation:function(){this.isImmediatePropagationStopped=f;this.stopPropagation()},isDefaultPrevented:d,isPropagationStopped:d,
-isImmediatePropagationStopped:d};var Ma=function(a){var b=a.relatedTarget;try{for(;b&&b!==this;)b=b.parentNode;if(b!==this){a.type=a.data;e.event.handle.apply(this,arguments)}}catch(k){}},Na=function(a){a.type=a.data;e.event.handle.apply(this,arguments)};e.each({mouseenter:"mouseover",mouseleave:"mouseout"},function(a,b){e.event.special[a]={setup:function(k){e.event.add(this,b,k&&k.selector?Na:Ma,a)},teardown:function(k){e.event.remove(this,b,k&&k.selector?Na:Ma)}}});if(!e.support.submitBubbles)e.event.special.submit=
-{setup:function(){if(this.nodeName.toLowerCase()!=="form"){e.event.add(this,"click.specialSubmit",function(a){var b=a.target,k=b.type;if((k==="submit"||k==="image")&&e(b).closest("form").length)return m("submit",this,arguments)});e.event.add(this,"keypress.specialSubmit",function(a){var b=a.target,k=b.type;if((k==="text"||k==="password")&&e(b).closest("form").length&&a.keyCode===13)return m("submit",this,arguments)})}else return false},teardown:function(){e.event.remove(this,".specialSubmit")}};if(!e.support.changeBubbles){var ya=
-/textarea|input|select/i,za,Oa=function(a){var b=a.type,k=a.value;if(b==="radio"||b==="checkbox")k=a.checked;else if(b==="select-multiple")k=a.selectedIndex>-1?e.map(a.options,function(p){return p.selected}).join("-"):"";else if(a.nodeName.toLowerCase()==="select")k=a.selectedIndex;return k},Aa=function(a,b){var k=a.target,p,o;if(!(!ya.test(k.nodeName)||k.readOnly)){p=e.data(k,"_change_data");o=Oa(k);if(a.type!=="focusout"||k.type!=="radio")e.data(k,"_change_data",o);if(!(p===undefined||o===p))if(p!=
-null||o){a.type="change";return e.event.trigger(a,b,k)}}};e.event.special.change={filters:{focusout:Aa,click:function(a){var b=a.target,k=b.type;if(k==="radio"||k==="checkbox"||b.nodeName.toLowerCase()==="select")return Aa.call(this,a)},keydown:function(a){var b=a.target,k=b.type;if(a.keyCode===13&&b.nodeName.toLowerCase()!=="textarea"||a.keyCode===32&&(k==="checkbox"||k==="radio")||k==="select-multiple")return Aa.call(this,a)},beforeactivate:function(a){a=a.target;e.data(a,"_change_data",Oa(a))}},
-setup:function(){if(this.type==="file")return false;for(var a in za)e.event.add(this,a+".specialChange",za[a]);return ya.test(this.nodeName)},teardown:function(){e.event.remove(this,".specialChange");return ya.test(this.nodeName)}};za=e.event.special.change.filters}n.addEventListener&&e.each({focus:"focusin",blur:"focusout"},function(a,b){function k(p){p=e.event.fix(p);p.type=b;return e.event.handle.call(this,p)}e.event.special[b]={setup:function(){this.addEventListener(a,k,true)},teardown:function(){this.removeEventListener(a,
-k,true)}}});e.each(["bind","one"],function(a,b){e.fn[b]=function(k,p,o){if(typeof k==="object"){for(var z in k)this[b](z,p,k[z],o);return this}if(e.isFunction(p)){o=p;p=undefined}var A=b==="one"?e.proxy(o,function(E){e(this).unbind(E,A);return o.apply(this,arguments)}):o;if(k==="unload"&&b!=="one")this.one(k,p,o);else{z=0;for(var I=this.length;z<I;z++)e.event.add(this[z],k,A,p)}return this}});e.fn.extend({unbind:function(a,b){if(typeof a==="object"&&!a.preventDefault)for(var k in a)this.unbind(k,
-a[k]);else{k=0;for(var p=this.length;k<p;k++)e.event.remove(this[k],a,b)}return this},delegate:function(a,b,k,p){return this.live(b,k,p,a)},undelegate:function(a,b,k){return arguments.length===0?this.unbind("live"):this.die(b,null,k,a)},trigger:function(a,b){return this.each(function(){e.event.trigger(a,b,this)})},triggerHandler:function(a,b){if(this[0]){a=e.Event(a);a.preventDefault();a.stopPropagation();e.event.trigger(a,b,this[0]);return a.result}},toggle:function(a){for(var b=arguments,k=1;k<
-b.length;)e.proxy(a,b[k++]);return this.click(e.proxy(a,function(p){var o=(e.data(this,"lastToggle"+a.guid)||0)%k;e.data(this,"lastToggle"+a.guid,o+1);p.preventDefault();return b[o].apply(this,arguments)||false}))},hover:function(a,b){return this.mouseenter(a).mouseleave(b||a)}});var Pa={focus:"focusin",blur:"focusout",mouseenter:"mouseover",mouseleave:"mouseout"};e.each(["live","die"],function(a,b){e.fn[b]=function(k,p,o,z){var A,I=0,E,H,R=z||this.selector,W=z?this:e(this.context);if(e.isFunction(p)){o=
-p;p=undefined}for(k=(k||"").split(" ");(A=k[I++])!=null;){z=sa.exec(A);E="";if(z){E=z[0];A=A.replace(sa,"")}if(A==="hover")k.push("mouseenter"+E,"mouseleave"+E);else{H=A;if(A==="focus"||A==="blur"){k.push(Pa[A]+E);A+=E}else A=(Pa[A]||A)+E;b==="live"?W.each(function(){e.event.add(this,g(A,R),{data:p,selector:R,handler:o,origType:A,origHandler:o,preType:H})}):W.unbind(g(A,R),o)}}return this}});e.each("blur focus focusin focusout load resize scroll unload click dblclick mousedown mouseup mousemove mouseover mouseout mouseenter mouseleave change select submit keydown keypress keyup error".split(" "),
-function(a,b){e.fn[b]=function(k){return k?this.bind(b,k):this.trigger(b)};if(e.attrFn)e.attrFn[b]=true});window.attachEvent&&!window.addEventListener&&window.attachEvent("onunload",function(){for(var a in e.cache)if(e.cache[a].handle)try{e.event.remove(e.cache[a].handle.elem)}catch(b){}});(function(){function a(u){for(var x="",F,G=0;u[G];G++){F=u[G];if(F.nodeType===3||F.nodeType===4)x+=F.nodeValue;else if(F.nodeType!==8)x+=a(F.childNodes)}return x}function b(u,x,F,G,N,M){N=0;for(var X=G.length;N<
-X;N++){var V=G[N];if(V){V=V[u];for(var $=false;V;){if(V.sizcache===F){$=G[V.sizset];break}if(V.nodeType===1&&!M){V.sizcache=F;V.sizset=N}if(V.nodeName.toLowerCase()===x){$=V;break}V=V[u]}G[N]=$}}}function k(u,x,F,G,N,M){N=0;for(var X=G.length;N<X;N++){var V=G[N];if(V){V=V[u];for(var $=false;V;){if(V.sizcache===F){$=G[V.sizset];break}if(V.nodeType===1){if(!M){V.sizcache=F;V.sizset=N}if(typeof x!=="string"){if(V===x){$=true;break}}else if(E.filter(x,[V]).length>0){$=V;break}}V=V[u]}G[N]=$}}}var p=/((?:\((?:\([^()]+\)|[^()]+)+\)|\[(?:\[[^[\]]*\]|['"][^'"]*['"]|[^[\]'"]+)+\]|\\.|[^ >+~,(\[\\]+)+|[>+~])(\s*,\s*)?((?:.|\r|\n)*)/g,
-o=0,z=Object.prototype.toString,A=false,I=true;[0,0].sort(function(){I=false;return 0});var E=function(u,x,F,G){F=F||[];var N=x=x||n;if(x.nodeType!==1&&x.nodeType!==9)return[];if(!u||typeof u!=="string")return F;for(var M=[],X,V,$,ta,oa=true,qa=Y(x),pa=u;(p.exec(""),X=p.exec(pa))!==null;){pa=X[3];M.push(X[1]);if(X[2]){ta=X[3];break}}if(M.length>1&&R.exec(u))if(M.length===2&&H.relative[M[0]])V=Ba(M[0]+M[1],x);else for(V=H.relative[M[0]]?[x]:E(M.shift(),x);M.length;){u=M.shift();if(H.relative[u])u+=
-M.shift();V=Ba(u,V)}else{if(!G&&M.length>1&&x.nodeType===9&&!qa&&H.match.ID.test(M[0])&&!H.match.ID.test(M[M.length-1])){X=E.find(M.shift(),x,qa);x=X.expr?E.filter(X.expr,X.set)[0]:X.set[0]}if(x){X=G?{expr:M.pop(),set:ba(G)}:E.find(M.pop(),M.length===1&&(M[0]==="~"||M[0]==="+")&&x.parentNode?x.parentNode:x,qa);V=X.expr?E.filter(X.expr,X.set):X.set;if(M.length>0)$=ba(V);else oa=false;for(;M.length;){var ia=M.pop();X=ia;if(H.relative[ia])X=M.pop();else ia="";if(X==null)X=x;H.relative[ia]($,X,qa)}}else $=
-[]}$||($=V);$||E.error(ia||u);if(z.call($)==="[object Array]")if(oa)if(x&&x.nodeType===1)for(u=0;$[u]!=null;u++){if($[u]&&($[u]===true||$[u].nodeType===1&&ja(x,$[u])))F.push(V[u])}else for(u=0;$[u]!=null;u++)$[u]&&$[u].nodeType===1&&F.push(V[u]);else F.push.apply(F,$);else ba($,F);if(ta){E(ta,N,F,G);E.uniqueSort(F)}return F};E.uniqueSort=function(u){if(da){A=I;u.sort(da);if(A)for(var x=1;x<u.length;x++)u[x]===u[x-1]&&u.splice(x--,1)}return u};E.matches=function(u,x){return E(u,null,null,x)};E.find=
-function(u,x,F){var G,N;if(!u)return[];for(var M=0,X=H.order.length;M<X;M++){var V=H.order[M];if(N=H.leftMatch[V].exec(u)){var $=N[1];N.splice(1,1);if($.substr($.length-1)!=="\\"){N[1]=(N[1]||"").replace(/\\/g,"");G=H.find[V](N,x,F);if(G!=null){u=u.replace(H.match[V],"");break}}}}G||(G=x.getElementsByTagName("*"));return{set:G,expr:u}};E.filter=function(u,x,F,G){for(var N=u,M=[],X=x,V,$,ta=x&&x[0]&&Y(x[0]);u&&x.length;){for(var oa in H.filter)if((V=H.leftMatch[oa].exec(u))!=null&&V[2]){var qa=H.filter[oa],
-pa,ia;ia=V[1];$=false;V.splice(1,1);if(ia.substr(ia.length-1)!=="\\"){if(X===M)M=[];if(H.preFilter[oa])if(V=H.preFilter[oa](V,X,F,M,G,ta)){if(V===true)continue}else $=pa=true;if(V)for(var ua=0;(ia=X[ua])!=null;ua++)if(ia){pa=qa(ia,V,ua,X);var Qa=G^!!pa;if(F&&pa!=null)if(Qa)$=true;else X[ua]=false;else if(Qa){M.push(ia);$=true}}if(pa!==undefined){F||(X=M);u=u.replace(H.match[oa],"");if(!$)return[];break}}}if(u===N)if($==null)E.error(u);else break;N=u}return X};E.error=function(u){throw"Syntax error, unrecognized expression: "+
-u;};var H=E.selectors={order:["ID","NAME","TAG"],match:{ID:/#((?:[\w\u00c0-\uFFFF-]|\\.)+)/,CLASS:/\.((?:[\w\u00c0-\uFFFF-]|\\.)+)/,NAME:/\[name=['"]*((?:[\w\u00c0-\uFFFF-]|\\.)+)['"]*\]/,ATTR:/\[\s*((?:[\w\u00c0-\uFFFF-]|\\.)+)\s*(?:(\S?=)\s*(['"]*)(.*?)\3|)\s*\]/,TAG:/^((?:[\w\u00c0-\uFFFF\*-]|\\.)+)/,CHILD:/:(only|nth|last|first)-child(?:\((even|odd|[\dn+-]*)\))?/,POS:/:(nth|eq|gt|lt|first|last|even|odd)(?:\((\d*)\))?(?=[^-]|$)/,PSEUDO:/:((?:[\w\u00c0-\uFFFF-]|\\.)+)(?:\((['"]?)((?:\([^\)]+\)|[^\(\)]*)+)\2\))?/},
-leftMatch:{},attrMap:{"class":"className","for":"htmlFor"},attrHandle:{href:function(u){return u.getAttribute("href")}},relative:{"+":function(u,x){var F=typeof x==="string",G=F&&!/\W/.test(x);F=F&&!G;if(G)x=x.toLowerCase();G=0;for(var N=u.length,M;G<N;G++)if(M=u[G]){for(;(M=M.previousSibling)&&M.nodeType!==1;);u[G]=F||M&&M.nodeName.toLowerCase()===x?M||false:M===x}F&&E.filter(x,u,true)},">":function(u,x){var F=typeof x==="string";if(F&&!/\W/.test(x)){x=x.toLowerCase();for(var G=0,N=u.length;G<N;G++){var M=
-u[G];if(M){F=M.parentNode;u[G]=F.nodeName.toLowerCase()===x?F:false}}}else{G=0;for(N=u.length;G<N;G++)if(M=u[G])u[G]=F?M.parentNode:M.parentNode===x;F&&E.filter(x,u,true)}},"":function(u,x,F){var G=o++,N=k;if(typeof x==="string"&&!/\W/.test(x)){var M=x=x.toLowerCase();N=b}N("parentNode",x,G,u,M,F)},"~":function(u,x,F){var G=o++,N=k;if(typeof x==="string"&&!/\W/.test(x)){var M=x=x.toLowerCase();N=b}N("previousSibling",x,G,u,M,F)}},find:{ID:function(u,x,F){if(typeof x.getElementById!=="undefined"&&
-!F)return(u=x.getElementById(u[1]))?[u]:[]},NAME:function(u,x){if(typeof x.getElementsByName!=="undefined"){var F=[];x=x.getElementsByName(u[1]);for(var G=0,N=x.length;G<N;G++)x[G].getAttribute("name")===u[1]&&F.push(x[G]);return F.length===0?null:F}},TAG:function(u,x){return x.getElementsByTagName(u[1])}},preFilter:{CLASS:function(u,x,F,G,N,M){u=" "+u[1].replace(/\\/g,"")+" ";if(M)return u;M=0;for(var X;(X=x[M])!=null;M++)if(X)if(N^(X.className&&(" "+X.className+" ").replace(/[\t\n]/g," ").indexOf(u)>=
-0))F||G.push(X);else if(F)x[M]=false;return false},ID:function(u){return u[1].replace(/\\/g,"")},TAG:function(u){return u[1].toLowerCase()},CHILD:function(u){if(u[1]==="nth"){var x=/(-?)(\d*)n((?:\+|-)?\d*)/.exec(u[2]==="even"&&"2n"||u[2]==="odd"&&"2n+1"||!/\D/.test(u[2])&&"0n+"+u[2]||u[2]);u[2]=x[1]+(x[2]||1)-0;u[3]=x[3]-0}u[0]=o++;return u},ATTR:function(u,x,F,G,N,M){x=u[1].replace(/\\/g,"");if(!M&&H.attrMap[x])u[1]=H.attrMap[x];if(u[2]==="~=")u[4]=" "+u[4]+" ";return u},PSEUDO:function(u,x,F,G,
-N){if(u[1]==="not")if((p.exec(u[3])||"").length>1||/^\w/.test(u[3]))u[3]=E(u[3],null,null,x);else{u=E.filter(u[3],x,F,true^N);F||G.push.apply(G,u);return false}else if(H.match.POS.test(u[0])||H.match.CHILD.test(u[0]))return true;return u},POS:function(u){u.unshift(true);return u}},filters:{enabled:function(u){return u.disabled===false&&u.type!=="hidden"},disabled:function(u){return u.disabled===true},checked:function(u){return u.checked===true},selected:function(u){return u.selected===true},parent:function(u){return!!u.firstChild},
-empty:function(u){return!u.firstChild},has:function(u,x,F){return!!E(F[3],u).length},header:function(u){return/h\d/i.test(u.nodeName)},text:function(u){return"text"===u.type},radio:function(u){return"radio"===u.type},checkbox:function(u){return"checkbox"===u.type},file:function(u){return"file"===u.type},password:function(u){return"password"===u.type},submit:function(u){return"submit"===u.type},image:function(u){return"image"===u.type},reset:function(u){return"reset"===u.type},button:function(u){return"button"===
-u.type||u.nodeName.toLowerCase()==="button"},input:function(u){return/input|select|textarea|button/i.test(u.nodeName)}},setFilters:{first:function(u,x){return x===0},last:function(u,x,F,G){return x===G.length-1},even:function(u,x){return x%2===0},odd:function(u,x){return x%2===1},lt:function(u,x,F){return x<F[3]-0},gt:function(u,x,F){return x>F[3]-0},nth:function(u,x,F){return F[3]-0===x},eq:function(u,x,F){return F[3]-0===x}},filter:{PSEUDO:function(u,x,F,G){var N=x[1],M=H.filters[N];if(M)return M(u,
-F,x,G);else if(N==="contains")return(u.textContent||u.innerText||a([u])||"").indexOf(x[3])>=0;else if(N==="not"){x=x[3];F=0;for(G=x.length;F<G;F++)if(x[F]===u)return false;return true}else E.error("Syntax error, unrecognized expression: "+N)},CHILD:function(u,x){var F=x[1],G=u;switch(F){case "only":case "first":for(;G=G.previousSibling;)if(G.nodeType===1)return false;if(F==="first")return true;G=u;case "last":for(;G=G.nextSibling;)if(G.nodeType===1)return false;return true;case "nth":F=x[2];var N=
-x[3];if(F===1&&N===0)return true;x=x[0];var M=u.parentNode;if(M&&(M.sizcache!==x||!u.nodeIndex)){var X=0;for(G=M.firstChild;G;G=G.nextSibling)if(G.nodeType===1)G.nodeIndex=++X;M.sizcache=x}u=u.nodeIndex-N;return F===0?u===0:u%F===0&&u/F>=0}},ID:function(u,x){return u.nodeType===1&&u.getAttribute("id")===x},TAG:function(u,x){return x==="*"&&u.nodeType===1||u.nodeName.toLowerCase()===x},CLASS:function(u,x){return(" "+(u.className||u.getAttribute("class"))+" ").indexOf(x)>-1},ATTR:function(u,x){var F=
-x[1];u=H.attrHandle[F]?H.attrHandle[F](u):u[F]!=null?u[F]:u.getAttribute(F);F=u+"";var G=x[2];x=x[4];return u==null?G==="!=":G==="="?F===x:G==="*="?F.indexOf(x)>=0:G==="~="?(" "+F+" ").indexOf(x)>=0:!x?F&&u!==false:G==="!="?F!==x:G==="^="?F.indexOf(x)===0:G==="$="?F.substr(F.length-x.length)===x:G==="|="?F===x||F.substr(0,x.length+1)===x+"-":false},POS:function(u,x,F,G){var N=H.setFilters[x[2]];if(N)return N(u,F,x,G)}}},R=H.match.POS;for(var W in H.match){H.match[W]=new RegExp(H.match[W].source+/(?![^\[]*\])(?![^\(]*\))/.source);
-H.leftMatch[W]=new RegExp(/(^(?:.|\r|\n)*?)/.source+H.match[W].source.replace(/\\(\d+)/g,function(u,x){return"\\"+(x-0+1)}))}var ba=function(u,x){u=Array.prototype.slice.call(u,0);if(x){x.push.apply(x,u);return x}return u};try{Array.prototype.slice.call(n.documentElement.childNodes,0)}catch(ea){ba=function(u,x){x=x||[];if(z.call(u)==="[object Array]")Array.prototype.push.apply(x,u);else if(typeof u.length==="number")for(var F=0,G=u.length;F<G;F++)x.push(u[F]);else for(F=0;u[F];F++)x.push(u[F]);return x}}var da;
-if(n.documentElement.compareDocumentPosition)da=function(u,x){if(!u.compareDocumentPosition||!x.compareDocumentPosition){if(u==x)A=true;return u.compareDocumentPosition?-1:1}u=u.compareDocumentPosition(x)&4?-1:u===x?0:1;if(u===0)A=true;return u};else if("sourceIndex"in n.documentElement)da=function(u,x){if(!u.sourceIndex||!x.sourceIndex){if(u==x)A=true;return u.sourceIndex?-1:1}u=u.sourceIndex-x.sourceIndex;if(u===0)A=true;return u};else if(n.createRange)da=function(u,x){if(!u.ownerDocument||!x.ownerDocument){if(u==
-x)A=true;return u.ownerDocument?-1:1}var F=u.ownerDocument.createRange(),G=x.ownerDocument.createRange();F.setStart(u,0);F.setEnd(u,0);G.setStart(x,0);G.setEnd(x,0);u=F.compareBoundaryPoints(Range.START_TO_END,G);if(u===0)A=true;return u};(function(){var u=n.createElement("div"),x="script"+(new Date).getTime();u.innerHTML="<a name='"+x+"'/>";var F=n.documentElement;F.insertBefore(u,F.firstChild);if(n.getElementById(x)){H.find.ID=function(G,N,M){if(typeof N.getElementById!=="undefined"&&!M)return(N=
-N.getElementById(G[1]))?N.id===G[1]||typeof N.getAttributeNode!=="undefined"&&N.getAttributeNode("id").nodeValue===G[1]?[N]:undefined:[]};H.filter.ID=function(G,N){var M=typeof G.getAttributeNode!=="undefined"&&G.getAttributeNode("id");return G.nodeType===1&&M&&M.nodeValue===N}}F.removeChild(u);F=u=null})();(function(){var u=n.createElement("div");u.appendChild(n.createComment(""));if(u.getElementsByTagName("*").length>0)H.find.TAG=function(x,F){F=F.getElementsByTagName(x[1]);if(x[1]==="*"){x=[];
-for(var G=0;F[G];G++)F[G].nodeType===1&&x.push(F[G]);F=x}return F};u.innerHTML="<a href='#'></a>";if(u.firstChild&&typeof u.firstChild.getAttribute!=="undefined"&&u.firstChild.getAttribute("href")!=="#")H.attrHandle.href=function(x){return x.getAttribute("href",2)};u=null})();n.querySelectorAll&&function(){var u=E,x=n.createElement("div");x.innerHTML="<p class='TEST'></p>";if(!(x.querySelectorAll&&x.querySelectorAll(".TEST").length===0)){E=function(G,N,M,X){N=N||n;if(!X&&N.nodeType===9&&!Y(N))try{return ba(N.querySelectorAll(G),
-M)}catch(V){}return u(G,N,M,X)};for(var F in u)E[F]=u[F];x=null}}();(function(){var u=n.createElement("div");u.innerHTML="<div class='test e'></div><div class='test'></div>";if(!(!u.getElementsByClassName||u.getElementsByClassName("e").length===0)){u.lastChild.className="e";if(u.getElementsByClassName("e").length!==1){H.order.splice(1,0,"CLASS");H.find.CLASS=function(x,F,G){if(typeof F.getElementsByClassName!=="undefined"&&!G)return F.getElementsByClassName(x[1])};u=null}}})();var ja=n.compareDocumentPosition?
-function(u,x){return!!(u.compareDocumentPosition(x)&16)}:function(u,x){return u!==x&&(u.contains?u.contains(x):true)},Y=function(u){return(u=(u?u.ownerDocument||u:0).documentElement)?u.nodeName!=="HTML":false},Ba=function(u,x){var F=[],G="",N;for(x=x.nodeType?[x]:x;N=H.match.PSEUDO.exec(u);){G+=N[0];u=u.replace(H.match.PSEUDO,"")}u=H.relative[u]?u+"*":u;N=0;for(var M=x.length;N<M;N++)E(u,x[N],F);return E.filter(G,F)};e.find=E;e.expr=E.selectors;e.expr[":"]=e.expr.filters;e.unique=E.uniqueSort;e.text=
-a;e.isXMLDoc=Y;e.contains=ja})();var eb=/Until$/,fb=/^(?:parents|prevUntil|prevAll)/,gb=/,/;O=Array.prototype.slice;var Ra=function(a,b,k){if(e.isFunction(b))return e.grep(a,function(o,z){return!!b.call(o,z,o)===k});else if(b.nodeType)return e.grep(a,function(o){return o===b===k});else if(typeof b==="string"){var p=e.grep(a,function(o){return o.nodeType===1});if(J.test(b))return e.filter(b,p,!k);else b=e.filter(b,p)}return e.grep(a,function(o){return e.inArray(o,b)>=0===k})};e.fn.extend({find:function(a){for(var b=
-this.pushStack("","find",a),k=0,p=0,o=this.length;p<o;p++){k=b.length;e.find(a,this[p],b);if(p>0)for(var z=k;z<b.length;z++)for(var A=0;A<k;A++)if(b[A]===b[z]){b.splice(z--,1);break}}return b},has:function(a){var b=e(a);return this.filter(function(){for(var k=0,p=b.length;k<p;k++)if(e.contains(this,b[k]))return true})},not:function(a){return this.pushStack(Ra(this,a,false),"not",a)},filter:function(a){return this.pushStack(Ra(this,a,true),"filter",a)},is:function(a){return!!a&&e.filter(a,this).length>
-0},closest:function(a,b){if(e.isArray(a)){var k=[],p=this[0],o,z={},A;if(p&&a.length){o=0;for(var I=a.length;o<I;o++){A=a[o];z[A]||(z[A]=e.expr.match.POS.test(A)?e(A,b||this.context):A)}for(;p&&p.ownerDocument&&p!==b;){for(A in z){o=z[A];if(o.jquery?o.index(p)>-1:e(p).is(o)){k.push({selector:A,elem:p});delete z[A]}}p=p.parentNode}}return k}var E=e.expr.match.POS.test(a)?e(a,b||this.context):null;return this.map(function(H,R){for(;R&&R.ownerDocument&&R!==b;){if(E?E.index(R)>-1:e(R).is(a))return R;
-R=R.parentNode}return null})},index:function(a){if(!a||typeof a==="string")return e.inArray(this[0],a?e(a):this.parent().children());return e.inArray(a.jquery?a[0]:a,this)},add:function(a,b){a=typeof a==="string"?e(a,b||this.context):e.makeArray(a);b=e.merge(this.get(),a);return this.pushStack(j(a[0])||j(b[0])?b:e.unique(b))},andSelf:function(){return this.add(this.prevObject)}});e.each({parent:function(a){return(a=a.parentNode)&&a.nodeType!==11?a:null},parents:function(a){return e.dir(a,"parentNode")},
-parentsUntil:function(a,b,k){return e.dir(a,"parentNode",k)},next:function(a){return e.nth(a,2,"nextSibling")},prev:function(a){return e.nth(a,2,"previousSibling")},nextAll:function(a){return e.dir(a,"nextSibling")},prevAll:function(a){return e.dir(a,"previousSibling")},nextUntil:function(a,b,k){return e.dir(a,"nextSibling",k)},prevUntil:function(a,b,k){return e.dir(a,"previousSibling",k)},siblings:function(a){return e.sibling(a.parentNode.firstChild,a)},children:function(a){return e.sibling(a.firstChild)},
-contents:function(a){return e.nodeName(a,"iframe")?a.contentDocument||a.contentWindow.document:e.makeArray(a.childNodes)}},function(a,b){e.fn[a]=function(k,p){var o=e.map(this,b,k);eb.test(a)||(p=k);if(p&&typeof p==="string")o=e.filter(p,o);o=this.length>1?e.unique(o):o;if((this.length>1||gb.test(p))&&fb.test(a))o=o.reverse();return this.pushStack(o,a,O.call(arguments).join(","))}});e.extend({filter:function(a,b,k){if(k)a=":not("+a+")";return e.find.matches(a,b)},dir:function(a,b,k){var p=[];for(a=
-a[b];a&&a.nodeType!==9&&(k===undefined||a.nodeType!==1||!e(a).is(k));){a.nodeType===1&&p.push(a);a=a[b]}return p},nth:function(a,b,k){b=b||1;for(var p=0;a;a=a[k])if(a.nodeType===1&&++p===b)break;return a},sibling:function(a,b){for(var k=[];a;a=a.nextSibling)a.nodeType===1&&a!==b&&k.push(a);return k}});var Sa=/ jQuery\d+="(?:\d+|null)"/g,va=/^\s+/,Ta=/(<([\w:]+)[^>]*?)\/>/g,hb=/^(?:area|br|col|embed|hr|img|input|link|meta|param)$/i,Ua=/<([\w:]+)/,ib=/<tbody/i,jb=/<|&#?\w+;/,Ha=/<script|<object|<embed|<option|<style/i,
-Ia=/checked\s*(?:[^=]|=\s*.checked.)/i,Va=function(a,b,k){return hb.test(k)?a:b+"></"+k+">"},ka={option:[1,"<select multiple='multiple'>","</select>"],legend:[1,"<fieldset>","</fieldset>"],thead:[1,"<table>","</table>"],tr:[2,"<table><tbody>","</tbody></table>"],td:[3,"<table><tbody><tr>","</tr></tbody></table>"],col:[2,"<table><tbody></tbody><colgroup>","</colgroup></table>"],area:[1,"<map>","</map>"],_default:[0,"",""]};ka.optgroup=ka.option;ka.tbody=ka.tfoot=ka.colgroup=ka.caption=ka.thead;ka.th=
-ka.td;if(!e.support.htmlSerialize)ka._default=[1,"div<div>","</div>"];e.fn.extend({text:function(a){if(e.isFunction(a))return this.each(function(b){var k=e(this);k.text(a.call(this,b,k.text()))});if(typeof a!=="object"&&a!==undefined)return this.empty().append((this[0]&&this[0].ownerDocument||n).createTextNode(a));return e.text(this)},wrapAll:function(a){if(e.isFunction(a))return this.each(function(k){e(this).wrapAll(a.call(this,k))});if(this[0]){var b=e(a,this[0].ownerDocument).eq(0).clone(true);
-this[0].parentNode&&b.insertBefore(this[0]);b.map(function(){for(var k=this;k.firstChild&&k.firstChild.nodeType===1;)k=k.firstChild;return k}).append(this)}return this},wrapInner:function(a){if(e.isFunction(a))return this.each(function(b){e(this).wrapInner(a.call(this,b))});return this.each(function(){var b=e(this),k=b.contents();k.length?k.wrapAll(a):b.append(a)})},wrap:function(a){return this.each(function(){e(this).wrapAll(a)})},unwrap:function(){return this.parent().each(function(){e.nodeName(this,
-"body")||e(this).replaceWith(this.childNodes)}).end()},append:function(){return this.domManip(arguments,true,function(a){this.nodeType===1&&this.appendChild(a)})},prepend:function(){return this.domManip(arguments,true,function(a){this.nodeType===1&&this.insertBefore(a,this.firstChild)})},before:function(){if(this[0]&&this[0].parentNode)return this.domManip(arguments,false,function(b){this.parentNode.insertBefore(b,this)});else if(arguments.length){var a=e(arguments[0]);a.push.apply(a,this.toArray());
-return this.pushStack(a,"before",arguments)}},after:function(){if(this[0]&&this[0].parentNode)return this.domManip(arguments,false,function(b){this.parentNode.insertBefore(b,this.nextSibling)});else if(arguments.length){var a=this.pushStack(this,"after",arguments);a.push.apply(a,e(arguments[0]).toArray());return a}},remove:function(a,b){for(var k=0,p;(p=this[k])!=null;k++)if(!a||e.filter(a,[p]).length){if(!b&&p.nodeType===1){e.cleanData(p.getElementsByTagName("*"));e.cleanData([p])}p.parentNode&&
-p.parentNode.removeChild(p)}return this},empty:function(){for(var a=0,b;(b=this[a])!=null;a++)for(b.nodeType===1&&e.cleanData(b.getElementsByTagName("*"));b.firstChild;)b.removeChild(b.firstChild);return this},clone:function(a){var b=this.map(function(){if(!e.support.noCloneEvent&&!e.isXMLDoc(this)){var k=this.outerHTML,p=this.ownerDocument;if(!k){k=p.createElement("div");k.appendChild(this.cloneNode(true));k=k.innerHTML}return e.clean([k.replace(Sa,"").replace(/=([^="'>\s]+\/)>/g,'="$1">').replace(va,
-"")],p)[0]}else return this.cloneNode(true)});if(a===true){q(this,b);q(this.find("*"),b.find("*"))}return b},html:function(a){if(a===undefined)return this[0]&&this[0].nodeType===1?this[0].innerHTML.replace(Sa,""):null;else if(typeof a==="string"&&!Ha.test(a)&&(e.support.leadingWhitespace||!va.test(a))&&!ka[(Ua.exec(a)||["",""])[1].toLowerCase()]){a=a.replace(Ta,Va);try{for(var b=0,k=this.length;b<k;b++)if(this[b].nodeType===1){e.cleanData(this[b].getElementsByTagName("*"));this[b].innerHTML=a}}catch(p){this.empty().append(a)}}else e.isFunction(a)?
-this.each(function(o){var z=e(this),A=z.html();z.empty().append(function(){return a.call(this,o,A)})}):this.empty().append(a);return this},replaceWith:function(a){if(this[0]&&this[0].parentNode){if(e.isFunction(a))return this.each(function(b){var k=e(this),p=k.html();k.replaceWith(a.call(this,b,p))});if(typeof a!=="string")a=e(a).detach();return this.each(function(){var b=this.nextSibling,k=this.parentNode;e(this).remove();b?e(b).before(a):e(k).append(a)})}else return this.pushStack(e(e.isFunction(a)?
-a():a),"replaceWith",a)},detach:function(a){return this.remove(a,true)},domManip:function(a,b,k){function p(W){return e.nodeName(W,"table")?W.getElementsByTagName("tbody")[0]||W.appendChild(W.ownerDocument.createElement("tbody")):W}var o,z,A=a[0],I=[],E;if(!e.support.checkClone&&arguments.length===3&&typeof A==="string"&&Ia.test(A))return this.each(function(){e(this).domManip(a,b,k,true)});if(e.isFunction(A))return this.each(function(W){var ba=e(this);a[0]=A.call(this,W,b?ba.html():undefined);ba.domManip(a,
-b,k)});if(this[0]){o=A&&A.parentNode;o=e.support.parentNode&&o&&o.nodeType===11&&o.childNodes.length===this.length?{fragment:o}:t(a,this,I);E=o.fragment;if(z=E.childNodes.length===1?(E=E.firstChild):E.firstChild){b=b&&e.nodeName(z,"tr");for(var H=0,R=this.length;H<R;H++)k.call(b?p(this[H],z):this[H],H>0||o.cacheable||this.length>1?E.cloneNode(true):E)}I.length&&e.each(I,r)}return this}});e.fragments={};e.each({appendTo:"append",prependTo:"prepend",insertBefore:"before",insertAfter:"after",replaceAll:"replaceWith"},
-function(a,b){e.fn[a]=function(k){var p=[];k=e(k);var o=this.length===1&&this[0].parentNode;if(o&&o.nodeType===11&&o.childNodes.length===1&&k.length===1){k[b](this[0]);return this}else{o=0;for(var z=k.length;o<z;o++){var A=(o>0?this.clone(true):this).get();e.fn[b].apply(e(k[o]),A);p=p.concat(A)}return this.pushStack(p,a,k.selector)}}});e.extend({clean:function(a,b,k,p){b=b||n;if(typeof b.createElement==="undefined")b=b.ownerDocument||b[0]&&b[0].ownerDocument||n;for(var o=[],z=0,A;(A=a[z])!=null;z++){if(typeof A===
-"number")A+="";if(A){if(typeof A==="string"&&!jb.test(A))A=b.createTextNode(A);else if(typeof A==="string"){A=A.replace(Ta,Va);var I=(Ua.exec(A)||["",""])[1].toLowerCase(),E=ka[I]||ka._default,H=E[0],R=b.createElement("div");for(R.innerHTML=E[1]+A+E[2];H--;)R=R.lastChild;if(!e.support.tbody){H=ib.test(A);I=I==="table"&&!H?R.firstChild&&R.firstChild.childNodes:E[1]==="<table>"&&!H?R.childNodes:[];for(E=I.length-1;E>=0;--E)e.nodeName(I[E],"tbody")&&!I[E].childNodes.length&&I[E].parentNode.removeChild(I[E])}!e.support.leadingWhitespace&&
-va.test(A)&&R.insertBefore(b.createTextNode(va.exec(A)[0]),R.firstChild);A=R.childNodes}if(A.nodeType)o.push(A);else o=e.merge(o,A)}}if(k)for(z=0;o[z];z++)if(p&&e.nodeName(o[z],"script")&&(!o[z].type||o[z].type.toLowerCase()==="text/javascript"))p.push(o[z].parentNode?o[z].parentNode.removeChild(o[z]):o[z]);else{o[z].nodeType===1&&o.splice.apply(o,[z+1,0].concat(e.makeArray(o[z].getElementsByTagName("script"))));k.appendChild(o[z])}return o},cleanData:function(a){for(var b,k,p=e.cache,o=e.event.special,
-z=e.support.deleteExpando,A=0,I;(I=a[A])!=null;A++)if(k=I[e.expando]){b=p[k];if(b.events)for(var E in b.events)o[E]?e.event.remove(I,E):La(I,E,b.handle);if(z)delete I[e.expando];else I.removeAttribute&&I.removeAttribute(e.expando);delete p[k]}}});var kb=/z-?index|font-?weight|opacity|zoom|line-?height/i,Wa=/alpha\([^)]*\)/,Xa=/opacity=([^)]*)/,Ca=/float/i,Da=/-([a-z])/ig,lb=/([A-Z])/g,mb=/^-?\d+(?:px)?$/i,nb=/^-?\d/,ob={position:"absolute",visibility:"hidden",display:"block"},pb=["Left","Right"],
-qb=["Top","Bottom"],rb=n.defaultView&&n.defaultView.getComputedStyle,Ya=e.support.cssFloat?"cssFloat":"styleFloat",Ea=function(a,b){return b.toUpperCase()};e.fn.css=function(a,b){return l(this,a,b,true,function(k,p,o){if(o===undefined)return e.curCSS(k,p);if(typeof o==="number"&&!kb.test(p))o+="px";e.style(k,p,o)})};e.extend({style:function(a,b,k){if(!(!a||a.nodeType===3||a.nodeType===8)){if((b==="width"||b==="height")&&parseFloat(k)<0)k=undefined;var p=a.style||a,o=k!==undefined;if(!e.support.opacity&&
-b==="opacity"){if(o){p.zoom=1;b=parseInt(k,10)+""==="NaN"?"":"alpha(opacity="+k*100+")";a=p.filter||e.curCSS(a,"filter")||"";p.filter=Wa.test(a)?a.replace(Wa,b):b}return p.filter&&p.filter.indexOf("opacity=")>=0?parseFloat(Xa.exec(p.filter)[1])/100+"":""}if(Ca.test(b))b=Ya;b=b.replace(Da,Ea);if(o)p[b]=k;return p[b]}},css:function(a,b,k,p){if(b==="width"||b==="height"){var o,z=b==="width"?pb:qb;k=function(){o=b==="width"?a.offsetWidth:a.offsetHeight;p!=="border"&&e.each(z,function(){p||(o-=parseFloat(e.curCSS(a,
-"padding"+this,true))||0);if(p==="margin")o+=parseFloat(e.curCSS(a,"margin"+this,true))||0;else o-=parseFloat(e.curCSS(a,"border"+this+"Width",true))||0})};a.offsetWidth!==0?k():e.swap(a,ob,k);return Math.max(0,Math.round(o))}return e.curCSS(a,b,k)},curCSS:function(a,b,k){var p,o=a.style;if(!e.support.opacity&&b==="opacity"&&a.currentStyle){p=Xa.test(a.currentStyle.filter||"")?parseFloat(RegExp.$1)/100+"":"";return p===""?"1":p}if(Ca.test(b))b=Ya;if(!k&&o&&o[b])p=o[b];else if(rb){if(Ca.test(b))b=
-"float";b=b.replace(lb,"-$1").toLowerCase();o=a.ownerDocument.defaultView;if(!o)return null;if(a=o.getComputedStyle(a,null))p=a.getPropertyValue(b);if(b==="opacity"&&p==="")p="1"}else if(a.currentStyle){k=b.replace(Da,Ea);p=a.currentStyle[b]||a.currentStyle[k];if(!mb.test(p)&&nb.test(p)){b=o.left;var z=a.runtimeStyle.left;a.runtimeStyle.left=a.currentStyle.left;o.left=k==="fontSize"?"1em":p||0;p=o.pixelLeft+"px";o.left=b;a.runtimeStyle.left=z}}return p},swap:function(a,b,k){var p={};for(var o in b){p[o]=
-a.style[o];a.style[o]=b[o]}k.call(a);for(o in b)a.style[o]=p[o]}});if(e.expr&&e.expr.filters){e.expr.filters.hidden=function(a){var b=a.offsetWidth,k=a.offsetHeight,p=a.nodeName.toLowerCase()==="tr";return b===0&&k===0&&!p?true:b>0&&k>0&&!p?false:e.curCSS(a,"display")==="none"};e.expr.filters.visible=function(a){return!e.expr.filters.hidden(a)}}var sb=h(),tb=/<script(.|\s)*?\/script>/gi,ub=/select|textarea/i,vb=/color|date|datetime|email|hidden|month|number|password|range|search|tel|text|time|url|week/i,
-ra=/=\?(&|$)/,Fa=/\?/,wb=/(\?|&)_=.*?(&|$)/,xb=/^(\w+:)?\/\/([^\/?#]+)/,yb=/%20/g,zb=e.fn.load;e.fn.extend({load:function(a,b,k){if(typeof a!=="string")return zb.call(this,a);else if(!this.length)return this;var p=a.indexOf(" ");if(p>=0){var o=a.slice(p,a.length);a=a.slice(0,p)}p="GET";if(b)if(e.isFunction(b)){k=b;b=null}else if(typeof b==="object"){b=e.param(b,e.ajaxSettings.traditional);p="POST"}var z=this;e.ajax({url:a,type:p,dataType:"html",data:b,complete:function(A,I){if(I==="success"||I===
-"notmodified")z.html(o?e("<div />").append(A.responseText.replace(tb,"")).find(o):A.responseText);k&&z.each(k,[A.responseText,I,A])}});return this},serialize:function(){return e.param(this.serializeArray())},serializeArray:function(){return this.map(function(){return this.elements?e.makeArray(this.elements):this}).filter(function(){return this.name&&!this.disabled&&(this.checked||ub.test(this.nodeName)||vb.test(this.type))}).map(function(a,b){a=e(this).val();return a==null?null:e.isArray(a)?e.map(a,
-function(k){return{name:b.name,value:k}}):{name:b.name,value:a}}).get()}});e.each("ajaxStart ajaxStop ajaxComplete ajaxError ajaxSuccess ajaxSend".split(" "),function(a,b){e.fn[b]=function(k){return this.bind(b,k)}});e.extend({get:function(a,b,k,p){if(e.isFunction(b)){p=p||k;k=b;b=null}return e.ajax({type:"GET",url:a,data:b,success:k,dataType:p})},getScript:function(a,b){return e.get(a,null,b,"script")},getJSON:function(a,b,k){return e.get(a,b,k,"json")},post:function(a,b,k,p){if(e.isFunction(b)){p=
-p||k;k=b;b={}}return e.ajax({type:"POST",url:a,data:b,success:k,dataType:p})},ajaxSetup:function(a){e.extend(e.ajaxSettings,a)},ajaxSettings:{url:location.href,global:true,type:"GET",contentType:"application/x-www-form-urlencoded",processData:true,async:true,xhr:window.XMLHttpRequest&&(window.location.protocol!=="file:"||!window.ActiveXObject)?function(){return new window.XMLHttpRequest}:function(){try{return new window.ActiveXObject("Microsoft.XMLHTTP")}catch(a){}},accepts:{xml:"application/xml, text/xml",
-html:"text/html",script:"text/javascript, application/javascript",json:"application/json, text/javascript",text:"text/plain",_default:"*/*"}},lastModified:{},etag:{},ajax:function(a){function b(){o.success&&o.success.call(E,I,A,Y);o.global&&p("ajaxSuccess",[Y,o])}function k(){o.complete&&o.complete.call(E,Y,A);o.global&&p("ajaxComplete",[Y,o]);o.global&&!--e.active&&e.event.trigger("ajaxStop")}function p(N,M){(o.context?e(o.context):e.event).trigger(N,M)}var o=e.extend(true,{},e.ajaxSettings,a),z,
-A,I,E=a&&a.context||o,H=o.type.toUpperCase();if(o.data&&o.processData&&typeof o.data!=="string")o.data=e.param(o.data,o.traditional);if(o.dataType==="jsonp"){if(H==="GET")ra.test(o.url)||(o.url+=(Fa.test(o.url)?"&":"?")+(o.jsonp||"callback")+"=?");else if(!o.data||!ra.test(o.data))o.data=(o.data?o.data+"&":"")+(o.jsonp||"callback")+"=?";o.dataType="json"}if(o.dataType==="json"&&(o.data&&ra.test(o.data)||ra.test(o.url))){z=o.jsonpCallback||"jsonp"+sb++;if(o.data)o.data=(o.data+"").replace(ra,"="+z+
-"$1");o.url=o.url.replace(ra,"="+z+"$1");o.dataType="script";window[z]=window[z]||function(N){I=N;b();k();window[z]=undefined;try{delete window[z]}catch(M){}ba&&ba.removeChild(ea)}}if(o.dataType==="script"&&o.cache===null)o.cache=false;if(o.cache===false&&H==="GET"){var R=h(),W=o.url.replace(wb,"$1_="+R+"$2");o.url=W+(W===o.url?(Fa.test(o.url)?"&":"?")+"_="+R:"")}if(o.data&&H==="GET")o.url+=(Fa.test(o.url)?"&":"?")+o.data;o.global&&!e.active++&&e.event.trigger("ajaxStart");R=(R=xb.exec(o.url))&&(R[1]&&
-R[1]!==location.protocol||R[2]!==location.host);if(o.dataType==="script"&&H==="GET"&&R){var ba=n.getElementsByTagName("head")[0]||n.documentElement,ea=n.createElement("script");ea.src=o.url;if(o.scriptCharset)ea.charset=o.scriptCharset;if(!z){var da=false;ea.onload=ea.onreadystatechange=function(){if(!da&&(!this.readyState||this.readyState==="loaded"||this.readyState==="complete")){da=true;b();k();ea.onload=ea.onreadystatechange=null;ba&&ea.parentNode&&ba.removeChild(ea)}}}ba.insertBefore(ea,ba.firstChild)}else{var ja=
-false,Y=o.xhr();if(Y){o.username?Y.open(H,o.url,o.async,o.username,o.password):Y.open(H,o.url,o.async);try{if(o.data||a&&a.contentType)Y.setRequestHeader("Content-Type",o.contentType);if(o.ifModified){e.lastModified[o.url]&&Y.setRequestHeader("If-Modified-Since",e.lastModified[o.url]);e.etag[o.url]&&Y.setRequestHeader("If-None-Match",e.etag[o.url])}R||Y.setRequestHeader("X-Requested-With","XMLHttpRequest");Y.setRequestHeader("Accept",o.dataType&&o.accepts[o.dataType]?o.accepts[o.dataType]+", */*":
-o.accepts._default)}catch(Ba){}if(o.beforeSend&&o.beforeSend.call(E,Y,o)===false){o.global&&!--e.active&&e.event.trigger("ajaxStop");Y.abort();return false}o.global&&p("ajaxSend",[Y,o]);var u=Y.onreadystatechange=function(N){if(!Y||Y.readyState===0||N==="abort"){ja||k();ja=true;if(Y)Y.onreadystatechange=e.noop}else if(!ja&&Y&&(Y.readyState===4||N==="timeout")){ja=true;Y.onreadystatechange=e.noop;A=N==="timeout"?"timeout":!e.httpSuccess(Y)?"error":o.ifModified&&e.httpNotModified(Y,o.url)?"notmodified":
-"success";var M;if(A==="success")try{I=e.httpData(Y,o.dataType,o)}catch(X){A="parsererror";M=X}if(A==="success"||A==="notmodified")z||b();else e.handleError(o,Y,A,M);k();N==="timeout"&&Y.abort();if(o.async)Y=null}};try{var x=Y.abort;Y.abort=function(){Y&&x.call(Y);u("abort")}}catch(F){}o.async&&o.timeout>0&&setTimeout(function(){Y&&!ja&&u("timeout")},o.timeout);try{Y.send(H==="POST"||H==="PUT"||H==="DELETE"?o.data:null)}catch(G){e.handleError(o,Y,null,G);k()}o.async||u();return Y}}},handleError:function(a,
-b,k,p){if(a.error)a.error.call(a.context||a,b,k,p);if(a.global)(a.context?e(a.context):e.event).trigger("ajaxError",[b,a,p])},active:0,httpSuccess:function(a){try{return!a.status&&location.protocol==="file:"||a.status>=200&&a.status<300||a.status===304||a.status===1223||a.status===0}catch(b){}return false},httpNotModified:function(a,b){var k=a.getResponseHeader("Last-Modified"),p=a.getResponseHeader("Etag");if(k)e.lastModified[b]=k;if(p)e.etag[b]=p;return a.status===304||a.status===0},httpData:function(a,
-b,k){var p=a.getResponseHeader("content-type")||"",o=b==="xml"||!b&&p.indexOf("xml")>=0;a=o?a.responseXML:a.responseText;o&&a.documentElement.nodeName==="parsererror"&&e.error("parsererror");if(k&&k.dataFilter)a=k.dataFilter(a,b);if(typeof a==="string")if(b==="json"||!b&&p.indexOf("json")>=0)a=e.parseJSON(a);else if(b==="script"||!b&&p.indexOf("javascript")>=0)e.globalEval(a);return a},param:function(a,b){function k(A,I){if(e.isArray(I))e.each(I,function(E,H){b||/\[\]$/.test(A)?p(A,H):k(A+"["+(typeof H===
-"object"||e.isArray(H)?E:"")+"]",H)});else!b&&I!=null&&typeof I==="object"?e.each(I,function(E,H){k(A+"["+E+"]",H)}):p(A,I)}function p(A,I){I=e.isFunction(I)?I():I;o[o.length]=encodeURIComponent(A)+"="+encodeURIComponent(I)}var o=[];if(b===undefined)b=e.ajaxSettings.traditional;if(e.isArray(a)||a.jquery)e.each(a,function(){p(this.name,this.value)});else for(var z in a)k(z,a[z]);return o.join("&").replace(yb,"+")}});var Ga={},Ab=/toggle|show|hide/,Bb=/^([+-]=)?([\d+-.]+)(.*)$/,wa,Ja=[["height","marginTop",
-"marginBottom","paddingTop","paddingBottom"],["width","marginLeft","marginRight","paddingLeft","paddingRight"],["opacity"]];e.fn.extend({show:function(a,b){if(a||a===0)return this.animate(B("show",3),a,b);else{a=0;for(b=this.length;a<b;a++){var k=e.data(this[a],"olddisplay");this[a].style.display=k||"";if(e.css(this[a],"display")==="none"){k=this[a].nodeName;var p;if(Ga[k])p=Ga[k];else{var o=e("<"+k+" />").appendTo("body");p=o.css("display");if(p==="none")p="block";o.remove();Ga[k]=p}e.data(this[a],
-"olddisplay",p)}}a=0;for(b=this.length;a<b;a++)this[a].style.display=e.data(this[a],"olddisplay")||"";return this}},hide:function(a,b){if(a||a===0)return this.animate(B("hide",3),a,b);else{a=0;for(b=this.length;a<b;a++){var k=e.data(this[a],"olddisplay");!k&&k!=="none"&&e.data(this[a],"olddisplay",e.css(this[a],"display"))}a=0;for(b=this.length;a<b;a++)this[a].style.display="none";return this}},_toggle:e.fn.toggle,toggle:function(a,b){var k=typeof a==="boolean";if(e.isFunction(a)&&e.isFunction(b))this._toggle.apply(this,
-arguments);else a==null||k?this.each(function(){var p=k?a:e(this).is(":hidden");e(this)[p?"show":"hide"]()}):this.animate(B("toggle",3),a,b);return this},fadeTo:function(a,b,k){return this.filter(":hidden").css("opacity",0).show().end().animate({opacity:b},a,k)},animate:function(a,b,k,p){var o=e.speed(b,k,p);if(e.isEmptyObject(a))return this.each(o.complete);return this[o.queue===false?"each":"queue"](function(){var z=e.extend({},o),A,I=this.nodeType===1&&e(this).is(":hidden"),E=this;for(A in a){var H=
-A.replace(Da,Ea);if(A!==H){a[H]=a[A];delete a[A];A=H}if(a[A]==="hide"&&I||a[A]==="show"&&!I)return z.complete.call(this);if((A==="height"||A==="width")&&this.style){z.display=e.css(this,"display");z.overflow=this.style.overflow}if(e.isArray(a[A])){(z.specialEasing=z.specialEasing||{})[A]=a[A][1];a[A]=a[A][0]}}if(z.overflow!=null)this.style.overflow="hidden";z.curAnim=e.extend({},a);e.each(a,function(R,W){var ba=new e.fx(E,z,R);if(Ab.test(W))ba[W==="toggle"?I?"show":"hide":W](a);else{var ea=Bb.exec(W),
-da=ba.cur(true)||0;if(ea){W=parseFloat(ea[2]);var ja=ea[3]||"px";if(ja!=="px"){E.style[R]=(W||1)+ja;da=(W||1)/ba.cur(true)*da;E.style[R]=da+ja}if(ea[1])W=(ea[1]==="-="?-1:1)*W+da;ba.custom(da,W,ja)}else ba.custom(da,W,"")}});return true})},stop:function(a,b){var k=e.timers;a&&this.queue([]);this.each(function(){for(var p=k.length-1;p>=0;p--)if(k[p].elem===this){b&&k[p](true);k.splice(p,1)}});b||this.dequeue();return this}});e.each({slideDown:B("show",1),slideUp:B("hide",1),slideToggle:B("toggle",
-1),fadeIn:{opacity:"show"},fadeOut:{opacity:"hide"}},function(a,b){e.fn[a]=function(k,p){return this.animate(b,k,p)}});e.extend({speed:function(a,b,k){var p=a&&typeof a==="object"?a:{complete:k||!k&&b||e.isFunction(a)&&a,duration:a,easing:k&&b||b&&!e.isFunction(b)&&b};p.duration=e.fx.off?0:typeof p.duration==="number"?p.duration:e.fx.speeds[p.duration]||e.fx.speeds._default;p.old=p.complete;p.complete=function(){p.queue!==false&&e(this).dequeue();e.isFunction(p.old)&&p.old.call(this)};return p},easing:{linear:function(a,
-b,k,p){return k+p*a},swing:function(a,b,k,p){return(-Math.cos(a*Math.PI)/2+0.5)*p+k}},timers:[],fx:function(a,b,k){this.options=b;this.elem=a;this.prop=k;if(!b.orig)b.orig={}}});e.fx.prototype={update:function(){this.options.step&&this.options.step.call(this.elem,this.now,this);(e.fx.step[this.prop]||e.fx.step._default)(this);if((this.prop==="height"||this.prop==="width")&&this.elem.style)this.elem.style.display="block"},cur:function(a){if(this.elem[this.prop]!=null&&(!this.elem.style||this.elem.style[this.prop]==
-null))return this.elem[this.prop];return(a=parseFloat(e.css(this.elem,this.prop,a)))&&a>-10000?a:parseFloat(e.curCSS(this.elem,this.prop))||0},custom:function(a,b,k){function p(z){return o.step(z)}this.startTime=h();this.start=a;this.end=b;this.unit=k||this.unit||"px";this.now=this.start;this.pos=this.state=0;var o=this;p.elem=this.elem;if(p()&&e.timers.push(p)&&!wa)wa=setInterval(e.fx.tick,13)},show:function(){this.options.orig[this.prop]=e.style(this.elem,this.prop);this.options.show=true;this.custom(this.prop===
-"width"||this.prop==="height"?1:0,this.cur());e(this.elem).show()},hide:function(){this.options.orig[this.prop]=e.style(this.elem,this.prop);this.options.hide=true;this.custom(this.cur(),0)},step:function(a){var b=h(),k=true;if(a||b>=this.options.duration+this.startTime){this.now=this.end;this.pos=this.state=1;this.update();this.options.curAnim[this.prop]=true;for(var p in this.options.curAnim)if(this.options.curAnim[p]!==true)k=false;if(k){if(this.options.display!=null){this.elem.style.overflow=
-this.options.overflow;a=e.data(this.elem,"olddisplay");this.elem.style.display=a?a:this.options.display;if(e.css(this.elem,"display")==="none")this.elem.style.display="block"}this.options.hide&&e(this.elem).hide();if(this.options.hide||this.options.show)for(var o in this.options.curAnim)e.style(this.elem,o,this.options.orig[o]);this.options.complete.call(this.elem)}return false}else{o=b-this.startTime;this.state=o/this.options.duration;a=this.options.easing||(e.easing.swing?"swing":"linear");this.pos=
-e.easing[this.options.specialEasing&&this.options.specialEasing[this.prop]||a](this.state,o,0,1,this.options.duration);this.now=this.start+(this.end-this.start)*this.pos;this.update()}return true}};e.extend(e.fx,{tick:function(){for(var a=e.timers,b=0;b<a.length;b++)a[b]()||a.splice(b--,1);a.length||e.fx.stop()},stop:function(){clearInterval(wa);wa=null},speeds:{slow:600,fast:200,_default:400},step:{opacity:function(a){e.style(a.elem,"opacity",a.now)},_default:function(a){if(a.elem.style&&a.elem.style[a.prop]!=
-null)a.elem.style[a.prop]=(a.prop==="width"||a.prop==="height"?Math.max(0,a.now):a.now)+a.unit;else a.elem[a.prop]=a.now}}});if(e.expr&&e.expr.filters)e.expr.filters.animated=function(a){return e.grep(e.timers,function(b){return a===b.elem}).length};e.fn.offset="getBoundingClientRect"in n.documentElement?function(a){var b=this[0];if(a)return this.each(function(o){e.offset.setOffset(this,a,o)});if(!b||!b.ownerDocument)return null;if(b===b.ownerDocument.body)return e.offset.bodyOffset(b);var k=b.getBoundingClientRect(),
-p=b.ownerDocument;b=p.body;p=p.documentElement;return{top:k.top+(self.pageYOffset||e.support.boxModel&&p.scrollTop||b.scrollTop)-(p.clientTop||b.clientTop||0),left:k.left+(self.pageXOffset||e.support.boxModel&&p.scrollLeft||b.scrollLeft)-(p.clientLeft||b.clientLeft||0)}}:function(a){var b=this[0];if(a)return this.each(function(R){e.offset.setOffset(this,a,R)});if(!b||!b.ownerDocument)return null;if(b===b.ownerDocument.body)return e.offset.bodyOffset(b);e.offset.initialize();var k=b.offsetParent,p=
-b,o=b.ownerDocument,z,A=o.documentElement,I=o.body;p=(o=o.defaultView)?o.getComputedStyle(b,null):b.currentStyle;for(var E=b.offsetTop,H=b.offsetLeft;(b=b.parentNode)&&b!==I&&b!==A;){if(e.offset.supportsFixedPosition&&p.position==="fixed")break;z=o?o.getComputedStyle(b,null):b.currentStyle;E-=b.scrollTop;H-=b.scrollLeft;if(b===k){E+=b.offsetTop;H+=b.offsetLeft;if(e.offset.doesNotAddBorder&&!(e.offset.doesAddBorderForTableAndCells&&/^t(able|d|h)$/i.test(b.nodeName))){E+=parseFloat(z.borderTopWidth)||
-0;H+=parseFloat(z.borderLeftWidth)||0}p=k;k=b.offsetParent}if(e.offset.subtractsBorderForOverflowNotVisible&&z.overflow!=="visible"){E+=parseFloat(z.borderTopWidth)||0;H+=parseFloat(z.borderLeftWidth)||0}p=z}if(p.position==="relative"||p.position==="static"){E+=I.offsetTop;H+=I.offsetLeft}if(e.offset.supportsFixedPosition&&p.position==="fixed"){E+=Math.max(A.scrollTop,I.scrollTop);H+=Math.max(A.scrollLeft,I.scrollLeft)}return{top:E,left:H}};e.offset={initialize:function(){var a=n.body,b=n.createElement("div"),
-k,p,o,z=parseFloat(e.curCSS(a,"marginTop",true))||0;e.extend(b.style,{position:"absolute",top:0,left:0,margin:0,border:0,width:"1px",height:"1px",visibility:"hidden"});b.innerHTML="<div style='position:absolute;top:0;left:0;margin:0;border:5px solid #000;padding:0;width:1px;height:1px;'><div></div></div><table style='position:absolute;top:0;left:0;margin:0;border:5px solid #000;padding:0;width:1px;height:1px;' cellpadding='0' cellspacing='0'><tr><td></td></tr></table>";a.insertBefore(b,a.firstChild);
-k=b.firstChild;p=k.firstChild;o=k.nextSibling.firstChild.firstChild;this.doesNotAddBorder=p.offsetTop!==5;this.doesAddBorderForTableAndCells=o.offsetTop===5;p.style.position="fixed";p.style.top="20px";this.supportsFixedPosition=p.offsetTop===20||p.offsetTop===15;p.style.position=p.style.top="";k.style.overflow="hidden";k.style.position="relative";this.subtractsBorderForOverflowNotVisible=p.offsetTop===-5;this.doesNotIncludeMarginInBodyOffset=a.offsetTop!==z;a.removeChild(b);e.offset.initialize=e.noop},
-bodyOffset:function(a){var b=a.offsetTop,k=a.offsetLeft;e.offset.initialize();if(e.offset.doesNotIncludeMarginInBodyOffset){b+=parseFloat(e.curCSS(a,"marginTop",true))||0;k+=parseFloat(e.curCSS(a,"marginLeft",true))||0}return{top:b,left:k}},setOffset:function(a,b,k){if(/static/.test(e.curCSS(a,"position")))a.style.position="relative";var p=e(a),o=p.offset(),z=parseInt(e.curCSS(a,"top",true),10)||0,A=parseInt(e.curCSS(a,"left",true),10)||0;if(e.isFunction(b))b=b.call(a,k,o);k={top:b.top-o.top+z,left:b.left-
-o.left+A};"using"in b?b.using.call(a,k):p.css(k)}};e.fn.extend({position:function(){if(!this[0])return null;var a=this[0],b=this.offsetParent(),k=this.offset(),p=/^body|html$/i.test(b[0].nodeName)?{top:0,left:0}:b.offset();k.top-=parseFloat(e.curCSS(a,"marginTop",true))||0;k.left-=parseFloat(e.curCSS(a,"marginLeft",true))||0;p.top+=parseFloat(e.curCSS(b[0],"borderTopWidth",true))||0;p.left+=parseFloat(e.curCSS(b[0],"borderLeftWidth",true))||0;return{top:k.top-p.top,left:k.left-p.left}},offsetParent:function(){return this.map(function(){for(var a=
-this.offsetParent||n.body;a&&!/^body|html$/i.test(a.nodeName)&&e.css(a,"position")==="static";)a=a.offsetParent;return a})}});e.each(["Left","Top"],function(a,b){var k="scroll"+b;e.fn[k]=function(p){var o=this[0],z;if(!o)return null;if(p!==undefined)return this.each(function(){if(z=C(this))z.scrollTo(!a?p:e(z).scrollLeft(),a?p:e(z).scrollTop());else this[k]=p});else return(z=C(o))?"pageXOffset"in z?z[a?"pageYOffset":"pageXOffset"]:e.support.boxModel&&z.document.documentElement[k]||z.document.body[k]:
-o[k]}});e.each(["Height","Width"],function(a,b){var k=b.toLowerCase();e.fn["inner"+b]=function(){return this[0]?e.css(this[0],k,false,"padding"):null};e.fn["outer"+b]=function(p){return this[0]?e.css(this[0],k,false,p?"margin":"border"):null};e.fn[k]=function(p){var o=this[0];if(!o)return p==null?null:this;if(e.isFunction(p))return this.each(function(z){var A=e(this);A[k](p.call(this,z,A[k]()))});return"scrollTo"in o&&o.document?o.document.compatMode==="CSS1Compat"&&o.document.documentElement["client"+
-b]||o.document.body["client"+b]:o.nodeType===9?Math.max(o.documentElement["client"+b],o.body["scroll"+b],o.documentElement["scroll"+b],o.body["offset"+b],o.documentElement["offset"+b]):p===undefined?e.css(o,k):this.css(k,typeof p==="string"?p:p+"px")}});s.$=s.jQuery=e});bespin.tiki.register("::embedded",{name:"embedded",dependencies:{theme_manager:"0.0.0",text_editor:"0.0.0",appconfig:"0.0.0",edit_session:"0.0.0",screen_theme:"0.0.0"}});bespin.tiki.module("embedded:index",function(){});
-bespin.tiki.register("::settings",{name:"settings",dependencies:{types:"0.0.0"}});
-bespin.tiki.module("settings:commands",function(y,s){y("bespin:plugins");y("environment");var v=y("settings").settings;s.setCommand=function(r,l){var h;if(r.setting)if(r.value===undefined)h="<strong>"+r.setting+"</strong> = "+v.get(r.setting);else{h="Setting: <strong>"+r.setting+"</strong> = "+r.value;v.set(r.setting,r.value)}else{r=v._list();h="";r.sort(function(d,f){return d.key<f.key?-1:d.key==f.key?0:1});r.forEach(function(d){h+='<a class="setting" href="https://wiki.mozilla.org/Labs/Bespin/Settings#'+
-d.key+'" title="View external documentation on setting: '+d.key+'" target="_blank">'+d.key+"</a> = "+d.value+"<br/>"})}l.done(h)};s.unsetCommand=function(r,l){v.resetValue(r.setting);l.done("Reset "+r.setting+" to default: "+v.get(r.setting))}});
-bespin.tiki.module("settings:cookie",function(y,s){var v=y("bespin:util/cookie");s.CookiePersister=function(){};s.CookiePersister.prototype={loadInitialValues:function(r){r._loadDefaultValues().then(function(){var l=v.get("settings");r._loadFromObject(JSON.parse(l))}.bind(this))},persistValue:function(r){try{var l={};r._getSettingNames().forEach(function(f){l[f]=r.get(f)});var h=JSON.stringify(l);v.set("settings",h)}catch(d){console.error("Unable to JSONify the settings! "+d)}}}});
-bespin.tiki.module("settings:index",function(y,s){var v=y("bespin:plugins").catalog,r=y("bespin:console").console,l=y("bespin:promise").Promise,h=y("bespin:promise").group,d=y("types:types");s.addSetting=function(f){y("settings").settings.addSetting(f)};s.getSettings=function(){return v.getExtensions("setting")};s.getTypeSpecFromAssignment=function(f){var m=f.assignments;f="text";if(m){var i=null;m.forEach(function(g){if(g.param.name==="setting")i=g});if(i)if((m=i.value)&&m!=="")if(m=v.getExtensionByKey("setting",
-m))f=m.type}return f};s.MemorySettings=function(){};s.MemorySettings.prototype={_values:{},_deactivated:{},setPersister:function(f){(this._persister=f)&&f.loadInitialValues(this)},get:function(f){return this._values[f]},set:function(f,m){var i=v.getExtensionByKey("setting",f);if(i)if(typeof m=="string"&&i.type=="string")this._values[f]=m;else{var g=false;d.fromString(m,i.type).then(function(j){g=true;this._values[f]=j;v.publish(this,"settingChange",f,j)}.bind(this),function(j){r.error("Error setting",
-f,": ",j)});if(!g){r.warn("About to set string version of ",f,"delaying typed set.");this._values[f]=m}}else{r.warn("Setting not defined: ",f,m);this._deactivated[f]=m}this._persistValue(f,m);return this},addSetting:function(f){if(f.name){!f.defaultValue===undefined&&r.error("Setting.defaultValue == undefined",f);d.isValid(f.defaultValue,f.type).then(function(m){m||r.warn("!Setting.isValid(Setting.defaultValue)",f);this.set(f.name,this._deactivated[f.name]||f.defaultValue)}.bind(this),function(m){r.error("Type error ",
-m," ignoring setting ",f)})}else r.error("Setting.name == undefined. Ignoring.",f)},resetValue:function(f){var m=v.getExtensionByKey("setting",f);m?this.set(f,m.defaultValue):r.log("ignore resetValue on ",f)},resetAll:function(){this._getSettingNames().forEach(function(f){this.resetValue(f)}.bind(this))},_getSettingNames:function(){var f=[];v.getExtensions("setting").forEach(function(m){f.push(m.name)});return f},_list:function(){var f=[];this._getSettingNames().forEach(function(m){f.push({key:m,
-value:this.get(m)})}.bind(this));return f},_persistValue:function(f,m){var i=this._persister;i&&i.persistValue(this,f,m)},_loadInitialValues:function(){var f=this._persister;f?f.loadInitialValues(this):this._loadDefaultValues()},_loadDefaultValues:function(){return this._loadFromObject(this._defaultValues())},_loadFromObject:function(f){var m=[],i=function(B){return function(C){this.set(B,C)}};for(var g in f)if(f.hasOwnProperty(g)){var j=f[g],q=v.getExtensionByKey("setting",g);if(q){j=d.fromString(j,
-q.type);q=i(g);j.then(q);m.push(j)}}var t=new l;h(m).then(function(){t.resolve()});return t},_saveToObject:function(){var f=[],m={};this._getSettingNames().forEach(function(g){var j=this.get(g),q=v.getExtensionByKey("setting",g);if(q){j=d.toString(j,q.type);j.then(function(t){m[g]=t});f.push(j)}}.bind(this));var i=new l;h(f).then(function(){i.resolve(m)});return i},_defaultValues:function(){var f={};v.getExtensions("setting").forEach(function(m){f[m.name]=m.defaultValue});return f}};s.settings=new s.MemorySettings});
-bespin.tiki.register("::appconfig",{name:"appconfig",dependencies:{jquery:"0.0.0",canon:"0.0.0",settings:"0.0.0"}});
-bespin.tiki.module("appconfig:index",function(y,s){var v=y("jquery").$,r=y("settings").settings,l=y("bespin:promise").group,h=y("bespin:promise").Promise,d=y("bespin:console").console,f=y("bespin:util/stacktrace").Trace,m=y("bespin:util/util"),i=true;s.launch=function(q){var t=new h;v("#_bespin_loading").remove();var B;if(i){B=bespin.tiki.require;i=false}else B=(new (bespin.tiki.require("bespin:sandbox").Sandbox)).createRequire({id:"index",ownerPackage:bespin.tiki.loader.anonymousPackage});var C=
-B("bespin:plugins").catalog;q=q||{};s.normalizeConfig(C,q);var e=q.objects;for(var K in e)C.registerObject(K,e[K]);for(var L in q.settings)r.set(L,q.settings[L]);var n=function(){var D=B("environment").env,J=D.editor;if(J){q.lineNumber&&J.setLineNumber(q.lineNumber);if(q.stealFocus)J.focus=true;if(q.readOnly)J.readOnly=q.readOnly;if(q.syntax)J.syntax=q.syntax}if(J=C.getObject("commandLine"))D.commandLine=J;C.publish(this,"appLaunched");t.resolve(D)}.bind(this),w=new h;w.then(function(){e.loginController?
-C.createObject("loginController").then(function(D){D.showLogin().then(function(J){q.objects.session.arguments.push(J);s.launchEditor(C,q).then(n,t.reject.bind(t))})}):s.launchEditor(C,q).then(n,t.reject.bind(t))},function(D){t.reject(D)});C.plugins.theme_manager?bespin.tiki.require.ensurePackage("::theme_manager",function(){var D=B("theme_manager");q.theme.basePlugin&&D.setBasePlugin(q.theme.basePlugin);q.theme.standard&&D.setStandardTheme(q.theme.standard);D.startParsing().then(function(){w.resolve()},
-function(J){w.reject(J)})}):w.resolve();return t};s.normalizeConfig=function(q,t){if(t.objects===undefined)t.objects={};if(t.autoload===undefined)t.autoload=[];if(t.theme===undefined)t.theme={};if(!t.theme.basePlugin&&q.plugins.screen_theme)t.theme.basePlugin="screen_theme";if(!t.initialContent)t.initialContent="";if(!t.settings)t.settings={};if(!t.objects.notifier&&q.plugins.notifier)t.objects.notifier={};if(!t.objects.loginController&&q.plugins.userident)t.objects.loginController={};if(!t.objects.fileHistory&&
-q.plugins.file_history)t.objects.fileHistory={factory:"file_history",arguments:["session"],objects:{"0":"session"}};if(!t.objects.server&&q.plugins.bespin_server){t.objects.server={factory:"bespin_server"};t.objects.filesource={factory:"bespin_filesource",arguments:["server"],objects:{"0":"server"}}}if(!t.objects.files&&q.plugins.filesystem&&t.objects.filesource)t.objects.files={arguments:["filesource"],objects:{"0":"filesource"}};if(!t.objects.editor)t.objects.editor={factory:"text_editor",arguments:[t.initialContent]};
-if(!t.objects.session)t.objects.session={arguments:["editor"],objects:{"0":"editor"}};if(!t.objects.commandLine&&q.plugins.command_line)t.objects.commandLine={};if(t.gui===undefined)t.gui={};q={};for(var B in t.gui){var C=t.gui[B];if(C.component)q[C.component]=true}if(!t.gui.center&&t.objects.editor&&!q.editor)t.gui.center={component:"editor"};if(!t.gui.south&&t.objects.commandLine&&!q.commandLine)t.gui.south={component:"commandLine"}};s.launchEditor=function(q,t){var B=new h;if(t===null){d.error("Cannot start editor without a configuration!");
-B.reject("Cannot start editor without a configuration!");return B}g(q,t).then(function(){j(q,t,B)},function(C){d.error("Error while creating objects");(new f(C)).log();B.reject(C)});return B};var g=function(q,t){var B=[];for(var C in t.objects)B.push(q.createObject(C));return l(B)},j=function(q,t,B){var C=document.createElement("div");C.setAttribute("class","container");var e=document.createElement("div");e.setAttribute("class","center-container");C.appendChild(e);var K=t.element||document.body;m.addClass(K,
-"bespin");K.appendChild(C);for(var L in t.gui){var n=t.gui[L],w=q.getObject(n.component);if(!w){q="Cannot find object "+n.component+" to attach to the Bespin UI";d.error(q);B.reject(q);return}K=w.element;if(!K){q="Component "+n.component+' does not have an "element" attribute to attach to the Bespin UI';d.error(q);B.reject(q);return}v(K).addClass(L);L=="west"||L=="east"||L=="center"?e.appendChild(K):C.appendChild(K);w.elementAppended&&w.elementAppended()}B.resolve()}});
-bespin.tiki.register("::events",{name:"events",dependencies:{traits:"0.0.0"}});bespin.tiki.module("events:index",function(y,s){s.Event=function(){var v=[],r=function(){var l=arguments;v.forEach(function(h){h.func.apply(null,l)})};r.add=function(){arguments.length==1?v.push({ref:arguments[0],func:arguments[0]}):v.push({ref:arguments[0],func:arguments[1]})};r.remove=function(l){v=v.filter(function(h){return l!==h.ref})};r.removeAll=function(){v=[]};return r}});
-bespin.tiki.register("::screen_theme",{name:"screen_theme",dependencies:{theme_manager:"0.0.0"}});bespin.tiki.module("screen_theme:index",function(){});
-(function(){var y=bespin.tiki.require("jquery").$;y(document).ready(function(){bespin.tiki.require("bespin:plugins").catalog.registerMetadata({text_editor:{resourceURL:"resources/text_editor/",description:"Canvas-based text editor component and many common editing commands",dependencies:{completion:"0.0.0",undomanager:"0.0.0",settings:"0.0.0",canon:"0.0.0",rangeutils:"0.0.0",traits:"0.0.0",theme_manager:"0.0.0",keyboard:"0.0.0",edit_session:"0.0.0",syntax_manager:"0.0.0"},testmodules:["tests/controllers/testLayoutmanager",
-"tests/models/testTextstorage","tests/testScratchcanvas","tests/utils/testRect"],provides:[{action:"new",pointer:"views/editor#EditorView",ep:"factory",name:"text_editor"},{pointer:"views/editor#EditorView",ep:"appcomponent",name:"editor_view"},{predicates:{isTextView:true},pointer:"commands/editing#backspace",ep:"command",key:"backspace",name:"backspace"},{predicates:{isTextView:true},pointer:"commands/editing#deleteCommand",ep:"command",key:"delete",name:"delete"},{description:"Delete all lines currently selected",
-key:"ctrl_d",predicates:{isTextView:true},pointer:"commands/editing#deleteLines",ep:"command",name:"deletelines"},{description:"Create a new, empty line below the current one",key:"ctrl_return",predicates:{isTextView:true},pointer:"commands/editing#openLine",ep:"command",name:"openline"},{description:"Join the current line with the following",key:"ctrl_shift_j",predicates:{isTextView:true},pointer:"commands/editing#joinLines",ep:"command",name:"joinline"},{params:[{defaultValue:"",type:"text",name:"text",
-description:"The text to insert"}],pointer:"commands/editing#insertText",ep:"command",name:"insertText"},{predicates:{completing:false,isTextView:true},pointer:"commands/editing#newline",ep:"command",key:"return",name:"newline"},{predicates:{completing:false,isTextView:true},pointer:"commands/editing#tab",ep:"command",key:"tab",name:"tab"},{predicates:{isTextView:true},pointer:"commands/editing#untab",ep:"command",key:"shift_tab",name:"untab"},{predicates:{isTextView:true},ep:"command",name:"move"},
-{description:"Repeat the last search (forward)",pointer:"commands/editor#findNextCommand",ep:"command",key:"ctrl_g",name:"findnext"},{description:"Repeat the last search (backward)",pointer:"commands/editor#findPrevCommand",ep:"command",key:"ctrl_shift_g",name:"findprev"},{predicates:{completing:false,isTextView:true},pointer:"commands/movement#moveDown",ep:"command",key:"down",name:"move down"},{predicates:{isTextView:true},pointer:"commands/movement#moveLeft",ep:"command",key:"left",name:"move left"},
-{predicates:{isTextView:true},pointer:"commands/movement#moveRight",ep:"command",key:"right",name:"move right"},{predicates:{completing:false,isTextView:true},pointer:"commands/movement#moveUp",ep:"command",key:"up",name:"move up"},{predicates:{isTextView:true},ep:"command",name:"select"},{predicates:{isTextView:true},pointer:"commands/movement#selectDown",ep:"command",key:"shift_down",name:"select down"},{predicates:{isTextView:true},pointer:"commands/movement#selectLeft",ep:"command",key:"shift_left",
-name:"select left"},{predicates:{isTextView:true},pointer:"commands/movement#selectRight",ep:"command",key:"shift_right",name:"select right"},{predicates:{isTextView:true},pointer:"commands/movement#selectUp",ep:"command",key:"shift_up",name:"select up"},{predicates:{isTextView:true},pointer:"commands/movement#moveLineEnd",ep:"command",key:["end","ctrl_right"],name:"move lineend"},{predicates:{isTextView:true},pointer:"commands/movement#selectLineEnd",ep:"command",key:["shift_end","ctrl_shift_right"],
-name:"select lineend"},{predicates:{isTextView:true},pointer:"commands/movement#moveDocEnd",ep:"command",key:"ctrl_down",name:"move docend"},{predicates:{isTextView:true},pointer:"commands/movement#selectDocEnd",ep:"command",key:"ctrl_shift_down",name:"select docend"},{predicates:{isTextView:true},pointer:"commands/movement#moveLineStart",ep:"command",key:["home","ctrl_left"],name:"move linestart"},{predicates:{isTextView:true},pointer:"commands/movement#selectLineStart",ep:"command",key:["shift_home",
-"ctrl_shift_left"],name:"select linestart"},{predicates:{isTextView:true},pointer:"commands/movement#moveDocStart",ep:"command",key:"ctrl_up",name:"move docstart"},{predicates:{isTextView:true},pointer:"commands/movement#selectDocStart",ep:"command",key:"ctrl_shift_up",name:"select docstart"},{predicates:{isTextView:true},pointer:"commands/movement#moveNextWord",ep:"command",key:["alt_right"],name:"move nextword"},{predicates:{isTextView:true},pointer:"commands/movement#selectNextWord",ep:"command",
-key:["alt_shift_right"],name:"select nextword"},{predicates:{isTextView:true},pointer:"commands/movement#movePreviousWord",ep:"command",key:["alt_left"],name:"move prevword"},{predicates:{isTextView:true},pointer:"commands/movement#selectPreviousWord",ep:"command",key:["alt_shift_left"],name:"select prevword"},{predicates:{isTextView:true},pointer:"commands/movement#selectAll",ep:"command",key:["ctrl_a","meta_a"],name:"select all"},{predicates:{isTextView:true},ep:"command",name:"scroll"},{predicates:{isTextView:true},
-pointer:"commands/scrolling#scrollDocStart",ep:"command",key:"ctrl_home",name:"scroll start"},{predicates:{isTextView:true},pointer:"commands/scrolling#scrollDocEnd",ep:"command",key:"ctrl_end",name:"scroll end"},{predicates:{isTextView:true},pointer:"commands/scrolling#scrollPageDown",ep:"command",key:"pagedown",name:"scroll down"},{predicates:{isTextView:true},pointer:"commands/scrolling#scrollPageUp",ep:"command",key:"pageup",name:"scroll up"},{pointer:"commands/editor#lcCommand",description:"Change all selected text to lowercase",
-withKey:"CMD SHIFT L",ep:"command",name:"lc"},{pointer:"commands/editor#detabCommand",description:"Convert tabs to spaces.",params:[{defaultValue:null,type:"text",name:"tabsize",description:"Optionally, specify a tab size. (Defaults to setting.)"}],ep:"command",name:"detab"},{pointer:"commands/editor#entabCommand",description:"Convert spaces to tabs.",params:[{defaultValue:null,type:"text",name:"tabsize",description:"Optionally, specify a tab size. (Defaults to setting.)"}],ep:"command",name:"entab"},
-{pointer:"commands/editor#trimCommand",description:"trim trailing or leading whitespace from each line in selection",params:[{defaultValue:"both",type:{data:[{name:"left"},{name:"right"},{name:"both"}],name:"selection"},name:"side",description:"Do we trim from the left, right or both"}],ep:"command",name:"trim"},{pointer:"commands/editor#ucCommand",description:"Change all selected text to uppercase",withKey:"CMD SHIFT U",ep:"command",name:"uc"},{predicates:{isTextView:true},pointer:"controllers/undo#undoManagerCommand",
-ep:"command",key:["ctrl_shift_z"],name:"redo"},{predicates:{isTextView:true},pointer:"controllers/undo#undoManagerCommand",ep:"command",key:["ctrl_z"],name:"undo"},{description:"The distance in characters between each tab",defaultValue:8,type:"number",ep:"setting",name:"tabstop"},{description:"Customize the keymapping",defaultValue:"{}",type:"text",ep:"setting",name:"customKeymapping"},{description:"The keymapping to use",defaultValue:"standard",type:"text",ep:"setting",name:"keymapping"},{description:"The editor font size in pixels",
-defaultValue:14,type:"number",ep:"setting",name:"fontsize"},{description:"The editor font face",defaultValue:"Monaco, Lucida Console, monospace",type:"text",ep:"setting",name:"fontface"},{defaultValue:{color:"#e5c138",paddingLeft:5,backgroundColor:"#4c4a41",paddingRight:10},ep:"themevariable",name:"gutter"},{defaultValue:{color:"#e6e6e6",selectedTextBackgroundColor:"#526da5",backgroundColor:"#2a211c",cursorColor:"#879aff",unfocusedCursorBackgroundColor:"#73171e",unfocusedCursorColor:"#ff0033"},ep:"themevariable",
-name:"editor"},{defaultValue:{comment:"#666666",directive:"#999999",keyword:"#42A8ED",plain:"#e6e6e6",error:"#ff0000",operator:"#88BBFF",identifier:"#D841FF",string:"#039A0A"},ep:"themevariable",name:"highlighter"},{defaultValue:{nibStrokeStyle:"rgb(150, 150, 150)",fullAlpha:1,barFillStyle:"rgb(0, 0, 0)",particalAlpha:0.3,barFillGradientBottomStop:"rgb(44, 44, 44)",backgroundStyle:"#2A211C",thickness:17,padding:5,trackStrokeStyle:"rgb(150, 150, 150)",nibArrowStyle:"rgb(255, 255, 255)",barFillGradientBottomStart:"rgb(22, 22, 22)",
-barFillGradientTopStop:"rgb(40, 40, 40)",barFillGradientTopStart:"rgb(90, 90, 90)",nibStyle:"rgb(100, 100, 100)",trackFillStyle:"rgba(50, 50, 50, 0.8)"},ep:"themevariable",name:"scroller"},{description:"Event: Notify when something within the editor changed.",params:[{required:true,name:"pointer",description:"Function that is called whenever a change happened."}],ep:"extensionpoint",name:"editorChange"}],type:"plugins/supported",name:"text_editor"},less:{resourceURL:"resources/less/",description:"Leaner CSS",
-contributors:[],author:"Alexis Sellier <self@cloudhead.net>",url:"http://lesscss.org",version:"1.0.11",dependencies:{},testmodules:[],provides:[],keywords:["css","parser","lesscss","browser"],type:"plugins/thirdparty",name:"less"},theme_manager_base:{resourceURL:"resources/theme_manager_base/",name:"theme_manager_base",share:true,environments:{main:true},dependencies:{},testmodules:[],provides:[{description:"(Less)files holding the CSS style information for the UI.",params:[{required:true,name:"url",
-description:"Name of the ThemeStylesFile - can also be an array of files."}],ep:"extensionpoint",name:"themestyles"},{description:"Event: Notify when the theme(styles) changed.",params:[{required:true,name:"pointer",description:"Function that is called whenever the theme is changed."}],ep:"extensionpoint",name:"themeChange"},{indexOn:"name",description:"A theme is a way change the look of the application.",params:[{required:false,name:"url",description:"Name of a ThemeStylesFile that holds theme specific CSS rules - can also be an array of files."},
-{required:true,name:"pointer",description:"Function that returns the ThemeData"}],ep:"extensionpoint",name:"theme"}],type:"plugins/supported",description:"Defines extension points required for theming"},canon:{resourceURL:"resources/canon/",name:"canon",environments:{main:true,worker:false},dependencies:{environment:"0.0.0",events:"0.0.0",settings:"0.0.0"},testmodules:[],provides:[{indexOn:"name",description:"A command is a bit of functionality with optional typed arguments which can do something small like moving the cursor around the screen, or large like cloning a project from VCS.",
-ep:"extensionpoint",name:"command"},{description:"An extension point to be called whenever a new command begins output.",ep:"extensionpoint",name:"addedRequestOutput"},{description:"A dimensionsChanged is a way to be notified of changes to the dimension of Bespin",ep:"extensionpoint",name:"dimensionsChanged"},{description:"How many typed commands do we recall for reference?",defaultValue:50,type:"number",ep:"setting",name:"historyLength"},{action:"create",pointer:"history#InMemoryHistory",ep:"factory",
-name:"history"}],type:"plugins/supported",description:"Manages commands"},traits:{resourceURL:"resources/traits/",description:"Traits library, traitsjs.org",dependencies:{},testmodules:[],provides:[],type:"plugins/thirdparty",name:"traits"},keyboard:{resourceURL:"resources/keyboard/",description:"Keyboard shortcuts",dependencies:{canon:"0.0",settings:"0.0"},testmodules:["tests/testKeyboard"],provides:[{description:"A keymapping defines how keystrokes are interpreted.",params:[{required:true,name:"states",
-description:"Holds the states and all the informations about the keymapping. See docs: pluginguide/keymapping"}],ep:"extensionpoint",name:"keymapping"}],type:"plugins/supported",name:"keyboard"},worker_manager:{resourceURL:"resources/worker_manager/",description:"Manages a web worker on the browser side",dependencies:{canon:"0.0.0",events:"0.0.0",underscore:"0.0.0"},testmodules:[],provides:[{description:"Low-level web worker control (for plugin development)",ep:"command",name:"worker"},{description:"Restarts all web workers (for plugin development)",
-pointer:"#workerRestartCommand",ep:"command",name:"worker restart"}],type:"plugins/supported",name:"worker_manager"},edit_session:{resourceURL:"resources/edit_session/",description:"Ties together the files being edited with the views on screen",dependencies:{events:"0.0.0"},testmodules:["tests/testSession"],provides:[{action:"call",pointer:"#createSession",ep:"factory",name:"session"}],type:"plugins/supported",name:"edit_session"},syntax_manager:{resourceURL:"resources/syntax_manager/",name:"syntax_manager",
-environments:{main:true,worker:false},dependencies:{worker_manager:"0.0.0",events:"0.0.0",underscore:"0.0.0",syntax_directory:"0.0.0"},testmodules:[],provides:[],type:"plugins/supported",description:"Provides syntax highlighting services for the editor"},completion:{resourceURL:"resources/completion/",description:"Code completion support",dependencies:{jquery:"0.0.0",ctags:"0.0.0",rangeutils:"0.0.0",canon:"0.0.0",underscore:"0.0.0"},testmodules:[],provides:[{indexOn:"name",description:"Code completion support for specific languages",
-ep:"extensionpoint",name:"completion"},{description:"Accept the chosen completion",key:["return","tab"],predicates:{completing:true},pointer:"controller#completeCommand",ep:"command",name:"complete"},{description:"Abandon the completion",key:"escape",predicates:{completing:true},pointer:"controller#completeCancelCommand",ep:"command",name:"complete cancel"},{description:"Choose the completion below",key:"down",predicates:{completing:true},pointer:"controller#completeDownCommand",ep:"command",name:"complete down"},
-{description:"Choose the completion above",key:"up",predicates:{completing:true},pointer:"controller#completeUpCommand",ep:"command",name:"complete up"}],type:"plugins/supported",name:"completion"},environment:{testmodules:[],dependencies:{settings:"0.0.0"},resourceURL:"resources/environment/",name:"environment",type:"plugins/supported"},undomanager:{resourceURL:"resources/undomanager/",description:"Manages undoable events",testmodules:["tests/testUndomanager"],provides:[{pointer:"#undoManagerCommand",
-ep:"command",key:["ctrl_shift_z"],name:"redo"},{pointer:"#undoManagerCommand",ep:"command",key:["ctrl_z"],name:"undo"}],type:"plugins/supported",name:"undomanager"},rangeutils:{testmodules:["tests/test"],type:"plugins/supported",resourceURL:"resources/rangeutils/",description:"Utility functions for dealing with ranges of text",name:"rangeutils"},stylesheet:{resourceURL:"resources/stylesheet/",name:"stylesheet",environments:{worker:true},dependencies:{standard_syntax:"0.0.0"},testmodules:[],provides:[{pointer:"#CSSSyntax",
-ep:"syntax",fileexts:["css","less"],name:"css"}],type:"plugins/supported",description:"CSS syntax highlighter"},html:{resourceURL:"resources/html/",name:"html",environments:{worker:true},dependencies:{standard_syntax:"0.0.0"},testmodules:[],provides:[{pointer:"#HTMLSyntax",ep:"syntax",fileexts:["htm","html"],name:"html"}],type:"plugins/supported",description:"HTML syntax highlighter"},js_syntax:{resourceURL:"resources/js_syntax/",name:"js_syntax",environments:{worker:true},dependencies:{standard_syntax:"0.0.0"},
-testmodules:[],provides:[{pointer:"#JSSyntax",ep:"syntax",fileexts:["js","json"],name:"js"}],type:"plugins/supported",description:"JavaScript syntax highlighter"},ctags:{resourceURL:"resources/ctags/",description:"Reads and writes tag files",dependencies:{traits:"0.0.0",underscore:"0.0.0"},testmodules:[],type:"plugins/supported",name:"ctags"},events:{resourceURL:"resources/events/",description:"Dead simple event implementation",dependencies:{traits:"0.0"},testmodules:["tests/test"],provides:[],type:"plugins/supported",
-name:"events"},theme_manager:{resourceURL:"resources/theme_manager/",name:"theme_manager",share:true,environments:{main:true,worker:false},dependencies:{theme_manager_base:"0.0.0",settings:"0.0.0",events:"0.0.0",less:"0.0.0"},testmodules:[],provides:[{unregister:"themestyles#unregisterThemeStyles",register:"themestyles#registerThemeStyles",ep:"extensionhandler",name:"themestyles"},{unregister:"index#unregisterTheme",register:"index#registerTheme",ep:"extensionhandler",name:"theme"},{defaultValue:"standard",
-description:"The theme plugin's name to use. If set to 'standard' no theme will be used",type:"text",ep:"setting",name:"theme"},{pointer:"#appLaunched",ep:"appLaunched"}],type:"plugins/supported",description:"Handles colors in Bespin"},standard_syntax:{resourceURL:"resources/standard_syntax/",description:"Easy-to-use basis for syntax engines",environments:{worker:true},dependencies:{syntax_worker:"0.0.0",syntax_directory:"0.0.0",underscore:"0.0.0"},testmodules:[],type:"plugins/supported",name:"standard_syntax"},
-types:{resourceURL:"resources/types/",description:"Defines parameter types for commands",testmodules:["tests/testBasic","tests/testTypes"],provides:[{indexOn:"name",description:"Commands can accept various arguments that the user enters or that are automatically supplied by the environment. Those arguments have types that define how they are supplied or completed. The pointer points to an object with methods convert(str value) and getDefault(). Both functions have `this` set to the command's `takes` parameter. If getDefault is not defined, the default on the command's `takes` is used, if there is one. The object can have a noInput property that is set to true to reflect that this type is provided directly by the system. getDefault must be defined in that case.",
-ep:"extensionpoint",name:"type"},{description:"Text that the user needs to enter.",pointer:"basic#text",ep:"type",name:"text"},{description:"A JavaScript number",pointer:"basic#number",ep:"type",name:"number"},{description:"A true/false value",pointer:"basic#bool",ep:"type",name:"boolean"},{description:"An object that converts via JavaScript",pointer:"basic#object",ep:"type",name:"object"},{description:"A string that is constrained to be one of a number of pre-defined values",pointer:"basic#selection",
-ep:"type",name:"selection"},{description:"A type which we don't understand from the outset, but which we hope context can help us with",ep:"type",name:"deferred"}],type:"plugins/supported",name:"types"},jquery:{testmodules:[],resourceURL:"resources/jquery/",name:"jquery",type:"plugins/thirdparty"},embedded:{testmodules:[],dependencies:{theme_manager:"0.0.0",text_editor:"0.0.0",appconfig:"0.0.0",edit_session:"0.0.0",screen_theme:"0.0.0"},resourceURL:"resources/embedded/",name:"embedded",type:"plugins/supported"},
-settings:{resourceURL:"resources/settings/",description:"Infrastructure and commands for managing user preferences",share:true,dependencies:{types:"0.0"},testmodules:[],provides:[{description:"Storage for the customizable Bespin settings",pointer:"index#settings",ep:"appcomponent",name:"settings"},{indexOn:"name",description:"A setting is something that the application offers as a way to customize how it works",register:"index#addSetting",ep:"extensionpoint",name:"setting"},{description:"A settingChange is a way to be notified of changes to a setting",
-ep:"extensionpoint",name:"settingChange"},{pointer:"commands#setCommand",description:"define and show settings",params:[{defaultValue:null,type:{pointer:"settings:index#getSettings",name:"selection"},name:"setting",description:"The name of the setting to display or alter"},{defaultValue:null,type:{pointer:"settings:index#getTypeSpecFromAssignment",name:"deferred"},name:"value",description:"The new value for the chosen setting"}],ep:"command",name:"set"},{pointer:"commands#unsetCommand",description:"unset a setting entirely",
-params:[{type:{pointer:"settings:index#getSettings",name:"selection"},name:"setting",description:"The name of the setting to return to defaults"}],ep:"command",name:"unset"}],type:"plugins/supported",name:"settings"},appconfig:{resourceURL:"resources/appconfig/",description:"Instantiates components and displays the GUI based on configuration.",dependencies:{jquery:"0.0.0",canon:"0.0.0",settings:"0.0.0"},testmodules:[],provides:[{description:"Event: Fired when the app is completely launched.",ep:"extensionpoint",
-name:"appLaunched"}],type:"plugins/supported",name:"appconfig"},syntax_worker:{resourceURL:"resources/syntax_worker/",description:"Coordinates multiple syntax engines",environments:{worker:true},dependencies:{syntax_directory:"0.0.0",underscore:"0.0.0"},testmodules:[],type:"plugins/supported",name:"syntax_worker"},screen_theme:{resourceURL:"resources/screen_theme/",description:"Bespins standard theme basePlugin",dependencies:{theme_manager:"0.0.0"},testmodules:[],provides:[{url:["theme.less"],ep:"themestyles"},
-{defaultValue:"@global_font",ep:"themevariable",name:"container_font"},{defaultValue:"@global_font_size",ep:"themevariable",name:"container_font_size"},{defaultValue:"@global_container_background",ep:"themevariable",name:"container_bg"},{defaultValue:"@global_color",ep:"themevariable",name:"container_color"},{defaultValue:"@global_line_height",ep:"themevariable",name:"container_line_height"},{defaultValue:"@global_pane_background",ep:"themevariable",name:"pane_bg"},{defaultValue:"@global_pane_border_radius",
-ep:"themevariable",name:"pane_border_radius"},{defaultValue:"@global_form_font",ep:"themevariable",name:"form_font"},{defaultValue:"@global_form_font_size",ep:"themevariable",name:"form_font_size"},{defaultValue:"@global_form_line_height",ep:"themevariable",name:"form_line_height"},{defaultValue:"@global_form_color",ep:"themevariable",name:"form_color"},{defaultValue:"@global_form_text_shadow",ep:"themevariable",name:"form_text_shadow"},{defaultValue:"@global_pane_link_color",ep:"themevariable",name:"pane_a_color"},
-{defaultValue:"@global_font",ep:"themevariable",name:"pane_font"},{defaultValue:"@global_font_size",ep:"themevariable",name:"pane_font_size"},{defaultValue:"@global_pane_text_shadow",ep:"themevariable",name:"pane_text_shadow"},{defaultValue:"@global_pane_h1_font",ep:"themevariable",name:"pane_h1_font"},{defaultValue:"@global_pane_h1_font_size",ep:"themevariable",name:"pane_h1_font_size"},{defaultValue:"@global_pane_h1_color",ep:"themevariable",name:"pane_h1_color"},{defaultValue:"@global_font_size * 1.8",
-ep:"themevariable",name:"pane_line_height"},{defaultValue:"@global_pane_color",ep:"themevariable",name:"pane_color"},{defaultValue:"@global_text_shadow",ep:"themevariable",name:"pane_text_shadow"},{defaultValue:"@global_font",ep:"themevariable",name:"button_font"},{defaultValue:"@global_font_size",ep:"themevariable",name:"button_font_size"},{defaultValue:"@global_button_color",ep:"themevariable",name:"button_color"},{defaultValue:"@global_button_background",ep:"themevariable",name:"button_bg"},{defaultValue:"@button_bg - #063A27",
-ep:"themevariable",name:"button_bg2"},{defaultValue:"@button_bg - #194A5E",ep:"themevariable",name:"button_border"},{defaultValue:"@global_control_background",ep:"themevariable",name:"control_bg"},{defaultValue:"@global_control_color",ep:"themevariable",name:"control_color"},{defaultValue:"@global_control_border",ep:"themevariable",name:"control_border"},{defaultValue:"@global_control_border_radius",ep:"themevariable",name:"control_border_radius"},{defaultValue:"@global_control_active_background",
-ep:"themevariable",name:"control_active_bg"},{defaultValue:"@global_control_active_border",ep:"themevariable",name:"control_active_border"},{defaultValue:"@global_control_active_color",ep:"themevariable",name:"control_active_color"},{defaultValue:"@global_control_active_inset_color",ep:"themevariable",name:"control_active_inset_color"}],type:"plugins/supported",name:"screen_theme"}})})})();
-(function(){var y=bespin.tiki.require("jquery").$,s=function(v,r,l){v=v.style[l]||document.defaultView.getComputedStyle(v,"").getPropertyValue(l);if(!v||v=="auto"||v=="intrinsic")v=r.style[l];return v};bespin.useBespin=function(v,r){var l=bespin.tiki.require("bespin:util/util"),h={},d=h.settings;r=r||{};for(var f in r)h[f]=r[f];r=h.settings;if(d!==undefined)for(f in d)if(r[f]===undefined)h.settings[f]=d[f];var m=null,i=new (bespin.tiki.require("bespin:promise").Promise);bespin.tiki.require.ensurePackage("::appconfig",
-function(){var g=bespin.tiki.require("appconfig");if(l.isString(v))v=document.getElementById(v);if(l.none(h.initialContent))h.initialContent=v.value||v.innerHTML;v.innerHTML="";if(v.type=="textarea"){var j=v.parentNode,q=document.createElement("div"),t=function(){var C="position:relative;";["margin-top","margin-left","margin-right","margin-bottom"].forEach(function(L){C+=L+":"+s(v,q,L)+";"});var e=s(v,q,"width"),K=s(v,q,"height");C+="height:"+K+";width:"+e+";";C+="display:inline-block;";q.setAttribute("style",
-C)};window.addEventListener("resize",t,false);t();for(v.nextSibling?j.insertBefore(q,v.nextSibling):j.appendChild(q);j!==document;){if(j.tagName.toUpperCase()==="FORM"){var B=j.onsubmit;j.onsubmit=function(C){v.value=m.editor.value;v.innerHTML=m.editor.value;B&&B.call(this,C)};break}j=j.parentNode}v.style.display="none";h.element=q;if(!l.none(v.getAttribute("readonly")))h.readOnly=true}else h.element=v;g.launch(h).then(function(C){m=C;i.resolve(C)})});return i};y(document).ready(function(){for(var v=
-[],r=document.querySelectorAll(".bespin"),l=0;l<r.length;l++){var h=r[l],d=h.getAttribute("data-bespinoptions")||"{}";d=bespin.useBespin(h,JSON.parse(d));d.then(function(f){h.bespin=f},function(f){throw new Error("Launch failed: "+f);});v.push(d)}if(window.onBespinLoad){r=bespin.tiki.require("bespin:promise").group;r(v).then(function(){window.onBespinLoad()},function(){throw new Error("At least one Bespin failed to launch!");})}})})();
+;bespin.tiki.register("::text_editor", {
+    name: "text_editor",
+    dependencies: { "completion": "0.0.0", "undomanager": "0.0.0", "settings": "0.0.0", "canon": "0.0.0", "rangeutils": "0.0.0", "traits": "0.0.0", "theme_manager": "0.0.0", "keyboard": "0.0.0", "edit_session": "0.0.0", "syntax_manager": "0.0.0" }
+});
+bespin.tiki.module("text_editor:commands/editing",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var settings = require('settings').settings;
+var env = require('environment').env;
+var m_range = require('rangeutils:utils/range');
+
+/*
+ * Commands that delete text.
+ */
+
+/**
+ * Deletes the selection or the previous character, if the selection is an
+ * insertion point.
+ */
+exports.backspace = function(args, request) {
+    var view = env.view;
+    view.performBackspaceOrDelete(true);
+};
+
+/**
+ * Deletes the selection or the next character, if the selection is an
+ * insertion point.
+ */
+exports.deleteCommand = function(args, request) {
+    var view = env.view;
+    view.performBackspaceOrDelete(false);
+};
+
+/**
+ * Deletes all lines that are partially or fully selected, and position the
+ * insertion point at the end of the deleted range.
+ */
+exports.deleteLines = function(args, request) {
+    if (env.model.readOnly) {
+        return;
+    }
+
+    // In the case of just one line, do nothing.
+    if (env.model.lines.length == 1) {
+        return;
+    }
+
+    var view = env.view;
+    view.groupChanges(function() {
+        var range = view.getSelectedRange();
+        var lines = env.model.lines;
+        var lastLine = lines.length - 1;
+        var startPos, endPos;
+
+        // Last row gets special treatment.
+        if (range.start.row == lastLine) {
+            startPos = { col: lines[lastLine - 1].length, row: lastLine - 1 };
+        } else {
+            startPos = { col: 0, row: range.start.row };
+        }
+
+        // Last row gets special treatment.
+        if (range.end.row == lastLine) {
+            endPos = { col: lines[lastLine].length, row: lastLine};
+        } else {
+            endPos = { col: 0, row: range.end.row + 1 };
+        }
+
+        view.replaceCharacters({
+            start: startPos,
+            end:   endPos
+        }, '');
+
+        view.moveCursorTo(startPos);
+    });
+};
+
+/*
+ * Commands that insert text.
+ */
+
+// Inserts a newline, and copies the spaces at the beginning of the current row
+// to autoindent.
+var newline = function(model, view) {
+    var selection = view.getSelectedRange();
+    var position = selection.start;
+    var row = position.row, col = position.col;
+
+    var lines = model.lines;
+    var prefix = lines[row].substring(0, col);
+
+    var spaces = /^\s*/.exec(prefix);
+    view.insertText('\n' + spaces);
+};
+
+/**
+ * Replaces the selection with the given text and updates the selection
+ * boundaries appropriately.
+ */
+exports.insertText = function(args, request) {
+    var view = env.view;
+    var text = args.text;
+    view.insertText(text);
+};
+
+/**
+ * Inserts a newline at the insertion point.
+ */
+exports.newline = function(args, request) {
+    var model = env.model, view = env.view;
+    newline(model, view);
+};
+
+/**
+ * Join the following line with the current one. Removes trailing whitespaces.
+ */
+exports.joinLines = function(args, request) {
+    var model = env.model;
+    if (model.readOnly) {
+        return;
+    }
+
+    var view = env.view;
+    var selection = view.getSelectedRange();
+    var lines = model.lines;
+    var row = selection.end.row;
+
+    // Last line selected, which can't get joined.
+    if (lines.length == row) {
+        return;
+    }
+
+    view.groupChanges(function() {
+        var endCol = lines[row].length;
+
+        view.replaceCharacters({
+            start: {
+                col: endCol,
+                row: row
+            },
+            end: {
+                col: /^\s*/.exec(lines[row + 1])[0].length,
+                row: row + 1
+        }}, '');
+    });
+};
+
+/**
+ * Creates a new, empty line below the current one, and places the insertion
+ * point there.
+ */
+exports.openLine = function(args, request) {
+    if (env.model.readOnly) {
+        return;
+    }
+
+    var model = env.model, view = env.view;
+
+    var selection = view.getSelectedRange();
+    var row = selection.end.row;
+    var lines = model.lines;
+    view.moveCursorTo({ row: row, col: lines[row].length });
+
+    newline(model, view);
+};
+
+/**
+ * Inserts a new tab. This is smart about the current inserted whitespaces and
+ * the current position of the cursor. If some text is selected, the selected
+ * lines will be indented by tabstop spaces.
+ */
+exports.tab = function(args, request) {
+    var view = env.view;
+
+    view.groupChanges(function() {
+        var tabstop = settings.get('tabstop');
+        var selection = view.getSelectedRange();
+        var str = '';
+
+        if (m_range.isZeroLength(selection)){
+            var line = env.model.lines[selection.start.row];
+            var trailspaces = line.substring(selection.start.col).
+                                            match(/^\s*/)[0].length;
+            var count = tabstop - (selection.start.col + trailspaces) % tabstop;
+
+            for (var i = 0; i < count; i++) {
+                str += ' ';
+            }
+
+            view.replaceCharacters({
+                 start: selection.start,
+                 end:   selection.start
+             }, str);
+
+            view.moveCursorTo({
+                col: selection.start.col + count + trailspaces,
+                row: selection.end.row
+            });
+        } else {
+            for (var i = 0; i < tabstop; i++) {
+                str += ' ';
+            }
+
+            var startCol;
+            var row = selection.start.row - 1;
+            while (row++ < selection.end.row) {
+                startCol = row == selection.start.row ? selection.start.col : 0;
+
+                view.replaceCharacters({
+                    start: { row:  row, col: startCol},
+                    end:   { row:  row, col: startCol}
+                }, str);
+            }
+
+            view.setSelection({
+                start: selection.start,
+                end: {
+                    col: selection.end.col + tabstop,
+                    row:  selection.end.row
+                }
+            });
+        }
+    }.bind(this));
+};
+
+/**
+ * Removes a tab of whitespaces. If there is no selection, whitespaces in front
+ * of the cursor will be removed. The number of removed whitespaces depends on
+ * the setting tabstop and the current cursor position. If there is a selection,
+ * then the selected lines are unindented by tabstop spaces.
+ */
+exports.untab = function(args, request) {
+    var view = env.view;
+
+    view.groupChanges(function() {
+        var tabstop = settings.get('tabstop');
+        var selection = view.getSelectedRange();
+        var lines = env.model.lines;
+        var count = 0;
+
+        if (m_range.isZeroLength(selection)){
+            count = Math.min(
+                lines[selection.start.row].substring(0, selection.start.col).
+                                                    match(/\s*$/)[0].length,
+                (selection.start.col - tabstop) % tabstop || tabstop);
+
+            view.replaceCharacters({
+                start: {
+                    col: selection.start.col - count,
+                    row: selection.start.row
+                },
+                end: selection.start
+            }, '');
+
+            view.moveCursorTo({
+                row:  selection.start.row,
+                col: selection.end.col - count
+            });
+        } else {
+            var startCol;
+            var row = selection.start.row - 1;
+            while (row++ < selection.end.row) {
+                startCol = row == selection.start.row ? selection.start.col : 0;
+
+                count = Math.min(
+                    lines[row].substring(startCol).match(/^\s*/)[0].length,
+                    tabstop);
+
+                view.replaceCharacters({
+                     start: { row: row, col: startCol},
+                     end:   { row: row, col: startCol + count}
+                 }, '');
+            }
+
+             view.setSelection({
+                 start: { row:  selection.start.row, col: selection.start.col},
+                 end:   { row:  selection.end.row, col: selection.end.col - count}
+             });
+       }
+    }.bind(this));
+};
+
+});
+
+bespin.tiki.module("text_editor:commands/editor",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var catalog = require('bespin:plugins').catalog;
+var settings = require('settings').settings;
+var env = require('environment').env;
+
+exports.findNextCommand = function(args, request) {
+    var view = env.view, search = view.editor.searchController;
+    var sel = view.getSelectedRange();
+    var match = search.findNext(sel.end, true);
+    if (match) {
+        view.setSelection(match, true);
+        view.focus();
+    }
+};
+
+exports.findPrevCommand = function(args, request) {
+    var view = env.view, search = view.editor.searchController;
+    var sel = view.getSelectedRange();
+    var match = search.findPrevious(sel.start, true);
+    if (match) {
+        view.setSelection(match, true);
+        view.focus();
+    }
+};
+
+/**
+ * Utility to allow us to alter the current selection
+ * TODO: If the selection is empty, broaden the scope to the whole file?
+ */
+var withSelection = function(action) {
+    var view = env.view;
+    var selection = view.getSelectedCharacters();
+
+    var replacement = action(selection);
+
+    var range = view.getSelectedRange();
+    var model = env.model;
+    model.replaceCharacters(range, replacement);
+};
+
+/**
+ * 'replace' command
+ */
+exports.replaceCommand = function(args, request) {
+    withSelection(function(selected) {
+        return selected.replace(args.search + '/g', args.replace);
+    });
+};
+
+/**
+ * 'entab' command
+ */
+exports.entabCommand = function(args, request) {
+    tabstop = settings.get('tabstop');
+    withSelection(function(selected) {
+        return selected.replace(' {' + tabstop + '}', '\t');
+    });
+};
+
+/**
+ * 'detab' command
+ */
+exports.detabCommand = function(args, request) {
+    tabstop = settings.get('tabstop');
+    withSelection(function(selected) {
+        return selected.replace('\t', new Array(tabstop + 1).join(' '));
+    });
+};
+
+/**
+ * 'trim' command
+ */
+exports.trimCommand = function(args, request) {
+    withSelection(function(selected) {
+        var lines = selected.split('\n');
+        lines = lines.map(function(line) {
+            if (args.side === 'left' || args.side === 'both') {
+                line = line.replace(/^\s+/, '');
+            }
+            if (args.side === 'right' || args.side === 'both') {
+                line = line.replace(/\s+$/, '');
+            }
+            return line;
+        });
+        return lines.join('\n');
+    });
+};
+
+/**
+ * 'uc' command
+ */
+exports.ucCommand = function(args, request) {
+    withSelection(function(selected) {
+        return selected.toUpperCase();
+    });
+};
+
+/**
+ * 'lc' command
+ */
+exports.lcCommand = function(args, request) {
+    withSelection(function(selected) {
+        return selected.toLowerCase();
+    });
+};
+
+});
+
+bespin.tiki.module("text_editor:commands/movement",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var Range = require('rangeutils:utils/range');
+var env = require('environment').env;
+
+// TODO: These should not be using private APIs of the view.
+
+//
+// Simple movement.
+//
+// These simply delegate to the text view, because they take the text view's
+// private virtual selection into account.
+//
+
+exports.moveDown = function(args, request) {
+    var view = env.view;
+    view.moveDown();
+};
+
+exports.moveLeft = function(args, request) {
+    var view = env.view;
+    view.moveLeft();
+};
+
+exports.moveRight = function(args, request) {
+    var view = env.view;
+    view.moveRight();
+};
+
+exports.moveUp = function(args, request) {
+    var view = env.view;
+    view.moveUp();
+};
+
+//
+// Simple selection.
+//
+
+exports.selectDown = function(args, request) {
+    var view = env.view;
+    view.selectDown();
+};
+
+exports.selectLeft = function(args, request) {
+    var view = env.view;
+    view.selectLeft();
+};
+
+exports.selectRight = function(args, request) {
+    var view = env.view;
+    view.selectRight();
+};
+
+exports.selectUp = function(args, request) {
+    var view = env.view;
+    view.selectUp();
+};
+
+//
+// Move or select to the end of the line or document.
+//
+
+var moveOrSelectEnd = function(shift, inLine) {
+    var view = env.view, model = env.model;
+    var lines = model.lines;
+    var selectedRange = view.getSelectedRange(true);
+    var row = inLine ? selectedRange.end.row : lines.length - 1;
+    view.moveCursorTo({ row: row, col: lines[row].length }, shift);
+};
+
+exports.moveLineEnd = function(args, request) {
+    moveOrSelectEnd(false, true);
+};
+
+exports.selectLineEnd = function(args, request) {
+    moveOrSelectEnd(true, true);
+};
+
+exports.moveDocEnd = function(args, request) {
+    moveOrSelectEnd(false, false);
+};
+
+exports.selectDocEnd = function(args, request) {
+    moveOrSelectEnd(true, false);
+};
+
+//
+// Move or select to the beginning of the line or document.
+//
+
+var moveOrSelectStart = function(shift, inLine) {
+    var view = env.view;
+    var range = view.getSelectedRange(true);
+    var row = inLine ? range.end.row : 0;
+    var position = { row: row, col: 0 };
+    view.moveCursorTo(position, shift);
+};
+
+exports.moveLineStart = function (args, request) {
+    moveOrSelectStart(false, true);
+};
+
+exports.selectLineStart = function(args, request) {
+    moveOrSelectStart(true, true);
+};
+
+exports.moveDocStart = function(args, request) {
+    moveOrSelectStart(false, false);
+};
+
+exports.selectDocStart = function(args, request) {
+    moveOrSelectStart(true, false);
+};
+
+//
+// Move or select to the next or previous word.
+//
+
+var seekNextStop = function(view, text, col, dir, rowChanged) {
+    var isDelim;
+    var countDelim = 0;
+    var wasOverNonDelim = false;
+
+    if (dir < 0) {
+        col--;
+        if (rowChanged) {
+            countDelim = 1;
+        }
+    }
+
+    while (col < text.length && col > -1) {
+        isDelim = view.isDelimiter(text[col]);
+        if (isDelim) {
+            countDelim++;
+        } else {
+            wasOverNonDelim = true;
+        }
+        if ((isDelim || countDelim > 1) && wasOverNonDelim) {
+            break;
+        }
+        col += dir;
+    }
+
+    if (dir < 0) {
+        col++;
+    }
+
+    return col;
+};
+
+var moveOrSelectNextWord = function(shiftDown) {
+    var view = env.view, model = env.model;
+    var lines = model.lines;
+
+    var selectedRange = view.getSelectedRange(true);
+    var end = selectedRange.end;
+    var row = end.row, col = end.col;
+
+    var currentLine = lines[row];
+    var changedRow = false;
+
+    if (col >= currentLine.length) {
+        row++;
+        changedRow = true;
+        if (row < lines.length) {
+            col = 0;
+            currentLine = lines[row];
+        } else {
+            currentLine = '';
+        }
+    }
+
+    col = seekNextStop(view, currentLine, col, 1, changedRow);
+
+    view.moveCursorTo({ row: row, col: col }, shiftDown);
+};
+
+var moveOrSelectPreviousWord = function(shiftDown) {
+    var view = env.view, model = env.model;
+
+    var lines = model.lines;
+    var selectedRange = view.getSelectedRange(true);
+    var end = selectedRange.end;
+    var row = end.row, col = end.col;
+
+    var currentLine = lines[row];
+    var changedRow = false;
+
+    if (col > currentLine.length) {
+        col = currentLine.length;
+    } else if (col == 0) {
+        row--;
+        changedRow = true;
+        if (row > -1) {
+            currentLine = lines[row];
+            col = currentLine.length;
+        } else {
+            currentLine = '';
+        }
+    }
+
+    col = seekNextStop(view, currentLine, col, -1, changedRow);
+
+    view.moveCursorTo({ row: row, col: col }, shiftDown);
+};
+
+exports.moveNextWord = function(args, request) {
+    moveOrSelectNextWord(false);
+};
+
+exports.selectNextWord = function(args, request) {
+    moveOrSelectNextWord(true);
+};
+
+exports.movePreviousWord = function(args, request) {
+    moveOrSelectPreviousWord(false);
+};
+
+exports.selectPreviousWord = function(args, request) {
+    moveOrSelectPreviousWord(true);
+};
+
+//
+// Miscellaneous.
+//
+
+/**
+ * Selects all characters in the buffer.
+ */
+exports.selectAll = function(args, request) {
+    var view = env.view;
+    view.selectAll();
+};
+
+});
+
+bespin.tiki.module("text_editor:commands/scrolling",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+ 
+var env = require('environment').env;
+
+// Scrolling commands.
+
+/**
+ * Scrolls to the start of the document.
+ */
+exports.scrollDocStart = function(args, request) {
+    env.view.scrollToPosition({ col: 0, row: 0 });
+};
+
+/**
+ * Scrolls to the end of the document.
+ */
+exports.scrollDocEnd = function(args, request) {
+    env.view.scrollToPosition(env.model.range.end);
+};
+
+/**
+ * Scrolls down by one screenful of text.
+ */
+exports.scrollPageDown = function(args, request) {
+    env.view.scrollPageDown();
+};
+
+/**
+ * Scrolls up by one screenful of text.
+ */
+exports.scrollPageUp = function(args, request) {
+    env.view.scrollPageUp();
+};
+
+
+});
+
+bespin.tiki.module("text_editor:controllers/layoutmanager",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+var Event = require("events").Event;
+var Range = require('rangeutils:utils/range');
+var SyntaxManager = require('syntax_manager').SyntaxManager;
+var TextStorage = require('models/textstorage').TextStorage;
+var catalog = require('bespin:plugins').catalog;
+var settings = require('settings').settings;
+var m_scratchcanvas = require('bespin:util/scratchcanvas');
+
+var fontDimension = {};
+
+var computeFontDimension = function() {
+    var fontSize = settings.get('fontsize');
+    var fontFace = settings.get('fontface');
+    var font = fontSize + 'px ' + fontFace;
+
+    var canvas = m_scratchcanvas.get();
+
+    // Measure a large string to work around the fact that width and height
+    // are truncated to the nearest integer in the canvas API.
+    var str = '';
+    for (var i = 0; i < 100; i++) {
+        str += 'M';
+    }
+
+    var width = canvas.measureStringWidth(font, str) / 100;
+
+    fontDimension.characterWidth = width;
+
+    fontDimension.lineHeight = Math.floor(fontSize * 1.6);
+    fontDimension.lineAscent = Math.floor(fontSize * 1.3);
+};
+
+computeFontDimension();
+
+catalog.registerExtension('settingChange', {
+    match: "font[size|face]",
+    pointer: computeFontDimension
+});
+
+exports.LayoutManager = function(opts) {
+    this.changedTextAtRow = new Event();
+    this.invalidatedRects = new Event();
+
+    // Put the global variable on the instance.
+    this.fontDimension = fontDimension;
+
+    // There is no setter for textStorage so we have to change it to
+    // _textStorage to make things work with util.mixin().
+    if (opts.textStorage) {
+        opts._textStorage = opts.textStorage;
+        delete opts.textStorage;
+    } else {
+        this._textStorage = new TextStorage();
+    }
+
+    util.mixin(this, opts);
+
+    this._textStorage.changed.add(this.textStorageChanged.bind(this));
+
+    this.textLines = [
+        {
+            characters: '',
+            colors:     [
+                {
+                    start:  0,
+                    end:    0,
+                    color:  'plain'
+                }
+            ]
+        }
+    ];
+
+    var syntaxManager = new SyntaxManager(this);
+    this.syntaxManager = syntaxManager;
+    syntaxManager.attrsChanged.add(this._attrsChanged.bind(this));
+
+    this._size = { width: 0, height: 0 };
+    this.sizeChanged = new Event();
+
+    this._height = 0;
+
+    // Now that the syntax manager is set up, we can recompute the layout.
+    // (See comments in _textStorageChanged().)
+    this._recomputeEntireLayout();
+};
+
+exports.LayoutManager.prototype = {
+    _maximumWidth: 0,
+    _textStorage: null,
+
+    _size: null,
+    sizeChanged: null,
+
+    /**
+     * Theme colors. Value is set by editorView class. Don't change this
+     * property directly. Use the editorView function to adjust it.
+     */
+    _theme: { },
+
+    /**
+     * @property
+     *
+     * The margins on each edge in pixels, expressed as an object with 'left',
+     * 'bottom', 'top', and 'right' properties.
+     *
+     * Do not modify the properties of this object directly; clone, adjust, and
+     * reset the margin property of the layout manager instead.
+     */
+    margin: { left: 5, bottom: 6, top: 0, right: 12 },
+
+    /**
+     * @property
+     *
+     * The plugin catalog to use. Typically this will be plugins.catalog, but
+     * for testing this may be replaced with a mock object.
+     */
+    pluginCatalog: catalog,
+
+    /** The syntax manager in use. */
+    syntaxManager: null,
+
+    /**
+     * @property{Array<object>}
+     *
+     * The marked-up lines of text. Each line has the properties 'characters',
+     * 'colors', and 'lineHeight'.
+     */
+    textLines: null,
+
+    // Called whenever the text attributes (which usually consist of syntax
+    // highlighting) change.
+    _attrsChanged: function(startRow, endRow) {
+        this.updateTextRows(startRow, endRow);
+
+        var invalidRects = this.rectsForRange({
+            start:  { row: startRow, col: 0 },
+            end:    { row: endRow, col: 0 }
+        });
+
+        this.invalidatedRects(this, invalidRects);
+    },
+
+    _computeInvalidRects: function(oldRange, newRange) {
+        var startRect = this.characterRectForPosition(oldRange.start);
+
+        var lineRect = {
+            x:      startRect.x,
+            y:      startRect.y,
+            width:  Number.MAX_VALUE,
+            height: startRect.height
+        };
+
+        return oldRange.end.row === newRange.end.row ?
+            [ lineRect ] :
+            [
+                lineRect,
+                {
+                    x:      0,
+                    y:      startRect.y + fontDimension.lineHeight,
+                    width:  Number.MAX_VALUE,
+                    height: Number.MAX_VALUE
+                }
+            ];
+    },
+
+    // Returns the last valid position in the buffer.
+    _lastCharacterPosition: function() {
+        return {
+            row: this.textLines.length - 1,
+            col: this._maximumWidth
+        };
+    },
+
+    _recalculateMaximumWidth: function() {
+        // Lots of room for optimization here if this turns out to be slow. But
+        // for now...
+        var textLines = this.textLines;
+        var max = 0;
+        textLines.forEach(function(line) {
+            var width = line.characters.length;
+            if (max < width) {
+                max = width;
+            }
+        });
+        this._maximumWidth = max;
+
+        this.size = { width: max, height: this.textLines.length };
+    },
+
+    _recomputeEntireLayout: function() {
+        var entireRange = this._textStorage.range;
+        this._recomputeLayoutForRanges(entireRange, entireRange);
+    },
+
+    _recomputeLayoutForRanges: function(oldRange, newRange) {
+        var oldStartRow = oldRange.start.row, oldEndRow = oldRange.end.row;
+        var newEndRow = newRange.end.row;
+        var newRowCount = newEndRow - oldStartRow + 1;
+
+        var lines = this._textStorage.lines;
+        var theme = this._theme;
+        var plainColor = theme.plain;
+
+        var newTextLines = [];
+        for (var i = 0; i < newRowCount; i++) {
+            var line = lines[oldStartRow + i];
+            newTextLines[i] = {
+                characters: line,
+                colors: [ { start: 0, end: null, color: plainColor } ]
+            };
+        }
+
+        this.textLines = util.replace(this.textLines, oldStartRow,
+                                oldEndRow - oldStartRow + 1, newTextLines);
+        this._recalculateMaximumWidth();
+
+        // Resize if necessary.
+        var newHeight = this.textLines.length;
+        var syntaxManager = this.syntaxManager;
+        if (this._height !== newHeight) {
+            this._height = newHeight;
+        }
+
+        // Invalidate the start row (starting the syntax highlighting).
+        syntaxManager.invalidateRow(oldStartRow);
+
+        // Take the cached attributes from the syntax manager.
+        this.updateTextRows(oldStartRow, newEndRow + 1);
+
+        this.changedTextAtRow(this, oldStartRow);
+
+        var invalidRects = this._computeInvalidRects(oldRange, newRange);
+        this.invalidatedRects(this, invalidRects);
+    },
+
+    /**
+     * Determines the boundaries of the entire text area.
+     *
+     * TODO: Unit test.
+     */
+    boundingRect: function() {
+        return this.rectsForRange({
+            start:  { row: 0, col: 0 },
+            end:    {
+                row: this.textLines.length - 1,
+                col: this._maximumWidth
+            }
+        })[0];
+    },
+
+    /**
+     * Determines the location of the character underneath the given point.
+     *
+     * @return Returns an object with three properties:
+     *   * row: The row of the character nearest the point.
+     *   * col: The col of the character nearest the point.
+     *   * partialFraction: The fraction of the horizontal distance between
+     *       this character and the next character. The extreme left of the
+     *       character is 0.0, while the extreme right of the character is 1.0.
+     *       If you are calling this function to determine where to place the
+     *       cursor, then you should place the cursor after the returned
+     *       character if this value is greater than 0.5.
+     *
+     * If there is no character under the point, then the character nearest the
+     * given point is returned, according to the selection rules.
+     */
+    characterAtPoint: function(point) {
+        var margin = this.margin;
+        var x = point.x - margin.left, y = point.y - margin.top;
+
+        var characterWidth = fontDimension.characterWidth;
+        var textStorage = this._textStorage;
+        var clampedPosition = textStorage.clampPosition({
+            row: Math.floor(y / fontDimension.lineHeight),
+            col: Math.floor(x / characterWidth)
+        });
+
+        var lineLength = textStorage.lines[clampedPosition.row].length;
+        clampedPosition.partialFraction = x < 0 ||
+            clampedPosition.col === lineLength ? 0.0 :
+            x % characterWidth / characterWidth;
+
+        return clampedPosition;
+    },
+
+    /**
+     * Given a rectangle expressed in pixels, returns the range of characters
+     * that lie at least partially within the rectangle as an object.
+     *
+     * TODO: Write unit tests for this method.
+     */
+    characterRangeForBoundingRect: function(rect) {
+        // TODO: variable line heights, needed for word wrap and perhaps
+        // extensions as well
+        var lineHeight = fontDimension.lineHeight;
+        var characterWidth = fontDimension.characterWidth;
+        var margin = this.margin;
+        var x = rect.x - margin.left, y = rect.y - margin.top;
+        return {
+            start:  {
+                row: Math.max(Math.floor(y / lineHeight), 0),
+                col: Math.max(Math.floor(x / characterWidth), 0)
+            },
+            end:    {
+                row: Math.floor((y + rect.height - 1) / lineHeight),
+                col: Math.floor((x + rect.width - 1) / characterWidth) + 1
+            }
+        };
+    },
+
+    /**
+     * Returns the boundaries of the character at the given position.
+     */
+    characterRectForPosition: function(position) {
+        return this.rectsForRange({
+            start:  position,
+            end:    { row: position.row, col: position.col + 1 }
+        })[0];
+    },
+
+    /**
+     * Returns the pixel boundaries of the given line.
+     *
+     * TODO: Unit test.
+     */
+    lineRectForRow: function(row) {
+        return this.rectsForRange({
+            start:  { row: row, col: 0                   },
+            end:    { row: row, col: this._maximumWidth  }
+        })[0];
+    },
+
+    rectForPosition: function(position) {
+        var margin = this.margin;
+        var characterWidth = fontDimension.characterWidth;
+        var lineHeight = fontDimension.lineHeight;
+        return {
+            x:      margin.left + characterWidth * position.col,
+            y:      margin.top + lineHeight * position.row,
+            width:  characterWidth,
+            height: lineHeight
+        };
+    },
+
+    /**
+     * Returns the 1, 2, or 3 rectangles that make up the given range.
+     */
+    rectsForRange: function(range) {
+        var characterWidth = fontDimension.characterWidth;
+        var lineHeight = fontDimension.lineHeight;
+        var maximumWidth = this._maximumWidth;
+        var margin = this.margin;
+
+        var start = range.start, end = range.end;
+        var startRow = start.row, startColumn = start.col;
+        var endRow = end.row, endColumn = end.col;
+
+        if (startRow === endRow) {
+            // The simple rectangle case.
+            return [
+                {
+                    x:      margin.left + characterWidth * startColumn,
+                    y:      margin.top + lineHeight * startRow,
+                    width:  characterWidth * (endColumn - startColumn),
+                    height: lineHeight
+                }
+            ];
+        }
+
+        var rects = [];
+
+        // Top line
+        var middleStartRow;
+        if (startColumn === 0) {
+            middleStartRow = startRow;
+        } else {
+            middleStartRow = startRow + 1;
+            rects.push({
+                x:      margin.left + characterWidth * startColumn,
+                y:      margin.top + lineHeight * startRow,
+                width:  99999, // < Number.MAX_VALUE is not working here.
+                height: lineHeight
+            });
+        }
+
+        // Bottom line
+        var middleEndRow;
+        if (endColumn === 0) {
+            middleEndRow = endRow - 1;
+        } else if (endColumn === maximumWidth) {
+            middleEndRow = endRow;
+        } else {
+            middleEndRow = endRow - 1;
+            rects.push({
+                x:      margin.left,
+                y:      margin.top + lineHeight * endRow,
+                width:  characterWidth * endColumn,
+                height: lineHeight
+            });
+        }
+
+        // Middle area
+        rects.push({
+            x:      margin.left,
+            y:      margin.top + lineHeight * middleStartRow,
+            width:  99999, // < Number.MAX_VALUE is not working here.
+            height: lineHeight * (middleEndRow - middleStartRow + 1)
+        });
+
+        return rects;
+    },
+
+    textStorageChanged: function(oldRange, newRange) {
+        this._recomputeLayoutForRanges(oldRange, newRange);
+    },
+
+    /**
+     * Updates the text lines in the given range to correspond to the current
+     * state of the syntax highlighter. Does not actually run the syntax
+     * highlighters.
+     */
+    updateTextRows: function(startRow, endRow) {
+        var textLines = this.textLines;
+        var attrs = this.syntaxManager.getAttrsForRows(startRow, endRow);
+        var theme = this._theme;
+
+        for (var i = 0; i < attrs.length; i++) {
+            textLines[startRow + i].colors = attrs[i];
+        }
+    }
+};
+
+Object.defineProperties(exports.LayoutManager.prototype, {
+    size: {
+        set: function(size) {
+            if (size.width !== this._size.width || size.height !== this._size.height) {
+                this.sizeChanged(size);
+                this._size = size;
+            }
+        },
+
+        get: function() {
+            return this._size;
+        }
+    },
+
+    textStorage: {
+        get: function() {
+            return this._textStorage;
+        }
+    }
+})
+
+});
+
+bespin.tiki.module("text_editor:controllers/search",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+var Range = require('rangeutils:utils/range');
+var console = require('bespin:console').console;
+
+/**
+ * @class
+ *
+ * Manages the Find functionality.
+ */
+exports.EditorSearchController = function(editor) {
+    this.editor = editor;
+};
+
+exports.EditorSearchController.prototype = {
+
+    /**
+     * The editor holding the buffer object to search in.
+     */
+    editor: null,
+
+    /**
+     * This is based on the idea from:
+     *      http://simonwillison.net/2006/Jan/20/escape/.
+     */
+    _escapeString: /(\/|\.|\*|\+|\?|\||\(|\)|\[|\]|\{|\}|\\)/g,
+
+    _findMatchesInString: function(str) {
+        var result = [];
+        var searchRegExp = this.searchRegExp;
+        var searchResult;
+        var endIndex;
+
+        searchRegExp.lastIndex = 0;
+
+        while (true) {
+            searchResult = searchRegExp.exec(str);
+            if (searchResult === null) {
+                break;
+            }
+
+            result.push(searchResult);
+
+            var index = searchResult.index;
+            searchRegExp.lastIndex = index + searchResult[0].length;
+        }
+
+        return result;
+    },
+
+    _makeRange: function(searchResult, row) {
+        return {
+            start: { row: row, col: searchResult.index },
+            end: {
+                row: row,
+                col: searchResult.index + searchResult[0].length
+            }
+        };
+    },
+
+    /**
+     * @property{boolean}
+     *
+     * True if the search query is a regular expression, false if it's a
+     * literal string.
+     */
+    isRegExp: null,
+
+    /**
+     * @property{RegExp}
+     *
+     * The current search query as a regular expression.
+     */
+    searchRegExp: null,
+
+    /**
+     * @property{String}
+     *
+     * The current search text.
+     */
+    searchText: null,
+
+    /**
+     * Sets the search query.
+     *
+     * @param text     The search query to set.
+     * @param isRegExp True if the text is a regex, false if it's a literal
+     *                 string.
+     */
+    setSearchText: function(text, isRegExp) {
+        var regExp;
+        // If the search string is not a RegExp make sure to escape the
+        if (!isRegExp) {
+            regExp = new RegExp(text.replace(this._escapeString, '\\$1'), 'gi');
+        } else {
+            regExp = new RegExp(text);
+        }
+        this.searchRegExp = regExp;
+        this.isRegExp = isRegExp;
+        this.searchText = text;
+    },
+
+    /**
+     * Finds the next occurrence of the search query.
+     *
+     * @param startPos       The position at which to restart the search.
+     * @param allowFromStart True if the search is allowed to wrap.
+     */
+    findNext: function(startPos, allowFromStart) {
+        var searchRegExp = this.searchRegExp;
+        if (util.none(searchRegExp)) {
+            return null;
+        }
+
+        startPos = startPos || this.editor.textView.getSelectedRange().end;
+
+        var lines = this.editor.layoutManager.textStorage.lines;
+        var searchResult;
+
+        searchRegExp.lastIndex = startPos.col;
+
+        var row;
+        for (row = startPos.row; row < lines.length; row++) {
+            searchResult = searchRegExp.exec(lines[row]);
+            if (!util.none(searchResult)) {
+                return this._makeRange(searchResult, row);
+            }
+        }
+
+        if (!allowFromStart) {
+            return null;
+        }
+
+        // Wrap around.
+        for (row = 0; row <= startPos.row; row++) {
+            searchResult = searchRegExp.exec(lines[row]);
+            if (!util.none(searchResult)) {
+                return this._makeRange(searchResult, row);
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Finds the previous occurrence of the search query.
+     *
+     * @param startPos       The position at which to restart the search.
+     * @param allowFromStart True if the search is allowed to wrap.
+     */
+    findPrevious: function(startPos, allowFromEnd) {
+        var searchRegExp = this.searchRegExp;
+        if (util.none(searchRegExp)) {
+            return null;
+        }
+
+        startPos = startPos || this.editor.textView.getSelectedRange().start;
+
+        var lines = this.editor.buffer.layoutManager.textStorage.lines;
+        var searchResults;
+
+        // Treat the first line specially.
+        var firstLine = lines[startPos.row].substring(0, startPos.col);
+        searchResults = this._findMatchesInString(firstLine);
+
+        if (searchResults.length !== 0) {
+            return this._makeRange(searchResults[searchResults.length - 1],
+                                                                startPos.row);
+        }
+
+        // Loop over all other lines.
+        var row;
+        for (row = startPos.row - 1; row !== -1; row--) {
+            searchResults = this._findMatchesInString(lines[row]);
+            if (searchResults.length !== 0) {
+                return this._makeRange(searchResults[searchResults.length - 1],
+                                                                        row);
+            }
+        }
+
+        if (!allowFromEnd) {
+            return null;
+        }
+
+        // Wrap around.
+        for (row = lines.length - 1; row >= startPos.row; row--) {
+            searchResults = this._findMatchesInString(lines[row]);
+            if (searchResults.length !== 0) {
+                return this._makeRange(searchResults[searchResults.length - 1],
+                                                                        row);
+            }
+        }
+
+        return null;
+    }
+};
+
+
+});
+
+bespin.tiki.module("text_editor:controllers/undo",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var console = require('bespin:console').console;
+var env = require('environment').env;
+
+/**
+ * @class
+ *
+ * The editor undo controller is a delegate of the text view that groups
+ * changes into patches and saves them with the undo manager.
+ *
+ * This object does not assume that it has exclusive write access to the text
+ * storage object, and as such it tries to maintain sensible behavior in the
+ * presence of direct modification to the text storage by other objects. This
+ * is important for collaboration.
+ */
+exports.EditorUndoController = function(editor) {
+    this.editor = editor;
+    var textView = this.textView = editor.textView;
+
+    textView.beganChangeGroup.add(function(sender, selection) {
+        this._beginTransaction();
+        this._record.selectionBefore = selection;
+    }.bind(this));
+
+    textView.endedChangeGroup.add(function(sender, selection) {
+        this._record.selectionAfter = selection;
+        this._endTransaction();
+    }.bind(this));
+
+    textView.replacedCharacters.add(function(sender, oldRange, characters) {
+        if (!this._inTransaction) {
+            throw new Error('UndoController.textViewReplacedCharacters()' +
+                ' called outside a transaction');
+        }
+
+        this._record.patches.push({
+            oldCharacters:  this._deletedCharacters,
+            oldRange:       oldRange,
+            newCharacters:  characters,
+            newRange:       this.editor.layoutManager.textStorage.
+                            resultingRangeForReplacement(oldRange,
+                            characters.split('\n'))
+        });
+
+        this._deletedCharacters = null;
+    }.bind(this));
+
+    textView.willReplaceRange.add(function(sender, oldRange) {
+        if (!this._inTransaction) {
+            throw new Error('UndoController.textViewWillReplaceRange() called' +
+                ' outside a transaction');
+        }
+
+        this._deletedCharacters = this.editor.layoutManager.textStorage.
+                            getCharacters(oldRange);
+    }.bind(this));
+};
+
+exports.EditorUndoController.prototype = {
+    _inTransaction: false,
+    _record: null,
+
+    /**
+     * @property{TextView}
+     *
+     * The view object to forward changes to. This property must be set upon
+     * instantiating the undo controller.
+     */
+    textView: null,
+
+    _beginTransaction: function() {
+        if (this._inTransaction) {
+            console.trace();
+            throw new Error('UndoController._beginTransaction() called with a ' +
+                'transaction already in place');
+        }
+
+        this._inTransaction = true;
+        this._record = { patches: [] };
+    },
+
+    _endTransaction: function() {
+        if (!this._inTransaction) {
+            throw new Error('UndoController._endTransaction() called without a ' +
+                'transaction in place');
+        }
+
+        this.editor.buffer.undoManager.registerUndo(this, this._record);
+        this._record = null;
+
+        this._inTransaction = false;
+    },
+
+    _tryApplyingPatches: function(patches) {
+        var textStorage = this.editor.layoutManager.textStorage;
+        patches.forEach(function(patch) {
+            textStorage.replaceCharacters(patch.oldRange, patch.newCharacters);
+        });
+        return true;
+    },
+
+    _undoOrRedo: function(patches, selection) {
+        if (this._inTransaction) {
+            // Can't think of any reason why this should be supported, and it's
+            // often an indication that someone forgot an endTransaction()
+            // call somewhere...
+            throw new Error('UndoController._undoOrRedo() called while in a transaction');
+        }
+
+        if (!this._tryApplyingPatches(patches)) {
+            return false;
+        }
+
+        this.textView.setSelection(selection, true);
+        return true;
+    },
+
+    redo: function(record) {
+        var patches = record.patches.concat();
+        patches.reverse();
+        return this._undoOrRedo(patches, record.selectionAfter);
+    },
+
+    undo: function(record) {
+        return this._undoOrRedo(record.patches.map(function(patch) {
+                return {
+                    oldCharacters:  patch.newCharacters,
+                    oldRange:       patch.newRange,
+                    newCharacters:  patch.oldCharacters,
+                    newRange:       patch.oldRange
+                };
+            }), record.selectionBefore);
+    }
+};
+
+exports.undoManagerCommand = function(args, request) {
+    var editor = env.editor;
+    editor.buffer.undoManager[request.commandExt.name]()
+};
+
+});
+
+bespin.tiki.module("text_editor:models/buffer",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var env = require('environment').env;
+
+var util = require('bespin:util/util');
+
+var Promise = require('bespin:promise').Promise;
+var TextStorage = require('models/textstorage').TextStorage;
+var LayoutManager = require('controllers/layoutmanager').LayoutManager;
+var UndoManager = require('undomanager').UndoManager;
+
+/**
+ * A Buffer connects a model and file together. It also holds the layoutManager
+ * that is bound to the model. The syntaxManager can get accessed via the
+ * layoutManager as well.
+ *
+ * Per opened file there is one buffer which means that one buffer is
+ * corresponding to one file on the disk. If you open different file, you have
+ * to create a new buffer for that file.
+ *
+ * To create a buffer that is (not yet) bound to a file, just create the Buffer
+ * without a file passed.
+ */
+exports.Buffer = function(file, initialContent) {
+    this._file = file;
+    this._model = new TextStorage(initialContent);
+    this._layoutManager = new LayoutManager({
+        textStorage: this._model
+    });
+
+    this.undoManager = new UndoManager();
+
+    // If a file is passed, then load it. This is the same as calling reload.
+    if (file) {
+        this.reload().then(function() {
+            this._updateSyntaxManagerInitialContext();
+        }.bind(this));
+    } else {
+        this.loadPromise = new Promise();
+        this.loadPromise.resolve();
+    }
+
+    // Restore the state of the buffer (selection + scrollOffset).
+    // TODO: Refactor this code into the ViewState.
+    var history = (env.session ? env.session.history : null);
+    var item, selection, scrollOffset;
+
+    // If
+    //  1.  Check if a history exists and the buffer has a file (-> path)
+    //  2.  Ask the history object for the history for the current file.
+    //      If no history is found, null is returned.
+    if (history && file &&                                  // 1.
+            (item = history.getHistoryForPath(file.path))   // 2.
+    ) {
+        // There is no state saved in the buffer and the history object
+        // has a state saved.
+        selection = item.selection;
+        scrollOffset = item.scroll;
+    }
+
+    // Use the saved values from the history or the default values.
+    this._selectedRange = selection || {
+        start: { row: 0, col: 0 },
+        end: { row: 0, col: 0 }
+    };
+
+    this._scrollOffset = scrollOffset || { x: 0, y: 0 };
+};
+
+exports.Buffer.prototype = {
+    /**
+     * The undoManager where the undo/redo stack is stored and handled.
+     */
+    undoManager: null,
+
+    loadPromise: null,
+
+    _scrollOffset: null,
+    _selectedRange: null,
+    _selectedRangeEndVirtual: null,
+
+    /**
+     * The syntax manager associated with this file.
+     */
+    _layoutManager: null,
+
+    /**
+     * The file object associated with this buffer. The file instance can only
+     * be assigned when constructing the buffer or calling saveAs.
+     */
+    _file: null,
+
+   /**
+    * The text model that is holding the content of the file.
+    */
+    _model: null,
+
+    /**
+     * Save the contents of this buffer. Returns a promise that resolves
+     * once the file is saved.
+     */
+    save: function() {
+        return this._file.saveContents(this._model.value);
+    },
+
+    /**
+     * Saves the contents of this buffer to a new file, and updates the file
+     * field of this buffer to point to the result.
+     *
+     * @param dir{Directory} The directory to save in.
+     * @param filename{string} The name of the file in the directory.
+     * @return A promise to return the newly-saved file.
+     */
+    saveAs: function(newFile) {
+        var promise = new Promise();
+
+        newFile.saveContents(this._model.value).then(function() {
+            this._file = newFile;
+            this._updateSyntaxManagerInitialContext();
+            promise.resolve();
+        }.bind(this), function(error) {
+            promise.reject(error);
+        });
+
+        return promise;
+    },
+
+    /**
+     * Reload the existing file contents from the server.
+     */
+    reload: function() {
+        var file = this._file;
+        var self = this;
+
+        var pr;
+        pr =  file.loadContents().then(function(contents) {
+            self._model.value = contents;
+        });
+        this.loadPromise = pr;
+        return pr;
+    },
+
+    _updateSyntaxManagerInitialContext: function() {
+        var ext = this._file.extension();
+        var syntaxManager = this._layoutManager.syntaxManager;
+        syntaxManager.setSyntaxFromFileExt(ext === null ? '' : ext);
+    },
+
+    /**
+     * Returns true if the file is untitled (i.e. it is new and has not yet
+     * been saved with @saveAs) or false otherwise.
+     */
+    untitled: function() {
+        return util.none(this._file);
+    }
+};
+
+Object.defineProperties(exports.Buffer.prototype, {
+    layoutManager: {
+        get: function() {
+            return this._layoutManager;
+        }
+    },
+
+    syntaxManager: {
+        get: function() {
+            this._layoutManager.syntaxManager;
+        }
+    },
+
+    file: {
+        get: function() {
+            return this._file;
+        }
+    },
+
+    model: {
+        get: function() {
+            return this._model;
+        }
+    }
+});
+
+});
+
+bespin.tiki.module("text_editor:models/textstorage",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var Event = require('events').Event;
+var util = require('bespin:util/util');
+
+var TextStorage;
+
+/**
+ * Creates a new text storage object holding the given string (if supplied).
+ *
+ * @constructor
+ * @exports TextStorage as text_editor:models.textstorage.TextStorage
+ */
+TextStorage = function(initialValue) {
+    if (initialValue !== null && initialValue !== undefined) {
+        this._lines = initialValue.split("\n");
+    } else {
+        this._lines = [ '' ];
+    }
+
+    /**
+     * Called whenever the text changes with the old and new ranges supplied.
+     */
+    this.changed = new Event();
+
+    return this;
+};
+
+TextStorage.prototype = {
+    /** @lends TextStorage */
+
+    _lines: null,
+
+    /**
+     * Whether this model is read-only. Attempts to modify a read-only model
+     * result in exceptions.
+     *
+     * @type {boolean}
+     */
+    readOnly: false,
+
+    /**
+     * Returns the position of the nearest character to the given position,
+     * according to the selection rules.
+     *
+     * @param {position} pos The position to clamp.
+     */
+    clampPosition: function(pos) {
+        var lines = this._lines;
+
+        var row = pos.row;
+        if (row < 0) {
+            return { row: 0, col: 0 };
+        } else if (row >= lines.length) {
+            return this.range.end;
+        }
+
+        var col = Math.max(0, Math.min(pos.col, lines[row].length));
+        return { row: row, col: col };
+    },
+
+    /**
+     * Returns the actual range closest to the given range, according to the
+     * selection rules.
+     */
+    clampRange: function(range) {
+        var start = this.clampPosition(range.start);
+        var end = this.clampPosition(range.end);
+        return { start: start, end: end };
+    },
+
+    /** Deletes all characters in the range. */
+    deleteCharacters: function(range) {
+        this.replaceCharacters(range, '');
+    },
+
+    /**
+     * Returns the result of displacing the given position by count characters
+     * forward (if count > 0) or backward (if count < 0).
+     */
+    displacePosition: function(pos, count) {
+        var forward = count > 0;
+        var lines = this._lines;
+        var lineCount = lines.length;
+
+        for (var i = Math.abs(count); i !== 0; i--) {
+            if (forward) {
+                var rowLength = lines[pos.row].length;
+                if (pos.row === lineCount - 1 && pos.col === rowLength) {
+                    return pos;
+                }
+                pos = pos.col === rowLength ?
+                    { row: pos.row + 1, col: 0            } :
+                    { row: pos.row,     col: pos.col + 1  };
+            } else {
+                if (pos.row === 0 && pos.col == 0) {
+                    return pos;
+                }
+
+                if (pos.col === 0) {
+                    lines = this._lines;
+                    pos = {
+                        row:    pos.row - 1,
+                        col: lines[pos.row - 1].length
+                    };
+                } else {
+                    pos = { row: pos.row, col: pos.col - 1 };
+                }
+            }
+        }
+        return pos;
+    },
+
+    /**
+     * Returns the characters in the given range as a string.
+     */
+    getCharacters: function(range) {
+        var lines = this._lines;
+        var start = range.start, end = range.end;
+        var startRow = start.row, endRow = end.row;
+        var startCol = start.col, endCol = end.col;
+
+        if (startRow === endRow) {
+            return lines[startRow].substring(startCol, endCol);
+        }
+
+        var firstLine = lines[startRow].substring(startCol);
+        var middleLines = lines.slice(startRow + 1, endRow);
+        var endLine = lines[endRow].substring(0, endCol);
+        return [ firstLine ].concat(middleLines, endLine).join('\n');
+    },
+
+    /** Returns the lines of the text storage as a read-only array. */
+    getLines: function() {
+        return this._lines;
+    },
+
+    /** Returns the span of the entire text content. */
+    getRange: function() {
+        var lines = this._lines;
+        var endRow = lines.length - 1;
+        var endCol = lines[endRow].length;
+        var start = { row: 0, col: 0 }, end = { row: endRow, col: endCol };
+        return { start: start, end: end };
+    },
+
+    /** Returns the text in the text storage as a string. */
+    getValue: function() {
+        return this._lines.join('\n');
+    },
+
+    /** Inserts characters at the supplied position. */
+    insertCharacters: function(pos, chars) {
+        this.replaceCharacters({ start: pos, end: pos }, chars);
+    },
+
+    /** Replaces the characters within the supplied range. */
+    replaceCharacters: function(oldRange, characters) {
+        if (this.readOnly) {
+            throw new Error("Attempt to modify a read-only text storage " +
+                "object");
+        }
+
+        var addedLines = characters.split('\n');
+        var addedLineCount = addedLines.length;
+
+        var newRange = this.resultingRangeForReplacement(oldRange, addedLines);
+
+        var oldStart = oldRange.start, oldEnd = oldRange.end;
+        var oldStartRow = oldStart.row, oldEndRow = oldEnd.row;
+        var oldStartColumn = oldStart.col;
+
+        var lines = this._lines;
+        addedLines[0] = lines[oldStartRow].substring(0, oldStartColumn) +
+            addedLines[0];
+        addedLines[addedLineCount - 1] +=
+            lines[oldEndRow].substring(oldEnd.col);
+
+        this._lines = util.replace(lines, oldStartRow, oldEndRow - oldStartRow + 1, addedLines);
+
+        this.changed(oldRange, newRange, characters);
+    },
+
+    /**
+     * Returns the character range that would be modified if the range were
+     * replaced with the given lines.
+     */
+    resultingRangeForReplacement: function(range, lines) {
+        var lineCount = lines.length;
+        var lastLineLength = lines[lineCount - 1].length;
+        var start = range.start;
+        var endRow = start.row + lineCount - 1;
+        var endCol = (lineCount === 1 ? start.col : 0) + lastLineLength;
+        return { start: start, end: { row: endRow, col: endCol } };
+    },
+
+    setLines: function(newLines) {
+        this.setValue(newLines.join('\n'));
+    },
+
+    setValue: function(newValue) {
+        this.replaceCharacters(this.range, newValue);
+    }
+};
+
+exports.TextStorage = TextStorage;
+
+Object.defineProperties(exports.TextStorage.prototype, {
+    lines: {
+        get: function() {
+            return this.getLines();
+        },
+        set: function(newLines) {
+            return this.setLines(newLines);
+        }
+    },
+    
+    range: {
+        get: function() {
+            return this.getRange();
+        }
+    },
+    
+    value: {
+        get: function() {
+            return this.getValue();
+        },
+        set: function(newValue) {
+            this.setValue(newValue);
+        }
+    }
+});
+
+});
+
+bespin.tiki.module("text_editor:utils/rect",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+/**
+ * @private
+ *
+ * Returns the distance between the given value and the given inclusive upper
+ * and lower bounds, or 0 if the value lies between them.
+ *
+ * Exported so that the function can be unit tested.
+ */
+exports._distanceFromBounds = function(value, low, high) {
+    if (value < low) {
+        return value - low;
+    }
+    if (value >= high) {
+        return value - high;
+    }
+    return 0;
+};
+
+/**
+ * Merges the rectangles in a given set and returns the resulting set of non-
+ * overlapping rectanlges.
+ */
+exports.merge = function(set) {
+    var modified;
+    do {
+        modified = false;
+        var newSet = [];
+
+        for (var i = 0; i < set.length; i++) {
+            var rectA = set[i];
+            newSet.push(rectA);
+            for (var j = i+1; j < set.length; j++) {
+                var rectB = set[j];
+                if (exports.rectsSideBySide(rectA, rectB) ||
+                                        exports.rectsIntersect(rectA, rectB)) {
+                    set.splice(j, 1);
+
+                    // There's room for optimization here...
+                    newSet[newSet.length - 1] = exports.unionRects(rectA, rectB);
+
+                    modified = true;
+                    break;
+                }
+            }
+        }
+
+        set = newSet;
+    } while (modified);
+
+    return set;
+};
+
+/**
+ * Returns the vector representing the shortest offset between the given
+ * rectangle and the given point.
+ */
+exports.offsetFromRect = function(rect, point) {
+    return {
+        x: exports._distanceFromBounds(point.x, rect.x, exports.maxX(rect)),
+        y: exports._distanceFromBounds(point.y, rect.y, exports.maxY(rect))
+    };
+};
+
+/**
+ * Returns true if the rectanges intersect or false otherwise. Adjacent
+ * rectangles don't count; they must actually overlap some region.
+ */
+exports.rectsIntersect = function(a, b) {
+    var intersection = exports.intersectRects(a, b);
+    return intersection.width !== 0 && intersection.height !== 0;
+};
+
+/**
+ * Checks if two rects lay side by side. Returns true if this is true.
+ * For example:
+ *      +------------+---------------+
+ *      |    A       |       B       |
+ *      +------------+---------------+
+ * will be true, but if B is only one pixel shifted up,
+ * then it would return false.
+ */
+exports.rectsSideBySide = function(a, b) {
+    if (a.x == b.x && a.width == b.width) {
+        if (a.y < b.y) {
+            return (a.y + a.height) == b.y;
+        } else {
+            return (b.y + b.height) == a.y;
+        }
+    } else if (a.y == b.y && a.height == b.height) {
+        if (a.x < b.x) {
+            return (a.x + a.width) == b.x;
+        } else {
+            return (b.x + b.width) == a.x;
+        }
+    }
+    return false;
+};
+
+// extracted from SproutCore
+exports.intersectRects = function(r1, r2) {
+  // find all four edges
+  var ret = {
+    x: Math.max(exports.minX(r1), exports.minX(r2)),
+    y: Math.max(exports.minY(r1), exports.minY(r2)),
+    width: Math.min(exports.maxX(r1), exports.maxX(r2)),
+    height: Math.min(exports.maxY(r1), exports.maxY(r2))
+  } ;
+
+  // convert edges to w/h
+  ret.width = Math.max(0, ret.width - ret.x) ;
+  ret.height = Math.max(0, ret.height - ret.y) ;
+  return ret ;
+};
+
+/** Return the left edge of the frame */
+exports.minX = function(frame) {
+  return frame.x || 0;
+};
+
+/** Return the right edge of the frame. */
+exports.maxX = function(frame) {
+  return (frame.x || 0) + (frame.width || 0);
+};
+
+/** Return the top edge of the frame */
+exports.minY = function(frame) {
+  return frame.y || 0 ;
+};
+
+/** Return the bottom edge of the frame */
+exports.maxY = function(frame) {
+  return (frame.y || 0) + (frame.height || 0) ;
+};
+
+/** Check if the given point is inside the rect. */
+exports.pointInRect = function(point, f) {
+    return  (point.x >= exports.minX(f)) &&
+            (point.y >= exports.minY(f)) &&
+            (point.x <= exports.maxX(f)) &&
+            (point.y <= exports.maxY(f)) ;
+};
+
+/** Returns the union between two rectangles
+
+  @param r1 {Rect} The first rect
+  @param r2 {Rect} The second rect
+  @returns {Rect} The union rect.
+*/
+exports.unionRects = function(r1, r2) {
+  // find all four edges
+  var ret = {
+    x: Math.min(exports.minX(r1), exports.minX(r2)),
+    y: Math.min(exports.minY(r1), exports.minY(r2)),
+    width: Math.max(exports.maxX(r1), exports.maxX(r2)),
+    height: Math.max(exports.maxY(r1), exports.maxY(r2))
+  } ;
+
+  // convert edges to w/h
+  ret.width = Math.max(0, ret.width - ret.x) ;
+  ret.height = Math.max(0, ret.height - ret.y) ;
+  return ret ;
+};
+
+/** Return true if the two frames match.  You can also pass only points or sizes.
+
+  @param r1 {Rect} the first rect
+  @param r2 {Rect} the second rect
+  @param delta {Float} an optional delta that allows for rects that do not match exactly. Defaults to 0.1
+  @returns {Boolean} true if rects match
+ */
+exports.rectsEqual = function(r1, r2, delta) {
+    if (!r1 || !r2) return (r1 == r2) ;
+    if (!delta && delta !== 0) delta = 0.1;
+    if ((r1.y != r2.y) && (Math.abs(r1.y - r2.y) > delta)) return false ;
+    if ((r1.x != r2.x) && (Math.abs(r1.x - r2.x) > delta)) return false ;
+    if ((r1.width != r2.width) && (Math.abs(r1.width - r2.width) > delta)) return false ;
+    if ((r1.height != r2.height) && (Math.abs(r1.height - r2.height) > delta)) return false ;
+    return true ;
+};
+
+});
+
+bespin.tiki.module("text_editor:views/canvas",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+var Rect = require('utils/rect');
+var Event = require('events').Event;
+
+/**
+ * @class
+ *
+ * This class provides support for manual scrolling and positioning for canvas-
+ * based elements. Getting these elements to play nicely with SproutCore is
+ * tricky and error-prone, so all canvas-based views should consider deriving
+ * from this class. Derived views should implement drawRect() in order to
+ * perform the appropriate canvas drawing logic.
+ *
+ * The actual size of the canvas is always the size of the container the canvas
+ * view is placed in.
+ *
+ * The canvas that is created is available in the domNode attribute and should
+ * be added to the document by the caller.
+ */
+exports.CanvasView = function(container, preventDownsize, clearOnFullInvalid) {
+    if (!container) {
+        return;
+    }
+
+    this._preventDownsize = preventDownsize || false;
+    this._clearOnFullInvalid = clearOnFullInvalid || false;
+    this._clippingFrame = this._frame = {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
+    };
+    this._invalidRects = [];
+
+    var canvas = document.createElement('canvas');
+    canvas.setAttribute('style', 'position: absolute');
+    canvas.innerHTML = 'canvas tag not supported by your browser';
+    container.appendChild(canvas);
+    this.domNode = canvas;
+
+    this.clippingChanged = new Event();
+    this.clippingChanged.add(this.clippingFrameChanged.bind(this));
+};
+
+exports.CanvasView.prototype = {
+    domNode: null,
+
+    clippingChanged: null,
+
+    _canvasContext: null,
+    _canvasId: null,
+    _invalidRects: null,
+    _lastRedrawTime: null,
+    _redrawTimer: null,
+    _clippingFrame: null,
+    _preventDownsize: false,
+    _clearOnFullInvalid: false,
+
+    _frame: null,
+
+    _getContext: function() {
+        if (this._canvasContext === null) {
+            this._canvasContext = this.domNode.getContext('2d');
+        }
+        return this._canvasContext;
+    },
+
+    computeWithClippingFrame: function(x, y) {
+        var clippingFrame = this.clippingFrame;
+        return {
+            x: x + clippingFrame.x,
+            y: y + clippingFrame.y
+        };
+    },
+
+    /**
+     * @property{Number}
+     *
+     * The minimum delay between canvas redraws in milliseconds, equal to 1000
+     * divided by the desired number of frames per second.
+     */
+    minimumRedrawDelay: 1000.0 / 30.0,
+
+    /**
+     * Subclasses can override this method to provide custom behavior whenever
+     * the clipping frame changes. The default implementation simply
+     * invalidates the entire visible area.
+     */
+    clippingFrameChanged: function() {
+        this.invalidate();
+    },
+
+    drawRect: function(rect, context) { },
+
+    /**
+     * Render the canvas. Rendering is delayed by a few ms to empty the call
+     * stack first before rendering. If the canvas was rendered in less then
+     * this.minimumRedrawDelay ms, then the next rendering will take in
+     * this.minimumRedrawDelay - now + lastRendering ms.
+     */
+    render: function() {
+         // Don't continue if there is a rendering or redraw timer already.
+        if (this._renderTimer || this._redrawTimer) {
+            return;
+        }
+
+        // Queue the redraw at the end of the current event queue to make sure
+        // everyting is done when redrawing.
+        this._renderTimer = setTimeout(this._tryRedraw.bind(this), 0);
+    },
+
+    /**
+     * Invalidates the entire visible region of the canvas.
+     */
+    invalidate: function(rect) {
+        this._invalidRects = 'all';
+        this.render();
+    },
+
+    /**
+     * Invalidates the given rect of the canvas, and schedules that portion of
+     * the canvas to be redrawn at the end of the run loop.
+     */
+    invalidateRect: function(rect) {
+        var invalidRects = this._invalidRects;
+        if (invalidRects !== 'all') {
+            invalidRects.push(rect);
+            this.render();
+        }
+    },
+
+    _tryRedraw: function(context) {
+        this._renderTimer = null;
+
+        var now = new Date().getTime();
+        var lastRedrawTime = this._lastRedrawTime;
+        var minimumRedrawDelay = this.minimumRedrawDelay;
+
+        if (lastRedrawTime === null ||
+                now - lastRedrawTime >= minimumRedrawDelay) {
+            this._redraw();
+            return;
+        }
+
+        var redrawTimer = this._redrawTimer;
+        if (redrawTimer !== null) {
+            return; // already scheduled
+        }
+
+        // TODO This is not as good as SC.Timer... Will it work?
+        this._redrawTimer = window.setTimeout(this._redraw.bind(this),
+            minimumRedrawDelay);
+    },
+
+     /**
+     * Calls drawRect() on all the invalid rects to redraw the canvas contents.
+     * Generally, you should not need to call this function unless you override
+     * the default implementations of didCreateLayer() or render().
+     */
+    _redraw: function() {
+        var clippingFrame = this.clippingFrame;
+        clippingFrame = {
+            x:      Math.round(clippingFrame.x),
+            y:      Math.round(clippingFrame.y),
+            width:  clippingFrame.width,
+            height: clippingFrame.height
+        };
+
+        var context = this._getContext();
+        context.save();
+        context.translate(-clippingFrame.x, -clippingFrame.y);
+
+        var invalidRects = this._invalidRects;
+        if (invalidRects === 'all') {
+            if (this._clearOnFullInvalid) {
+                context.clearRect(0, 0, this.domNode.width, this.domNode.height);
+            }
+            this.drawRect(clippingFrame, context);
+        } else {
+            Rect.merge(invalidRects).forEach(function(rect) {
+                rect = Rect.intersectRects(rect, clippingFrame);
+                if (rect.width !== 0 && rect.height !== 0) {
+                    context.save();
+
+                    var x = rect.x, y = rect.y;
+                    var width = rect.width, height = rect.height;
+                    context.beginPath();
+                    context.moveTo(x, y);
+                    context.lineTo(x + width, y);
+                    context.lineTo(x + width, y + height);
+                    context.lineTo(x, y + height);
+                    context.closePath();
+                    context.clip();
+
+                    this.drawRect(rect, context);
+
+                    context.restore();
+                }
+
+            }, this);
+        }
+
+        context.restore();
+
+        this._invalidRects = [];
+        this._redrawTimer = null;
+        this._lastRedrawTime = new Date().getTime();
+    }
+};
+
+Object.defineProperties(exports.CanvasView.prototype, {
+    clippingFrame: {
+        get: function() {
+            return this._clippingFrame;
+        },
+
+        set: function(clippingFrame) {
+            clippingFrame = util.mixin(util.clone(this._clippingFrame), clippingFrame);
+
+            if (this._clippingFrame === null ||
+                    !Rect.rectsEqual(clippingFrame, this._clippingFrame)) {
+                this._clippingFrame = clippingFrame;
+                this.clippingChanged();
+            }
+        }
+    },
+
+    frame: {
+        get: function() {
+            return this._frame;
+        },
+        
+        set: function(frame) {
+            var domNode = this.domNode;
+            var domStyle = domNode.style;
+            var preventDownsize = this._preventDownsize;
+            var domWidth = domNode.width;
+            var domHeight = domNode.height;
+            var domStyle = domNode.style;
+            domStyle.left = frame.x + 'px';
+            domStyle.top = frame.y + 'px';
+
+            var widthChanged, heightChanged;
+            if (frame.width !== domWidth) {
+                if (frame.width < domWidth) {
+                    if (!preventDownsize) {
+                        widthChanged = true;
+                    }
+                } else {
+                    widthChanged = true;
+                }
+            }
+            if (frame.height !== domHeight) {
+                if (frame.height < domHeight) {
+                    if (!preventDownsize) {
+                        heightChanged = true;
+                    }
+                } else {
+                    heightChanged = true;
+                }
+            }
+
+            if (widthChanged) {
+                this.domNode.width = frame.width;
+            }
+            if (heightChanged) {
+                this.domNode.height = frame.height;
+            }
+
+            this._frame = frame;
+
+            // The clipping frame might have changed if the size changed.
+            this.clippingFrame = {
+                width: frame.width,
+                height: frame.height
+            };
+        }
+    }
+});
+
+});
+
+bespin.tiki.module("text_editor:views/editor",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var rangeutils = require('rangeutils:utils/range');
+var scroller = require('views/scroller');
+var util = require('bespin:util/util');
+
+var Buffer = require('models/buffer').Buffer;
+var CompletionController = require('completion:controller').
+    CompletionController;
+var EditorSearchController = require('controllers/search').
+    EditorSearchController;
+var EditorUndoController = require('controllers/undo').EditorUndoController;
+var Event = require('events').Event;
+var GutterView = require('views/gutter').GutterView;
+var LayoutManager = require('controllers/layoutmanager').LayoutManager;
+var ScrollerView = scroller.ScrollerCanvasView;
+var TextView = require('views/text').TextView;
+
+var _ = require('underscore')._;
+var catalog = require('bespin:plugins').catalog;
+var keyboardManager = require('keyboard:keyboard').keyboardManager;
+var settings = require('settings').settings;
+
+// Caches the theme data for the entire editor (editor, highlighter, and
+// gutter).
+var editorThemeData = {};
+
+function computeThemeData(themeManager) {
+    var plugin = catalog.plugins['text_editor'];
+    var provides = plugin.provides;
+    var i = provides.length;
+    var themeData = {};
+
+    // If a themeManager was passed, try to access the themeData for the
+    // `text_editor` plugin.
+    if (themeManager) {
+        var themestyles = themeManager.themestyles;
+
+        if (themestyles.currentThemeVariables &&
+                themestyles.currentThemeVariables['text_editor']) {
+            themeData = themestyles.currentThemeVariables['text_editor'];
+        }
+    }
+
+    while (i--) {
+        if (provides[i].ep === 'themevariable') {
+            var value = util.mixin(util.clone(provides[i].defaultValue),
+                                        themeData[provides[i].name]);
+
+            switch (provides[i].name) {
+                case 'gutter':
+                case 'editor':
+                case 'scroller':
+                case 'highlighter':
+                    editorThemeData[provides[i].name] = value;
+            }
+        }
+    }
+}
+
+// Compute the themeData to make sure there is one when the editor comes up.
+computeThemeData();
+
+catalog.registerExtension('themeChange', {
+    pointer: computeThemeData
+});
+
+/**
+ * @class
+ *
+ * A view responsible for laying out a scrollable text view and its associated
+ * gutter view, as well as maintaining a layout manager.
+ */
+exports.EditorView = function(initialContent) {
+    this.elementAppended = new Event();
+
+    this.element = this.container = document.createElement("div");
+
+    var container = this.container;
+    container.style.overflow = 'visible';
+    container.style.position = 'relative';
+
+    this.scrollOffsetChanged = new Event();
+    this.willChangeBuffer = new Event();
+
+    this.selectionChanged = new Event();
+    this.textChanged = new Event();
+
+    var gutterView = this.gutterView = new GutterView(container, this);
+    var textView = this.textView = new TextView(container, this);
+    var verticalScroller = new ScrollerView(this, scroller.LAYOUT_VERTICAL);
+    var horizontalScroller = new ScrollerView(this,
+        scroller.LAYOUT_HORIZONTAL);
+    this.verticalScroller = verticalScroller;
+    this.horizontalScroller = horizontalScroller;
+
+    this.completionController = new CompletionController(this);
+    this.editorUndoController = new EditorUndoController(this);
+    this.searchController = new EditorSearchController(this);
+
+    this._textViewSize = this._oldSize = { width: 0, height: 0 };
+
+    this._themeData = editorThemeData;
+
+    // Create a buffer for the editor and use initialContent as the initial
+    // content for the textStorage object.
+    this.buffer = new Buffer(null, initialContent);
+
+    // Create all the necessary stuff once the container has been added.
+    this.elementAppended.add(function() {
+        // Set the font property.
+        var fontSize = settings.get('fontsize');
+        var fontFace = settings.get('fontface');
+        this._font = fontSize + 'px ' + fontFace;
+
+        // Repaint when the theme changes.
+        catalog.registerExtension('themeChange', {
+            pointer: this._themeVariableChange.bind(this)
+        });
+
+        // When the font changes, set our local font property, and repaint.
+        catalog.registerExtension('settingChange', {
+            match: "font[size|face]",
+            pointer: this._fontSettingChanged.bind(this)
+        });
+
+        // Likewise when the dimensions change.
+        catalog.registerExtension('dimensionsChanged', {
+            pointer: this.dimensionsChanged.bind(this)
+        });
+
+        // Allow the layout to be recomputed.
+        this._dontRecomputeLayout = false;
+        this._recomputeLayout();
+
+        var wheelEvent = util.isMozilla ? 'DOMMouseScroll' : 'mousewheel';
+        container.addEventListener(wheelEvent, this._onMouseWheel.bind(this),
+            false);
+
+        verticalScroller.valueChanged.add(function(value) {
+            this.scrollOffset = { y: value };
+        }.bind(this));
+
+        horizontalScroller.valueChanged.add(function(value) {
+            this.scrollOffset = { x: value };
+        }.bind(this));
+
+        this.scrollOffsetChanged.add(function(offset) {
+            this._updateScrollOffsetChanged(offset);
+        }.bind(this));
+    }.bind(this));
+};
+
+
+exports.EditorView.prototype = {
+    elementAppended: null,
+
+    textChanged: null,
+    selectionChanged: null,
+
+    scrollOffsetChanged: null,
+    willChangeBuffer: null,
+
+    _textViewSize: null,
+
+    _textLinesCount: 0,
+    _gutterViewWidth: 0,
+    _oldSize: null,
+
+    _buffer: null,
+
+    _dontRecomputeLayout: true,
+
+    _themeData: null,
+
+    _layoutManagerSizeChanged: function(size) {
+        var fontDimension = this.layoutManager.fontDimension;
+        this._textViewSize = {
+            width: size.width * fontDimension.characterWidth,
+            height: size.height * fontDimension.lineHeight
+        };
+
+        if (this._textLinesCount !== size.height) {
+            var gutterWidth = this.gutterView.computeWidth();
+            if (gutterWidth !== this._gutterViewWidth) {
+                this._recomputeLayout(true /* force layout update */);
+            } else {
+                this.gutterView.invalidate();
+            }
+            this._textLinesLength = size.height;
+        }
+
+        // Clamp the current scrollOffset position.
+        this._updateScrollers();
+        this.scrollOffset = {};
+    },
+
+    _updateScrollers: function() {
+        // Don't change anything on the scrollers until the layout is setup.
+        if (this._dontRecomputeLayout) {
+            return;
+        }
+
+        var frame = this.textViewPaddingFrame;
+        var width = this._textViewSize.width;
+        var height = this._textViewSize.height;
+        var scrollOffset = this.scrollOffset;
+        var verticalScroller = this.verticalScroller;
+        var horizontalScroller = this.horizontalScroller;
+
+        if (height < frame.height) {
+            verticalScroller.isVisible = false;
+        } else {
+            verticalScroller.isVisible = true;
+            verticalScroller.proportion = frame.height / height;
+            verticalScroller.maximum = height - frame.height;
+            verticalScroller.value = scrollOffset.y;
+        }
+
+        if (width < frame.width) {
+            horizontalScroller.isVisible = false;
+        } else {
+            horizontalScroller.isVisible = true;
+            horizontalScroller.proportion = frame.width / width;
+            horizontalScroller.maximum = width - frame.width;
+            horizontalScroller.value = scrollOffset.x;
+        }
+    },
+
+    _onMouseWheel: function(evt) {
+        var delta = 0;
+        if (evt.wheelDelta) {
+            delta = -evt.wheelDelta;
+        } else if (evt.detail) {
+            delta = evt.detail * 40;
+        }
+
+        var isVertical = true;
+        if (evt.axis) { // Firefox 3.1 world
+            if (evt.axis == evt.HORIZONTAL_AXIS) isVertical = false;
+        } else if (evt.wheelDeltaY || evt.wheelDeltaX) {
+            if (evt.wheelDeltaX == evt.wheelDelta) isVertical = false;
+        } else if (evt.shiftKey) isVertical = false;
+
+        if (isVertical) {
+            this.scrollBy(0, delta);
+        } else {
+            this.scrollBy(delta * 5, 0);
+        }
+
+        util.stopEvent(evt);
+    },
+
+    scrollTo: function(pos) {
+        this.scrollOffset = pos;
+    },
+
+    scrollBy: function(deltaX, deltaY) {
+        this.scrollOffset = {
+            x: this.scrollOffset.x + deltaX,
+            y: this.scrollOffset.y + deltaY
+        };
+    },
+
+    _recomputeLayout: function(forceLayout) {
+        // This is necessary as _recomputeLayout is called sometimes when the
+        // size of the container is not yet ready (because of FlexBox).
+        if (this._dontRecomputeLayout) {
+            return;
+        }
+
+        var width = this.container.offsetWidth;
+        var height = this.container.offsetHeight;
+
+        // Don't recompute unless the size actually changed.
+        if (!forceLayout && width == this._oldSize.width
+                                    && height == this._oldSize.height) {
+            return;
+        }
+
+        this._oldSize = {
+            width: width,
+            height: height
+        };
+
+        var gutterWidth = this.gutterView.computeWidth();
+        this._gutterViewWidth = gutterWidth;
+
+        this.gutterView.frame = {
+            x: 0,
+            y: 0,
+            width: gutterWidth,
+            height: height
+        };
+
+        this.textView.frame = {
+            x: gutterWidth,
+            y: 0,
+            width: width - gutterWidth,
+            height: height
+        };
+
+        // TODO: Get these values from the scroller theme.
+        var scrollerPadding = this._themeData.scroller.padding;
+        var scrollerSize = this._themeData.scroller.thickness;
+
+        this.horizontalScroller.frame = {
+            x: gutterWidth + scrollerPadding,
+            y: height - (scrollerSize + scrollerPadding),
+            width: width - (gutterWidth + 2 * scrollerPadding + scrollerSize),
+            height: scrollerSize
+        };
+
+        this.verticalScroller.frame = {
+            x: width - (scrollerPadding + scrollerSize),
+            y: scrollerPadding,
+            width: scrollerSize,
+            height: height - (2 * scrollerPadding + scrollerSize)
+        };
+
+        // Calls the setter scrollOffset which then clamps the current
+        // scrollOffset as needed.
+        this.scrollOffset = {};
+
+        this._updateScrollers();
+        this.gutterView.invalidate();
+        this.textView.invalidate();
+        this.verticalScroller.invalidate();
+        this.horizontalScroller.invalidate();
+    },
+
+    dimensionsChanged: function() {
+        this._recomputeLayout();
+    },
+
+    /**
+     * @property{string}
+     *
+     * The font to use for the text view and the gutter view. Typically, this
+     * value is set via the font settings.
+     */
+    _font: null,
+
+    _fontSettingChanged: function() {
+        var fontSize = settings.get('fontsize');
+        var fontFace = settings.get('fontface');
+        this._font = fontSize + 'px ' + fontFace;
+
+        // Recompute the layouts.
+        this.layoutManager._recalculateMaximumWidth();
+        this._layoutManagerSizeChanged(this.layoutManager.size);
+        this.textView.invalidate();
+    },
+
+    _themeVariableChange: function() {
+        // Recompute the entire layout as the gutter might now have a different
+        // size. Just calling invalidate() on the gutter wouldn't be enough.
+        this._recomputeLayout(true);
+    },
+
+    _updateScrollOffsetChanged: function(offset) {
+        this.verticalScroller.value = offset.y;
+        this.horizontalScroller.value = offset.x;
+
+        this.textView.clippingFrame = { x: offset.x, y: offset.y };
+
+        this.gutterView.clippingFrame = { y: offset.y };
+
+        this._updateScrollers();
+        this.gutterView.invalidate();
+        this.textView.invalidate();
+    },
+
+    /**
+     * The text view uses this function to forward key events to the keyboard
+     * manager. The editor view is used as a middleman so that it can append
+     * predicates as necessary.
+     */
+    processKeyEvent: function(evt, sender, preds) {
+        preds = _(preds).clone();
+        preds.completing = this.completionController.isCompleting();
+        return keyboardManager.processKeyEvent(evt, sender, preds);
+    },
+
+    /**
+     * Converts a point in the coordinate system of the document being edited
+     * (i.e. of the text view) to the coordinate system of the editor (i.e. of
+     * the DOM component containing Bespin).
+     */
+    convertTextViewPoint: function(pt) {
+        var scrollOffset = this.scrollOffset;
+        return {
+            x: pt.x - scrollOffset.x + this._gutterViewWidth,
+            y: pt.y - scrollOffset.y
+        };
+    },
+
+    // ------------------------------------------------------------------------
+    // Helper API:
+
+    /**
+     * Replaces the text within a range, as an undoable action.
+     *
+     * @param {Range} range The range to replace.
+     * @param {string} newText The text to insert.
+     * @param {boolean} keepSelection True if the selection should be
+     *     be preserved, otherwise the cursor is set after newText.
+     * @return Returns true if the replacement completed successfully,
+     *     otherwise returns false.
+     */
+    replace: function(range, newText, keepSelection) {
+        if (!rangeutils.isRange(range)) {
+            throw new Error('replace(): expected range but found "' + range +
+                "'");
+        }
+        if (!util.isString(newText)) {
+            throw new Error('replace(): expected text string but found "' +
+                text + '"');
+        }
+
+        var normalized = rangeutils.normalizeRange(range);
+
+        var view = this.textView;
+        var oldSelection = view.getSelectedRange(false);
+        return view.groupChanges(function() {
+            view.replaceCharacters(normalized, newText);
+            if (keepSelection) {
+                view.setSelection(oldSelection);
+            } else {
+                var lines = newText.split('\n');
+
+                var destPosition;
+                if (lines.length > 1) {
+                    destPosition = {
+                        row: range.start.row + lines.length - 1,
+                        col: lines[lines.length - 1].length
+                    };
+                } else {
+                    destPosition = rangeutils.addPositions(range.start,
+                        { row: 0, col: newText.length });
+                }
+                view.moveCursorTo(destPosition);
+            }
+        });
+    },
+
+    getText: function(range) {
+        if (!rangeutils.isRange(range)) {
+            throw new Error('getText(): expected range but found "' + range +
+                '"');
+        }
+
+        var textStorage = this.layoutManager.textStorage;
+        return textStorage.getCharacters(rangeutils.normalizeRange(range));
+    },
+
+    /** Scrolls and moves the insertion point to the given line number. */
+    setLineNumber: function(lineNumber) {
+        if (!util.isNumber(lineNumber)) {
+            throw new Error('setLineNumber(): lineNumber must be a number');
+        }
+
+        var newPosition = { row: lineNumber - 1, col: 0 };
+        this.textView.moveCursorTo(newPosition);
+    },
+
+    /** Sets the position of the cursor. */
+    setCursor: function(newPosition) {
+        if (!rangeutils.isPosition(newPosition)) {
+            throw new Error('setCursor(): expected position but found "' +
+                newPosition + '"');
+        }
+
+        this.textView.moveCursorTo(newPosition);
+    },
+
+    /**
+     * Group changes so that they are only one undo/redo step.
+     * Returns true if the changes were successful.
+     */
+    changeGroup: function(func) {
+        return this.textView.groupChanges(function() {
+            func(this);
+        }.bind(this));
+    },
+
+    /**
+     * Adds the supplied tags to the completion manager.
+     */
+    addTags: function(newTags) {
+        this.completionController.tags.add(newTags);
+    }
+};
+
+Object.defineProperties(exports.EditorView.prototype, {
+    themeData: {
+        get: function() {
+            return this._themeData;
+        },
+
+        set: function() {
+            throw new Error('themeData can\'t be changed directly.' +
+                                ' Use themeManager.');
+        }
+    },
+
+    font: {
+        get: function() {
+            return this._font;
+        },
+
+        set: function() {
+            throw new Error('font can\'t be changed directly.' +
+                    ' Use settings fontsize and fontface.');
+        }
+    },
+
+    buffer: {
+        /**
+         * Sets a new buffer.
+         * The buffer's file has to be loaded when passing to this setter.
+         */
+        set: function(newBuffer) {
+            if (newBuffer === this._buffer) {
+                return;
+            }
+
+            if (!newBuffer.loadPromise.isResolved()) {
+                throw new Error('buffer.set(): the new buffer must first be ' +
+                    'loaded!');
+            }
+
+            // Was there a former buffer? If yes, then remove some events.
+            if (this._buffer !== null) {
+                this.layoutManager.sizeChanged.remove(this);
+                this.layoutManager.textStorage.changed.remove(this);
+                this.textView.selectionChanged.remove(this);
+            }
+
+            this.willChangeBuffer(newBuffer);
+            catalog.publish(this, 'editorChange', 'buffer', newBuffer);
+
+            this.layoutManager = newBuffer.layoutManager;
+            this._buffer = newBuffer;
+
+            var lm = this.layoutManager;
+            var tv = this.textView;
+
+            // Watch out for changes to the layoutManager's internal size.
+            lm.sizeChanged.add(this,
+                this._layoutManagerSizeChanged.bind(this));
+
+            // Map internal events so that developers can listen much easier.
+            lm.textStorage.changed.add(this, this.textChanged.bind(this));
+            tv.selectionChanged.add(this, this.selectionChanged.bind(this));
+
+            this.textView.setSelection(newBuffer._selectedRange, false);
+            this.scrollOffsetChanged(newBuffer._scrollOffset);
+
+            // The layoutManager changed and its size as well. Call the
+            // layoutManager.sizeChanged event manually.
+            this.layoutManager.sizeChanged(this.layoutManager.size);
+
+            this._recomputeLayout();
+        },
+
+        get: function() {
+            return this._buffer;
+        }
+    },
+
+    frame: {
+        get: function() {
+            return {
+                width: this.container.offsetWidth,
+                height: this.container.offsetHeight
+            };
+        }
+    },
+
+    textViewPaddingFrame: {
+        get: function() {
+            var frame = util.clone(this.textView.frame);
+            var padding = this.textView.padding;
+
+            frame.width -= padding.left + padding.right;
+            frame.height -= padding.top + padding.bottom;
+            return frame;
+        }
+    },
+
+    scrollOffset: {
+        set: function(pos) {
+            if (pos.x === undefined) pos.x = this.scrollOffset.x;
+            if (pos.y === undefined) pos.y = this.scrollOffset.y;
+
+            var frame = this.textViewPaddingFrame;
+
+            if (pos.y < 0) {
+                pos.y = 0;
+            } else if (this._textViewSize.height < frame.height) {
+                pos.y = 0;
+            } else if (pos.y + frame.height > this._textViewSize.height) {
+                pos.y = this._textViewSize.height - frame.height;
+            }
+
+            if (pos.x < 0) {
+                pos.x = 0;
+            } else if (this._textViewSize.width < frame.width) {
+                pos.x = 0;
+            } else if (pos.x + frame.width > this._textViewSize.width) {
+                pos.x = this._textViewSize.width - frame.width;
+            }
+
+            if (pos.x === this.scrollOffset.x && pos.y === this.scrollOffset.y) {
+                return;
+            }
+
+            this.buffer._scrollOffset = pos;
+
+            this.scrollOffsetChanged(pos);
+            catalog.publish(this, 'editorChange', 'scrollOffset', pos);
+        },
+
+        get: function() {
+            return this.buffer._scrollOffset;
+        }
+    },
+
+    // -------------------------------------------------------------------------
+    // Helper API:
+
+    readOnly: {
+        get: function() {
+            return this._buffer.model.readOnly;
+        },
+
+        set: function(newValue) {
+            this._buffer.model.readOnly = newValue;
+        }
+    },
+
+    focus: {
+        get: function() {
+            return this.textView.hasFocus;
+        },
+
+        set: function(setFocus) {
+            if (!util.isBoolean(setFocus)) {
+                throw new Error('set focus: expected boolean but found "' +
+                                    setFocus + '"');
+            }
+            this.textView.hasFocus = setFocus;
+        }
+    },
+
+    selection: {
+        /** Returns the currently-selected range. */
+        get: function() {
+            return util.clone(this.textView.getSelectedRange(false));
+        },
+
+        /** Alters the selection. */
+        set: function(newSelection) {
+            if (!rangeutils.isRange(newSelection)) {
+                throw new Error('set selection: position/selection' +
+                                    ' must be supplied');
+            }
+
+            this.textView.setSelection(newSelection);
+        }
+    },
+
+    selectedText: {
+        /** Returns the text within the given range. */
+        get: function() {
+            return this.getText(this.selection);
+        },
+
+        /** Replaces the current text selection with the given text. */
+        set: function(newText) {
+            if (!util.isString(newText)) {
+                throw new Error('set selectedText: expected string but' +
+                    ' found "' + newText + '"');
+            }
+
+            return this.replace(this.selection, newText);
+        }
+    },
+
+    value: {
+        /** Returns the current text. */
+        get: function() {
+            return this.layoutManager.textStorage.value;
+        },
+
+        set: function(newValue) {
+            if (!util.isString(newValue)) {
+                throw new Error('set value: expected string but found "' +
+                                        newValue + '"');
+            }
+
+            // Use the replace function and not this.model.value = newValue
+            // directly as this wouldn't create a new undoable action.
+            return this.replace(this.layoutManager.textStorage.range,
+                                        newValue, false);
+        }
+    },
+
+    syntax: {
+        /**
+         * Returns the initial syntax highlighting context (i.e. the language).
+         */
+        get: function(newSyntax) {
+            return this.layoutManager.syntaxManager.getSyntax();
+        },
+
+        /**
+         * Sets the initial syntax highlighting context (i.e. the language).
+         */
+        set: function(newSyntax) {
+            if (!util.isString(newSyntax)) {
+                throw new Error('set syntax: expected string but found "' +
+                                        newValue + '"');
+            }
+
+            return this.layoutManager.syntaxManager.setSyntax(newSyntax);
+        }
+    }
+});
+
+});
+
+bespin.tiki.module("text_editor:views/gutter",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+
+var CanvasView = require('views/canvas').CanvasView;
+
+/*
+ * A view that renders the gutter for the editor.
+ *
+ * The domNode attribute contains the domNode for this view that should be
+ * added to the document appropriately.
+ */
+exports.GutterView = function(container, editor) {
+    CanvasView.call(this, container, true /* preventDownsize */ );
+
+    this.editor = editor;
+};
+
+exports.GutterView.prototype = new CanvasView();
+
+util.mixin(exports.GutterView.prototype, {
+    drawRect: function(rect, context) {
+        var theme = this.editor.themeData.gutter;
+
+        context.fillStyle = theme.backgroundColor;
+        context.fillRect(rect.x, rect.y, rect.width, rect.height);
+
+        context.save();
+
+        var paddingLeft = theme.paddingLeft;
+        context.translate(paddingLeft, 0);
+
+        var layoutManager = this.editor.layoutManager;
+        var range = layoutManager.characterRangeForBoundingRect(rect);
+        var endRow = Math.min(range.end.row,
+            layoutManager.textLines.length - 1);
+        var lineAscent = layoutManager.fontDimension.lineAscent;
+
+        context.fillStyle = theme.color;
+        context.font = this.editor.font;
+
+        for (var row = range.start.row; row <= endRow; row++) {
+            // TODO: breakpoints
+            context.fillText('' + (row + 1), -0.5,
+                layoutManager.lineRectForRow(row).y + lineAscent - 0.5);
+        }
+
+        context.restore();
+    },
+
+    computeWidth: function() {
+        var theme = this.editor.themeData.gutter;
+        var paddingWidth = theme.paddingLeft + theme.paddingRight;
+
+        var lineNumberFont = this.editor.font;
+
+        var layoutManager = this.editor.layoutManager;
+        var lineCount = layoutManager.textLines.length;
+        var lineCountStr = '' + lineCount;
+
+        var characterWidth = layoutManager.fontDimension.characterWidth;
+        var strWidth = characterWidth * lineCountStr.length;
+
+        return strWidth + paddingWidth;
+    }
+});
+
+});
+
+bespin.tiki.module("text_editor:views/scroller",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+var Event = require('events').Event;
+var console = require('bespin:console').console;
+
+var Rect = require('utils/rect');
+
+var CanvasView = require('views/canvas').CanvasView;
+
+var LINE_HEIGHT                 = 15;
+var MINIMUM_HANDLE_SIZE         = 20;
+var NIB_ARROW_PADDING_BEFORE    = 3;
+var NIB_ARROW_PADDING_AFTER     = 5;
+var NIB_LENGTH                  = 15;
+var NIB_PADDING                 = 8;    // 15/2
+
+var LAYOUT_HORIZONTAL = exports.LAYOUT_HORIZONTAL = 0;
+var LAYOUT_VERTICAL = exports.LAYOUT_VERTICAL = 1;
+
+exports.ScrollerCanvasView = function(editor, layoutDirection) {
+    CanvasView.call(this, editor.container, false /* preventDownsize */,
+        true /* clearOnFullInvalid */);
+    this.editor = editor;
+    this.layoutDirection = layoutDirection;
+
+    var on = function(eventName, func, target) {
+        target = target || this.domNode;
+        target.addEventListener(eventName, function(evt) {
+            func.call(this, evt);
+            util.stopEvent(evt);
+        }.bind(this), false);
+    }.bind(this);
+
+    on('mouseover', this.mouseEntered);
+    on('mouseout', this.mouseExited);
+    on('mousedown', this.mouseDown);
+    // Bind the following events to the window as we want to catch them
+    // even when the mouse is outside of the scroller.
+    on('mouseup', this.mouseUp, window);
+    on('mousemove', this.mouseMove, window);
+
+    this.valueChanged = new Event();
+};
+
+exports.ScrollerCanvasView.prototype = new CanvasView();
+
+util.mixin(exports.ScrollerCanvasView.prototype, {
+    lineHeight: 20,
+
+    proportion: 0,
+
+    /**
+     * @property
+     * Specifies the direction of the scroll bar: one of LAYOUT_HORIZONTAL
+     * or LAYOUT_VERTICAL.
+     *
+     * Changes to this value after the view has been created have no effect.
+     */
+    layoutDirection: LAYOUT_VERTICAL,
+
+    _isVisible: false,
+
+    _maximum: 0,
+
+    _value: 0,
+
+    valueChanged: null,
+
+    /**
+     * @property
+     * The dimensions of transparent space inside the frame, given as an object
+     * with 'left', 'bottom', 'top', and 'right' properties.
+     *
+     * Note that the scrollerThickness property includes the padding on the
+     * sides of the bar.
+     */
+    padding: { left: 0, bottom: 0, top: 0, right: 0 },
+
+    _mouseDownScreenPoint: null,
+    _mouseDownValue: null,
+    _isMouseOver: false,
+    _scrollTimer: null,
+    _mouseEventPosition: null,
+    _mouseOverHandle: false,
+
+    _drawNib: function(ctx, alpha) {
+        var theme = this.editor.themeData.scroller;
+        var fillStyle, arrowStyle, strokeStyle;
+
+        fillStyle   = theme.nibStyle;
+        arrowStyle  = theme.nibArrowStyle;
+        strokeStyle = theme.nibStrokeStyle;
+
+        var midpoint = Math.floor(NIB_LENGTH / 2);
+
+        ctx.fillStyle = fillStyle;
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.floor(NIB_LENGTH / 2), 0, Math.PI * 2, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = strokeStyle;
+        ctx.stroke();
+
+        ctx.fillStyle = arrowStyle;
+        ctx.beginPath();
+        ctx.moveTo(0, -midpoint + NIB_ARROW_PADDING_BEFORE);
+        ctx.lineTo(-midpoint + NIB_ARROW_PADDING_BEFORE,
+            midpoint - NIB_ARROW_PADDING_AFTER);
+        ctx.lineTo(midpoint - NIB_ARROW_PADDING_BEFORE,
+            midpoint - NIB_ARROW_PADDING_AFTER);
+        ctx.closePath();
+        ctx.fill();
+    },
+
+    _drawNibs: function(ctx, alpha) {
+        var thickness = this._getClientThickness();
+        var parentView = this.parentView;
+        var value = this._value;
+        var maximum = this._maximum;
+        var highlighted = this._isHighlighted();
+
+        // Starting nib
+        if (highlighted || value !== 0) {
+            ctx.save();
+            ctx.translate(NIB_PADDING, thickness / 2);
+            ctx.rotate(Math.PI * 1.5);
+            ctx.moveTo(0, 0);
+            this._drawNib(ctx, alpha);
+            ctx.restore();
+        }
+
+        // Ending nib
+        if (highlighted || value !== maximum) {
+            ctx.save();
+            ctx.translate(this._getClientLength() - NIB_PADDING,
+                thickness / 2);
+            ctx.rotate(Math.PI * 0.5);
+            ctx.moveTo(0, 0);
+            this._drawNib(ctx, alpha);
+            ctx.restore();
+        }
+    },
+
+    // Returns the frame of the scroll bar, not counting any padding.
+    _getClientFrame: function() {
+        var frame = this.frame;
+        var padding = this.padding;
+        return {
+            x:      padding.left,
+            y:      padding.top,
+            width:  frame.width - (padding.left + padding.right),
+            height: frame.height - (padding.top + padding.bottom)
+        };
+    },
+
+    // Returns the length of the scroll bar, not counting any padding. Equal to
+    // the width or height of the client frame, depending on the layout
+    // direction.
+    _getClientLength: function() {
+        var clientFrame = this._getClientFrame();
+        switch (this.layoutDirection) {
+        case LAYOUT_HORIZONTAL:
+            return clientFrame.width;
+        case LAYOUT_VERTICAL:
+            return clientFrame.height;
+        default:
+            console.error("unknown layout direction");
+            return null;
+        }
+    },
+
+    // Returns the thickness of the scroll bar, not counting any padding.
+    _getClientThickness: function() {
+        var padding = this.padding;
+        var scrollerThickness = this.editor.themeData.scroller.thickness;
+
+        switch (this.layoutDirection) {
+        case LAYOUT_VERTICAL:
+            return scrollerThickness - (padding.left + padding.right);
+        case LAYOUT_HORIZONTAL:
+            return scrollerThickness - (padding.top + padding.bottom);
+        default:
+            console.error("unknown layout direction");
+            return null;
+        }
+    },
+
+    // The length of the scroll bar, counting the padding. Equal to frame.width
+    // or frame.height, depending on the layout direction of the bar.
+    // Read-only.
+    _getFrameLength: function() {
+        switch (this.layoutDirection) {
+        case LAYOUT_HORIZONTAL:
+            return this.frame.width;
+        case LAYOUT_VERTICAL:
+            return this.frame.height;
+        default:
+            console.error("unknown layout direction");
+            return null;
+        }
+    },
+
+    // The dimensions of the gutter (the middle area between the buttons, which
+    // contains the handle or knob).
+    _getGutterFrame: function() {
+        var clientFrame = this._getClientFrame();
+        var thickness = this._getClientThickness();
+        switch (this.layoutDirection) {
+        case LAYOUT_VERTICAL:
+            return {
+                x:      clientFrame.x,
+                y:      clientFrame.y + NIB_LENGTH,
+                width:  thickness,
+                height: Math.max(0, clientFrame.height - 2*NIB_LENGTH)
+            };
+        case LAYOUT_HORIZONTAL:
+            return {
+                x:      clientFrame.x + NIB_LENGTH,
+                y:      clientFrame.y,
+                width:  Math.max(0, clientFrame.width - 2*NIB_LENGTH),
+                height: thickness
+            };
+        default:
+            console.error("unknown layout direction");
+            return null;
+        }
+    },
+
+    // The length of the gutter, equal to gutterFrame.width or
+    // gutterFrame.height depending on the scroll bar's layout direction.
+    _getGutterLength: function() {
+        var gutterFrame = this._getGutterFrame();
+        var gutterLength;
+        switch (this.layoutDirection) {
+        case LAYOUT_HORIZONTAL:
+            gutterLength = gutterFrame.width;
+            break;
+        case LAYOUT_VERTICAL:
+            gutterLength = gutterFrame.height;
+            break;
+        default:
+            console.error("unknown layout direction");
+            break;
+        }
+        return gutterLength;
+    },
+
+    // Returns the dimensions of the handle or knob.
+    _getHandleFrame: function() {
+        var gutterFrame = this._getGutterFrame();
+        var handleOffset = this._getHandleOffset();
+        var handleLength = this._getHandleLength();
+        switch (this.layoutDirection) {
+        case LAYOUT_VERTICAL:
+            return {
+                x:      gutterFrame.x,
+                y:      gutterFrame.y + handleOffset,
+                width:  gutterFrame.width,
+                height: handleLength
+            };
+        case LAYOUT_HORIZONTAL:
+            return {
+                x:      gutterFrame.x + handleOffset,
+                y:      gutterFrame.y,
+                width:  handleLength,
+                height: gutterFrame.height
+            };
+        }
+    },
+
+    // Returns the length of the handle or knob.
+    _getHandleLength: function() {
+        var gutterLength = this._getGutterLength();
+        return Math.max(gutterLength * this.proportion, MINIMUM_HANDLE_SIZE);
+    },
+
+    // Returns the starting offset of the handle or knob.
+    _getHandleOffset: function() {
+        var maximum = this._maximum;
+        if (maximum === 0) {
+            return 0;
+        }
+
+        var gutterLength = this._getGutterLength();
+        var handleLength = this._getHandleLength();
+        var emptyGutterLength = gutterLength - handleLength;
+
+        return emptyGutterLength * this._value / maximum;
+    },
+
+    // Determines whether the scroll bar is highlighted.
+    _isHighlighted: function() {
+        return this._isMouseOver === true ||
+            this._mouseDownScreenPoint !== null;
+    },
+
+    _segmentForMouseEvent: function(evt) {
+        var point = { x: evt.layerX, y: evt.layerY };
+        var clientFrame = this._getClientFrame();
+        var padding = this.padding;
+
+        if (!Rect.pointInRect(point, clientFrame)) {
+            return null;
+        }
+
+        var layoutDirection = this.layoutDirection;
+        switch (layoutDirection) {
+        case LAYOUT_HORIZONTAL:
+            if ((point.x - padding.left) < NIB_LENGTH) {
+                return 'nib-start';
+            } else if (point.x >= clientFrame.width - NIB_LENGTH) {
+                return 'nib-end';
+            }
+            break;
+        case LAYOUT_VERTICAL:
+            if ((point.y - padding.top) < NIB_LENGTH) {
+                return 'nib-start';
+            } else if (point.y >= clientFrame.height - NIB_LENGTH) {
+                return 'nib-end';
+            }
+            break;
+        default:
+            console.error("unknown layout direction");
+            break;
+        }
+
+        var handleFrame = this._getHandleFrame();
+        if (Rect.pointInRect(point, handleFrame)) {
+            return 'handle';
+        }
+
+        switch (layoutDirection) {
+        case LAYOUT_HORIZONTAL:
+            if (point.x < handleFrame.x) {
+                return 'gutter-before';
+            } else if (point.x >= handleFrame.x + handleFrame.width) {
+                return 'gutter-after';
+            }
+            break;
+        case LAYOUT_VERTICAL:
+            if (point.y < handleFrame.y) {
+                return 'gutter-before';
+            } else if (point.y >= handleFrame.y + handleFrame.height) {
+                return 'gutter-after';
+            }
+            break;
+        default:
+            console.error("unknown layout direction");
+            break;
+        }
+
+        console.error("_segmentForMouseEvent: point ", point,
+            " outside view with handle frame ", handleFrame,
+            " and client frame ", clientFrame);
+        return null;
+    },
+
+    /**
+     * Adjusts the canvas view's frame to match the parent container's frame.
+     */
+    adjustFrame: function() {
+        var parentFrame = this.frame;
+        this.set('layout', {
+            left:   0,
+            top:    0,
+            width:  parentFrame.width,
+            height: parentFrame.height
+        });
+    },
+
+    drawRect: function(rect, ctx) {
+        // Only draw when visible.
+        if (!this._isVisible) {
+            return;
+        }
+
+        var highlighted = this._isHighlighted();
+        var theme = this.editor.themeData.scroller;
+        var alpha = (highlighted) ? theme.fullAlpha : theme.particalAlpha;
+
+        var frame = this.frame;
+        ctx.clearRect(0, 0, frame.width, frame.height);
+
+        // Begin master drawing context
+        ctx.save();
+
+        // Translate so that we're only drawing in the padding.
+        var padding = this.padding;
+        ctx.translate(padding.left, padding.top);
+
+        var handleFrame = this._getHandleFrame();
+        var gutterLength = this._getGutterLength();
+        var thickness = this._getClientThickness();
+        var halfThickness = thickness / 2;
+
+        var layoutDirection = this.layoutDirection;
+        var handleOffset = this._getHandleOffset() + NIB_LENGTH;
+        var handleLength = this._getHandleLength();
+
+        if (layoutDirection === LAYOUT_VERTICAL) {
+            // The rest of the drawing code assumes the scroll bar is
+            // horizontal. Create that fiction by installing a 90 degree
+            // rotation.
+            ctx.translate(thickness + 1, 0);
+            ctx.rotate(Math.PI * 0.5);
+        }
+
+        if (gutterLength <= handleLength) {
+            return; // Don't display the scroll bar.
+        }
+
+        ctx.globalAlpha = alpha;
+
+        if (highlighted) {
+            // Draw the scroll track rectangle.
+            var clientLength = this._getClientLength();
+            ctx.fillStyle = theme.trackFillStyle;
+            ctx.fillRect(NIB_PADDING + 0.5, 0.5,
+                clientLength - 2*NIB_PADDING, thickness - 1);
+            ctx.strokeStyle = theme.trackStrokeStyle;
+            ctx.strokeRect(NIB_PADDING + 0.5, 0.5,
+                clientLength - 2*NIB_PADDING, thickness - 1);
+        }
+
+        var buildHandlePath = function() {
+            ctx.beginPath();
+            ctx.arc(handleOffset + halfThickness + 0.5,                 // x
+                halfThickness,                                          // y
+                halfThickness - 0.5, Math.PI / 2, 3 * Math.PI / 2, false);
+            ctx.arc(handleOffset + handleLength - halfThickness - 0.5,  // x
+                halfThickness,                                          // y
+                halfThickness - 0.5, 3 * Math.PI / 2, Math.PI / 2, false);
+            ctx.lineTo(handleOffset + halfThickness + 0.5, thickness - 0.5);
+            ctx.closePath();
+        };
+        buildHandlePath();
+
+        // Paint the interior of the handle path.
+        var gradient = ctx.createLinearGradient(handleOffset, 0, handleOffset,
+            thickness);
+        gradient.addColorStop(0, theme.barFillGradientTopStart);
+        gradient.addColorStop(0.4, theme.barFillGradientTopStop);
+        gradient.addColorStop(0.41, theme.barFillStyle);
+        gradient.addColorStop(0.8, theme.barFillGradientBottomStart);
+        gradient.addColorStop(1, theme.barFillGradientBottomStop);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Begin handle shine edge context
+        ctx.save();
+        ctx.clip();
+
+        // Draw the little shines in the handle.
+        ctx.fillStyle = theme.barFillStyle;
+        ctx.beginPath();
+        ctx.moveTo(handleOffset + halfThickness * 0.4, halfThickness * 0.6);
+        ctx.lineTo(handleOffset + halfThickness * 0.9, thickness * 0.4);
+        ctx.lineTo(handleOffset, thickness * 0.4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(handleOffset + handleLength - (halfThickness * 0.4),
+            0 + (halfThickness * 0.6));
+        ctx.lineTo(handleOffset + handleLength - (halfThickness * 0.9),
+            0 + (thickness * 0.4));
+        ctx.lineTo(handleOffset + handleLength, 0 + (thickness * 0.4));
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+        // End handle border context
+
+        // Begin handle outline context
+        ctx.save();
+        buildHandlePath();
+        ctx.strokeStyle = theme.trackStrokeStyle;
+        ctx.stroke();
+        ctx.restore();
+        // End handle outline context
+
+        this._drawNibs(ctx, alpha);
+
+        ctx.restore();
+        // End master drawing context
+    },
+
+    _repeatAction: function(method, interval) {
+        var repeat = method();
+        if (repeat !== false) {
+            var func = function() {
+                this._repeatAction(method, 100);
+            }.bind(this);
+            this._scrollTimer = setTimeout(func, interval);
+        }
+    },
+
+    _scrollByDelta: function(delta) {
+        this.value = this._value + delta;
+    },
+
+    _scrollUpOneLine: function() {
+        this._scrollByDelta(-this.lineHeight);
+        return true;
+    },
+
+    _scrollDownOneLine: function() {
+        this._scrollByDelta(this.lineHeight);
+        return true;
+    },
+
+    /**
+     * Scrolls the page depending on the last mouse position. Scrolling is only
+     * performed if the mouse is on the segment gutter-before or -after.
+     */
+    _scrollPage: function() {
+        switch (this._segmentForMouseEvent(this._mouseEventPosition)) {
+            case 'gutter-before':
+                this._scrollByDelta(this._getGutterLength() * -1);
+            break;
+            case 'gutter-after':
+                this._scrollByDelta(this._getGutterLength());
+            break;
+            case null:
+                // The mouse is outside of the scroller. Just wait, until it
+                // comes back in.
+            break;
+            default:
+                // Do not continue repeating this function.
+                return false;
+            break;
+        }
+
+        return true;
+    },
+
+    mouseDown: function(evt) {
+        this._mouseEventPosition = evt;
+        this._mouseOverHandle = false;
+
+        var parentView = this.parentView;
+        var value = this._value;
+        var gutterLength = this._getGutterLength();
+
+        switch (this._segmentForMouseEvent(evt)) {
+        case 'nib-start':
+            this._repeatAction(this._scrollUpOneLine.bind(this), 500);
+            break;
+        case 'nib-end':
+            this._repeatAction(this._scrollDownOneLine.bind(this), 500);
+            break;
+        case 'gutter-before':
+            this._repeatAction(this._scrollPage.bind(this), 500);
+            break;
+        case 'gutter-after':
+            this._repeatAction(this._scrollPage.bind(this), 500);
+            break;
+        case 'handle':
+            break;
+        default:
+            console.error("_segmentForMouseEvent returned an unknown value");
+            break;
+        }
+
+        // The _mouseDownScreenPoint value might be needed although the segment
+        // was not the handle at the moment.
+        switch (this.layoutDirection) {
+        case LAYOUT_HORIZONTAL:
+            this._mouseDownScreenPoint = evt.pageX;
+            break;
+        case LAYOUT_VERTICAL:
+            this._mouseDownScreenPoint = evt.pageY;
+            break;
+        default:
+            console.error("unknown layout direction");
+            break;
+        }
+    },
+
+    mouseMove: function(evt) {
+        if (this._mouseDownScreenPoint === null) {
+            return;
+        }
+
+        // Handle the segments. If the current segment is the handle or
+        // nothing, then drag the handle around (as null = mouse outside of
+        // scrollbar)
+        var segment = this._segmentForMouseEvent(evt);
+        if (segment == 'handle' || this._mouseOverHandle === true) {
+            this._mouseOverHandle = true;
+            if (this._scrollTimer !== null) {
+                clearTimeout(this._scrollTimer);
+                this._scrollTimer = null;
+            }
+
+            var eventDistance;
+            switch (this.layoutDirection) {
+                case LAYOUT_HORIZONTAL:
+                    eventDistance = evt.pageX;
+                    break;
+                case LAYOUT_VERTICAL:
+                    eventDistance = evt.pageY;
+                    break;
+                default:
+                    console.error("unknown layout direction");
+                    break;
+            }
+
+            var eventDelta = eventDistance - this._mouseDownScreenPoint;
+
+            var maximum = this._maximum;
+            var oldValue = this._value;
+            var gutterLength = this._getGutterLength();
+            var handleLength = this._getHandleLength();
+            var emptyGutterLength = gutterLength - handleLength;
+            var valueDelta = maximum * eventDelta / emptyGutterLength;
+            this.value = oldValue + valueDelta;
+
+            this._mouseDownScreenPoint = eventDistance;
+        }
+
+        this._mouseEventPosition = evt;
+    },
+
+    mouseEntered: function(evt) {
+        this._isMouseOver = true;
+        this.invalidate();
+    },
+
+    mouseExited: function(evt) {
+        this._isMouseOver = false;
+        this.invalidate();
+    },
+
+    mouseUp: function(evt) {
+        this._mouseDownScreenPoint = null;
+        this._mouseDownValue = null;
+        if (this._scrollTimer) {
+            clearTimeout(this._scrollTimer);
+            this._scrollTimer = null;
+        }
+        this.invalidate();
+    }
+
+    // mouseWheel: function(evt) {
+    //     var parentView = this.get('parentView');
+    //
+    //     var delta;
+    //     switch (parentView.get('layoutDirection')) {
+    //     case LAYOUT_HORIZONTAL:
+    //         delta = evt.wheelDeltaX;
+    //         break;
+    //     case LAYOUT_VERTICAL:
+    //         delta = evt.wheelDeltaY;
+    //         break;
+    //     default:
+    //         console.error("unknown layout direction");
+    //         return;
+    //     }
+    //
+    //     parentView.set('value', parentView.get('value') + 2*delta);
+    // }
+});
+
+Object.defineProperties(exports.ScrollerCanvasView.prototype, {
+    isVisible: {
+        set: function(isVisible) {
+            if (this._isVisible === isVisible) {
+                return;
+            }
+
+            this._isVisible = isVisible;
+            this.domNode.style.display = isVisible ? 'block' : 'none';
+            if (isVisible) {
+                this.invalidate();
+            }
+        }
+    },
+
+    maximum: {
+        set: function(maximum) {
+            if (this._value > this._maximum) {
+                this._value = this._maximum;
+            }
+
+            if (maximum === this._maximum) {
+                return;
+            }
+
+            this._maximum = maximum;
+            this.invalidate();
+        }
+    },
+
+    value: {
+        set: function(value) {
+            if (value < 0) {
+                value = 0;
+            } else if (value > this._maximum) {
+                value = this._maximum;
+            }
+
+            if (value === this._value) {
+                return;
+            }
+
+            this._value = value;
+            this.valueChanged(value);
+            this.invalidate();
+        }
+    }
+});
+
+});
+
+bespin.tiki.module("text_editor:views/text",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var catalog = require('bespin:plugins').catalog;
+var util = require('bespin:util/util');
+
+var Event = require('events').Event;
+var CanvasView = require('views/canvas').CanvasView;
+var LayoutManager = require('controllers/layoutmanager').LayoutManager;
+var Range = require('rangeutils:utils/range');
+var Rect = require('utils/rect');
+var TextInput = require('views/textinput').TextInput;
+var console = require('bespin:console').console;
+var settings = require('settings').settings;
+
+// Set this to true to outline all text ranges with a box. This may be useful
+// when optimizing syntax highlighting engines.
+var DEBUG_TEXT_RANGES = false;
+
+
+exports.TextView = function(container, editor) {
+    CanvasView.call(this, container, true /* preventDownsize */ );
+    this.editor = editor;
+
+    // Takes the layoutManager of the editor and uses it.
+    var textInput = this.textInput = new TextInput(container, this);
+
+    this.padding = {
+        top: 0,
+        bottom: 30,
+        left: 0,
+        right: 30
+    };
+
+    this.clippingChanged.add(this.clippingFrameChanged.bind(this));
+
+    var dom = this.domNode;
+    dom.style.cursor = "text";
+    dom.addEventListener('mousedown', this.mouseDown.bind(this), false);
+    dom.addEventListener('mousemove', this.mouseMove.bind(this), false);
+    window.addEventListener('mouseup', this.mouseUp.bind(this), false);
+
+    editor.willChangeBuffer.add(this.editorWillChangeBuffer.bind(this));
+
+    // Changeevents.
+    this.selectionChanged = new Event();
+    this.beganChangeGroup = new Event();
+    this.endedChangeGroup = new Event();
+    this.willReplaceRange = new Event();
+    this.replacedCharacters = new Event();
+};
+
+exports.TextView.prototype = new CanvasView();
+
+util.mixin(exports.TextView.prototype, {
+    _dragPoint: null,
+    _dragTimer: null,
+    _enclosingScrollView: null,
+    _inChangeGroup: false,
+    _insertionPointBlinkTimer: null,
+    _insertionPointVisible: true,
+
+
+    // FIXME: These should be public, not private.
+    _keyBuffer: '',
+    _keyMetaBuffer: '',
+    _keyState: 'start',
+
+    _hasFocus: false,
+    _mouseIsDown: false,
+
+    selectionChanged: null,
+    beganChangeGroup: null,
+    endedChangeGroup: null,
+    willReplaceRange: null,
+    replacedCharacters: null,
+
+    editorWillChangeBuffer: function(newBuffer) {
+        if (this.editor.layoutManager) {
+            // Remove events from the old layoutManager.
+            var layoutManager = this.editor.layoutManager;
+            layoutManager.invalidatedRects.remove(this);
+            layoutManager.changedTextAtRow.remove(this);
+        }
+
+        // Add the events to the new layoutManager.
+        layoutManager = newBuffer.layoutManager;
+        layoutManager.invalidatedRects.add(this,
+                                this.layoutManagerInvalidatedRects.bind(this));
+        layoutManager.changedTextAtRow.add(this,
+                                this.layoutManagerChangedTextAtRow.bind(this));
+    },
+
+    /**
+     * Called by the textInput whenever the textInput gained the focus.
+     */
+    didFocus: function() {
+        // Call _setFocus and not this.hasFocus as we have to pass the
+        // 'isFromTextInput' flag.
+        this._setFocus(true, true /* fromTextInput */);
+    },
+
+    /**
+     * Called by the textInput whenever the textinput lost the focus.
+     */
+    didBlur: function() {
+        // Call _setFocus and not this.hasFocus as we have to pass the
+        // 'isFromTextInput' flag.
+        this._setFocus(false, true /* fromTextInput */);
+    },
+
+    _drag: function() {
+        var point = this._dragPoint;
+        var offset = Rect.offsetFromRect(this.clippingFrame, point);
+
+        this.moveCursorTo(this._selectionPositionForPoint({
+                x:  point.x - offset.x,
+                y:  point.y - offset.y
+            }), true);
+    },
+
+    // Draws a single insertion point.
+    _drawInsertionPoint: function(rect, context) {
+        if (!this._insertionPointVisible) {
+            return;
+        }
+
+        var range = this.editor.buffer._selectedRange;
+        var characterRect = this.editor.layoutManager.
+            characterRectForPosition(range.start);
+        var x = Math.floor(characterRect.x), y = characterRect.y;
+        var width = Math.ceil(characterRect.width);
+        var height = characterRect.height;
+
+        context.save();
+
+        var theme = this.editor.themeData.editor;
+        if (this._hasFocus) {
+            context.strokeStyle = theme.cursorColor;
+            context.beginPath();
+            context.moveTo(x + 0.5, y);
+            context.lineTo(x + 0.5, y + height);
+            context.closePath();
+            context.stroke();
+        } else {
+            context.fillStyle = theme.unfocusedCursorBackgroundColor;
+            context.fillRect(x + 0.5, y, width - 0.5, height);
+            context.strokeStyle = theme.unfocusedCursorColor;
+            context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+        }
+
+        context.restore();
+    },
+
+    _drawLines: function(rect, context) {
+        var layoutManager = this.editor.layoutManager;
+        var textLines = layoutManager.textLines;
+        var lineAscent = layoutManager.fontDimension.lineAscent;
+        var themeHighlighter = this.editor.themeData.highlighter
+
+        context.save();
+        context.font = this.editor.font;
+
+        var range = layoutManager.characterRangeForBoundingRect(rect);
+        var rangeStart = range.start, rangeEnd = range.end;
+        var startRow = rangeStart.row, endRow = rangeEnd.row;
+        for (var row = startRow; row <= endRow; row++) {
+            var textLine = textLines[row];
+            if (util.none(textLine)) {
+                continue;
+            }
+
+            // Clamp the start column and end column to fit within the line
+            // text.
+            var characters = textLine.characters;
+            var length = characters.length;
+            var endCol = Math.min(rangeEnd.col, length);
+            var startCol = rangeStart.col;
+            if (startCol >= length) {
+                continue;
+            }
+
+            // Get the color ranges, or synthesize one if it doesn't exist. We
+            // have to be tolerant of bad data, because we may be drawing ahead
+            // of the syntax highlighter.
+            var colorRanges = textLine.colors;
+            if (colorRanges == null) {
+                colorRanges = [];
+            }
+
+            // Figure out which color range to start in.
+            var colorIndex = 0;
+            while (colorIndex < colorRanges.length &&
+                    startCol < colorRanges[colorIndex].start) {
+                colorIndex++;
+            }
+
+            var col = (colorIndex < colorRanges.length)
+                      ? colorRanges[colorIndex].start
+                      : startCol;
+
+            // And finally draw the line.
+            while (col < endCol) {
+                var colorRange = colorRanges[colorIndex];
+                var end = colorRange != null ? colorRange.end : endCol;
+                var tag = colorRange != null ? colorRange.tag : 'plain';
+
+                var color = themeHighlighter.hasOwnProperty(tag)
+                            ? themeHighlighter[tag]
+                            : 'red';
+                context.fillStyle = color;
+
+                var pos = { row: row, col: col };
+                var rect = layoutManager.characterRectForPosition(pos);
+
+                var snippet = characters.substring(col, end);
+                context.fillText(snippet, rect.x, rect.y + lineAscent);
+
+                if (DEBUG_TEXT_RANGES) {
+                    context.strokeStyle = color;
+                    context.strokeRect(rect.x + 0.5, rect.y + 0.5,
+                        rect.width * snippet.length - 1, rect.height - 1);
+                }
+
+                col = end;
+                colorIndex++;
+            }
+        }
+
+        context.restore();
+    },
+
+    // Draws the background highlight for selections.
+    _drawSelectionHighlight: function(rect, context) {
+        var theme = this.editor.themeData.editor;
+        var fillStyle = this._hasFocus ?
+            theme.selectedTextBackgroundColor :
+            theme.unfocusedCursorBackgroundColor;
+        var layoutManager = this.editor.layoutManager;
+
+        context.save();
+
+        var range = Range.normalizeRange(this.editor.buffer._selectedRange);
+        context.fillStyle = fillStyle;
+        layoutManager.rectsForRange(range).forEach(function(rect) {
+            context.fillRect(rect.x, rect.y, rect.width, rect.height);
+        });
+
+        context.restore();
+    },
+
+    // Draws either the selection or the insertion point.
+    _drawSelection: function(rect, context) {
+        if (this._rangeIsInsertionPoint(this.editor.buffer._selectedRange)) {
+            this._drawInsertionPoint(rect, context);
+        } else {
+            this._drawSelectionHighlight(rect, context);
+        }
+    },
+
+    _getVirtualSelection: function(startPropertyAsWell) {
+        var selectedRange = this.editor.buffer._selectedRange;
+        var selectedRangeEndVirtual = this.editor.buffer._selectedRangeEndVirtual;
+
+        return {
+            start:  startPropertyAsWell && selectedRangeEndVirtual ?
+                    selectedRangeEndVirtual : selectedRange.start,
+            end:    selectedRangeEndVirtual || selectedRange.end
+        };
+    },
+
+    _invalidateSelection: function() {
+        var adjustRect = function(rect) {
+            return {
+                x:      rect.x - 1,
+                y:      rect.y,
+                width:  rect.width + 2,
+                height: rect.height
+            };
+        };
+
+        var layoutManager = this.editor.layoutManager;
+        var range = Range.normalizeRange(this.editor.buffer._selectedRange);
+        if (!this._rangeIsInsertionPoint(range)) {
+            var rects = layoutManager.rectsForRange(range);
+            rects.forEach(function(rect) {
+                this.invalidateRect(adjustRect(rect));
+            }, this);
+
+            return;
+        }
+
+        var rect = layoutManager.characterRectForPosition(range.start);
+        this.invalidateRect(adjustRect(rect));
+    },
+
+    _isReadOnly: function() {
+        return this.editor.layoutManager.textStorage.readOnly;
+    },
+
+    _keymappingChanged: function() {
+        this._keyBuffer = '';
+        this._keyState = 'start';
+    },
+
+    _performVerticalKeyboardSelection: function(offset) {
+        var textStorage = this.editor.layoutManager.textStorage;
+        var selectedRangeEndVirtual = this.editor.buffer._selectedRangeEndVirtual;
+        var oldPosition = selectedRangeEndVirtual !== null ?
+            selectedRangeEndVirtual : this.editor.buffer._selectedRange.end;
+        var newPosition = Range.addPositions(oldPosition,
+            { row: offset, col: 0 });
+
+        this.moveCursorTo(newPosition, true, true);
+    },
+
+    _rangeIsInsertionPoint: function(range) {
+        return Range.isZeroLength(range);
+    },
+
+    _rearmInsertionPointBlinkTimer: function() {
+        if (!this._insertionPointVisible) {
+            // Make sure it ends up visible.
+            this.blinkInsertionPoint();
+        }
+
+        if (this._insertionPointBlinkTimer !== null) {
+            clearInterval(this._insertionPointBlinkTimer);
+        }
+
+        this._insertionPointBlinkTimer = setInterval(
+                                            this.blinkInsertionPoint.bind(this),
+                                            750);
+    },
+
+    // Moves the selection, if necessary, to keep all the positions pointing to
+    // actual characters.
+    _repositionSelection: function() {
+        var textLines = this.editor.layoutManager.textLines;
+        var textLineLength = textLines.length;
+
+        var range = this.editor.buffer._selectedRange;
+        var newStartRow = Math.min(range.start.row, textLineLength - 1);
+        var newEndRow = Math.min(range.end.row, textLineLength - 1);
+        var startLine = textLines[newStartRow];
+        var endLine = textLines[newEndRow];
+        this.setSelection({
+            start: {
+                row: newStartRow,
+                col: Math.min(range.start.col, startLine.characters.length)
+            },
+            end: {
+                row: newEndRow,
+                col: Math.min(range.end.col, endLine.characters.length)
+            }
+        });
+    },
+
+    _scrollPage: function(scrollUp) {
+        var clippingFrame = this.clippingFrame;
+        var lineAscent = this.editor.layoutManager.fontDimension.lineAscent;
+        this.editor.scrollBy(0,
+                    (clippingFrame.height + lineAscent) * (scrollUp ? -1 : 1));
+    },
+
+    _scrollWhileDragging: function() {
+        var point = this._dragPoint;
+        var newPoint = this.computeWithClippingFrame(point.layerX, point.layerY);
+        util.mixin(this._dragPoint, newPoint);
+        this._drag();
+    },
+
+    // Returns the character closest to the given point, obeying the selection
+    // rules (including the partialFraction field).
+    _selectionPositionForPoint: function(point) {
+        var position = this.editor.layoutManager.characterAtPoint(point);
+        return position.partialFraction < 0.5 ? position :
+            Range.addPositions(position, { row: 0, col: 1 });
+    },
+
+    _syntaxManagerUpdatedSyntaxForRows: function(startRow, endRow) {
+        if (startRow === endRow) {
+            return;
+        }
+
+        var layoutManager = this.editor.layoutManager;
+        layoutManager.updateTextRows(startRow, endRow);
+
+        layoutManager.rectsForRange({
+                start:  { row: startRow, col: 0 },
+                end:    { row: endRow,   col: 0 }
+            }).forEach(this.invalidateRect, this);
+    },
+
+    /**
+     * Toggles the visible state of the insertion point.
+     */
+    blinkInsertionPoint: function() {
+        this._insertionPointVisible = !this._insertionPointVisible;
+        this._invalidateSelection();
+    },
+
+    /**
+     * Returns the selected characters.
+     */
+    copy: function() {
+        return this.getSelectedCharacters();
+    },
+
+    /**
+     * Removes the selected characters from the text buffer and returns them.
+     */
+    cut: function() {
+        var cutData = this.getSelectedCharacters();
+
+        if (cutData != '') {
+            this.performBackspaceOrDelete(false);
+        }
+
+        return cutData;
+    },
+
+    /**
+     * This is where the editor is painted from head to toe. Pitiful tricks are
+     * used to draw as little as possible.
+     */
+    drawRect: function(rect, context) {
+        context.fillStyle = this.editor.themeData.editor.backgroundColor;
+        context.fillRect(rect.x, rect.y, rect.width, rect.height);
+
+        this._drawSelection(rect, context);
+        this._drawLines(rect, context);
+    },
+
+    /**
+     * Directs keyboard input to this text view.
+     */
+    focus: function() {
+        this.textInput.focus();
+    },
+
+    /** Returns the location of the insertion point in pixels. */
+    getInsertionPointPosition: function() {
+        var editor = this.editor;
+        var range = editor.buffer._selectedRange;
+        var rect = editor.layoutManager.characterRectForPosition(range.start);
+        return { x: rect.x, y: rect.y };
+    },
+
+    /**
+     * Returns the characters that are currently selected as a string, or the
+     * empty string if none are selected.
+     */
+    getSelectedCharacters: function() {
+        return this._rangeIsInsertionPoint(this.editor.buffer._selectedRange) ? '' :
+            this.editor.layoutManager.textStorage.getCharacters(Range.
+            normalizeRange(this.editor.buffer._selectedRange));
+    },
+
+    /*
+     * Returns the currently selected range.
+     *
+     * @param raw If true, the direction of the selection is preserved: the
+     *            'start' field will be the selection origin, and the 'end'
+     *            field will always be the selection tail.
+     */
+    getSelectedRange: function(raw) {
+        if (!raw) {
+            return Range.normalizeRange(this.editor.buffer._selectedRange);
+        } else {
+            return this.editor.buffer._selectedRange;
+        }
+    },
+
+    /**
+     * Groups all the changes in the callback into a single undoable action.
+     * Nested change groups are supported; one undoable action is created for
+     * the entire group of changes.
+     */
+    groupChanges: function(performChanges) {
+        if (this._isReadOnly()) {
+            return false;
+        }
+
+        if (this._inChangeGroup) {
+            performChanges();
+            return true;
+        }
+
+        this._inChangeGroup = true;
+        this.beganChangeGroup(this, this.editor.buffer._selectedRange);
+
+        try {
+            performChanges();
+        } catch (e) {
+            console.error("Error in groupChanges(): " + e);
+            this._inChangeGroup = false;
+            this.endedChangeGroup(this, this.editor.buffer._selectedRange);
+            return false;
+        } finally {
+            this._inChangeGroup = false;
+            this.endedChangeGroup(this, this.editor.buffer._selectedRange);
+            return true;
+        }
+    },
+
+    /**
+     * Replaces the selection with the given text and updates the selection
+     * boundaries appropriately.
+     *
+     * @return True if the text view was successfully updated; false if the
+     *     change couldn't be made because the text view is read-only.
+     */
+    insertText: function(text) {
+        if (this._isReadOnly()) {
+            return false;
+        }
+
+        this.groupChanges(function() {
+            var textStorage = this.editor.layoutManager.textStorage;
+            var range = Range.normalizeRange(this.editor.buffer._selectedRange);
+
+            this.replaceCharacters(range, text);
+
+            // Update the selection to point immediately after the inserted
+            // text.
+            var lines = text.split('\n');
+
+            var destPosition;
+            if (lines.length > 1) {
+                destPosition = {
+                    row:    range.start.row + lines.length - 1,
+                    col: lines[lines.length - 1].length
+                };
+            } else {
+                destPosition = Range.addPositions(range.start,
+                    { row: 0, col: text.length });
+            }
+
+            this.moveCursorTo(destPosition);
+        }.bind(this));
+
+        return true;
+    },
+
+    /**
+     * Returns true if the given character is a word separator.
+     */
+    isDelimiter: function(character) {
+        return '"\',;.!~@#$%^&*?[]<>():/\\-+ \t'.indexOf(character) !== -1;
+    },
+
+    keyDown: function(evt) {
+        if (evt.charCode === 0 || evt._charCode === 0) {    // hack for Fx
+            var preds = { isTextView: true };
+            return this.editor.processKeyEvent(evt, this, preds);
+        } else if (evt.keyCode === 9) {
+            // Stops the tab. Otherwise the editor can lose focus.
+            evt.preventDefault();
+        } else {
+            // This is a real keyPress event. This should not be handled,
+            // otherwise the textInput mixin can't detect the key events.
+            return false;
+        }
+    },
+
+    /**
+     * Runs the syntax highlighter from the given row to the end of the visible
+     * range, and repositions the selection.
+     */
+    layoutManagerChangedTextAtRow: function(sender, row) {
+        this._repositionSelection();
+    },
+
+    /**
+     * Marks the given rectangles as invalid.
+     */
+    layoutManagerInvalidatedRects: function(sender, rects) {
+        rects.forEach(this.invalidateRect, this);
+    },
+
+    mouseDown: function(evt) {
+        util.stopEvent(evt);
+
+        this.hasFocus = true;
+        this._mouseIsDown = true;
+
+        var point = this.computeWithClippingFrame(evt.layerX, evt.layerY);
+        util.mixin(point, { layerX: evt.layerX, layerY: evt.layerY});
+
+        switch (evt.detail) {
+        case 1:
+            var pos = this._selectionPositionForPoint(point);
+            this.moveCursorTo(pos, evt.shiftKey);
+            break;
+
+        // Select the word under the cursor.
+        case 2:
+            var pos = this._selectionPositionForPoint(point);
+            var line = this.editor.layoutManager.textStorage.lines[pos.row];
+
+            // If there is nothing to select in this line, then skip.
+            if (line.length === 0) {
+                return true;
+            }
+
+            pos.col -= (pos.col == line.length ? 1 : 0);
+            var skipOnDelimiter = !this.isDelimiter(line[pos.col]);
+
+            var thisTextView = this;
+            var searchForDelimiter = function(pos, dir) {
+                for (pos; pos > -1 && pos < line.length; pos += dir) {
+                    if (thisTextView.isDelimiter(line[pos]) ===
+                            skipOnDelimiter) {
+                        break;
+                    }
+                }
+                return pos + (dir == 1 ? 0 : 1);
+            };
+
+            var colFrom = searchForDelimiter(pos.col, -1);
+            var colTo   = searchForDelimiter(pos.col, 1);
+
+            this.moveCursorTo({ row: pos.row, col: colFrom });
+            this.moveCursorTo({ row: pos.row, col: colTo }, true);
+
+            break;
+
+        case 3:
+            var lines = this.editor.layoutManager.textStorage.lines;
+            var pos = this._selectionPositionForPoint(point);
+            this.setSelection({
+                start: {
+                    row: pos.row,
+                    col: 0
+                },
+                end: {
+                    row: pos.row,
+                    col: lines[pos.row].length
+                }
+            });
+            break;
+        }
+
+        this._dragPoint = point;
+        this._dragTimer = setInterval(this._scrollWhileDragging.bind(this), 100);
+    },
+
+    mouseMove: function(evt) {
+        if (this._mouseIsDown) {
+            this._dragPoint = this.computeWithClippingFrame(evt.layerX, evt.layerY);
+            util.mixin(this._dragPoint, { layerX: evt.layerX, layerY: evt.layerY});
+            this._drag();
+        }
+    },
+
+    mouseUp: function(evt) {
+        this._mouseIsDown = false;
+        if (this._dragTimer !== null) {
+            clearInterval(this._dragTimer);
+            this._dragTimer = null;
+        }
+    },
+
+    /**
+     * Moves the cursor.
+     *
+     * @param position{Position} The position to move the cursor to.
+     *
+     * @param select{bool} Whether to preserve the selection origin. If this
+     *        parameter is false, the selection is removed, and the insertion
+     *        point moves to @position. Typically, this parameter is set when
+     *        the mouse is being dragged or the shift key is held down.
+     *
+     * @param virtual{bool} Whether to save the current end position as the
+     *        virtual insertion point. Typically, this parameter is set when
+     *        moving vertically.
+     */
+    moveCursorTo: function(position, select, virtual) {
+        var textStorage = this.editor.layoutManager.textStorage;
+        var positionToUse = textStorage.clampPosition(position);
+
+        this.setSelection({
+            start:  select ? this.editor.buffer._selectedRange.start : positionToUse,
+            end:    positionToUse
+        });
+
+        if (virtual) {
+            var lineCount = textStorage.lines.length;
+            var row = position.row, col = position.col;
+            if (row > 0 && row < lineCount) {
+                this.editor.buffer._selectedRangeEndVirtual = position;
+            } else {
+                this.editor.buffer._selectedRangeEndVirtual = {
+                    row: row < 1 ? 0 : lineCount - 1,
+                    col: col
+                };
+            }
+        } else {
+            this.editor.buffer._selectedRangeEndVirtual = null;
+        }
+
+        this.scrollToPosition(this.editor.buffer._selectedRange.end);
+    },
+
+    moveDown: function() {
+        var selection = this._getVirtualSelection();
+        var range = Range.normalizeRange(selection);
+        var position;
+        if (this._rangeIsInsertionPoint(this.editor.buffer._selectedRange)) {
+            position = range.end;
+        } else {
+            // Yes, this is actually what Cocoa does... weird, huh?
+            position = { row: range.end.row, col: range.start.col };
+        }
+        position = Range.addPositions(position, { row: 1, col: 0 });
+
+        this.moveCursorTo(position, false, true);
+    },
+
+    moveLeft: function() {
+        var range = Range.normalizeRange(this.editor.buffer._selectedRange);
+        if (this._rangeIsInsertionPoint(range)) {
+            this.moveCursorTo(this.editor.layoutManager.textStorage.
+                displacePosition(range.start, -1));
+        } else {
+            this.moveCursorTo(range.start);
+        }
+    },
+
+    moveRight: function() {
+        var range = Range.normalizeRange(this.editor.buffer._selectedRange);
+        if (this._rangeIsInsertionPoint(range)) {
+            this.moveCursorTo(this.editor.layoutManager.textStorage.
+                displacePosition(range.end, 1));
+        } else {
+            this.moveCursorTo(range.end);
+        }
+    },
+
+    moveUp: function() {
+        var range = Range.normalizeRange(this._getVirtualSelection(true));
+        position = Range.addPositions({
+            row: range.start.row,
+            col: this._getVirtualSelection().end.col
+        }, { row: -1, col: 0 });
+
+        this.moveCursorTo(position, false, true);
+    },
+
+    parentViewFrameChanged: function() {
+        arguments.callee.base.apply(this, arguments);
+        this._resize();
+    },
+
+    /**
+     * As an undoable action, replaces the characters within the old range with
+     * the supplied characters.
+     *
+     * TODO: Factor this out into the undo controller. The fact that commands
+     * have to go through the view in order to make undoable changes is
+     * counterintuitive.
+     *
+     * @param oldRange{Range}    The range of characters to modify.
+     * @param characters{string} The string to replace the characters with.
+     *
+     * @return True if the changes were successfully made; false if the changes
+     *     couldn't be made because the editor is read-only.
+     */
+    replaceCharacters: function(oldRange, characters) {
+        if (this._isReadOnly()) {
+            return false;
+        }
+
+        this.groupChanges(function() {
+            oldRange = Range.normalizeRange(oldRange);
+            this.willReplaceRange(this, oldRange);
+
+            var textStorage = this.editor.layoutManager.textStorage;
+            textStorage.replaceCharacters(oldRange, characters);
+            this.replacedCharacters(this, oldRange, characters);
+        }.bind(this));
+
+        return true;
+    },
+
+    /**
+     * Performs a delete-backward or delete-forward operation.
+     *
+     * @param isBackspace{boolean} If true, the deletion proceeds backward (as if
+     *     the backspace key were pressed); otherwise, deletion proceeds forward.
+     *
+     * @return True if the operation was successfully performed; false if the
+     *     operation failed because the editor is read-only.
+     */
+    performBackspaceOrDelete: function(isBackspace) {
+        if (this._isReadOnly()) {
+            return false;
+        }
+
+        var model = this.editor.layoutManager.textStorage;
+
+        var lines = model.lines;
+        var line = '', count = 0;
+        var tabstop = settings.get('tabstop');
+        var range = this.getSelectedRange();
+
+        if (Range.isZeroLength(range)) {
+            if (isBackspace) {
+                var start = range.start;
+                line = lines[start.row];
+                var preWhitespaces = line.substring(0, start.col).
+                                                    match(/\s*$/)[0].length;
+
+                // If there are less then n-tabstop whitespaces in front, OR
+                // the current cursor position is not n times tabstop, THEN
+                // delete only 1 character.
+                if (preWhitespaces < tabstop
+                        || (start.col - tabstop) % tabstop != 0) {
+                    count = 1;
+                } else {
+                    // Otherwise delete tabstop whitespaces.
+                    count = tabstop;
+                }
+
+                range = {
+                    start:  model.displacePosition(start, count * -1),
+                    end:    range.end
+                };
+            } else {
+                var end = range.end;
+                line = lines[end.row];
+                var trailingWhitespaces = line.substring(end.col).
+                                                    match(/^\s*/)[0].length;
+
+                // If there are less then n-tabstop whitespaces after the cursor
+                // position, then delete only 1 character. Otherwise delete
+                // tabstop whitespaces.
+                if (trailingWhitespaces < tabstop) {
+                    count = 1;
+                } else {
+                    count = tabstop;
+                }
+
+                range = {
+                    start:  range.start,
+                    end:    model.displacePosition(range.end, count)
+                };
+            }
+        }
+
+        this.groupChanges(function() {
+            this.replaceCharacters(range, '');
+
+            // Position the insertion point at the start of all the ranges that
+            // were just deleted.
+            this.moveCursorTo(range.start);
+        }.bind(this));
+
+        return true;
+    },
+
+    /** Removes all buffered keys. */
+    resetKeyBuffers: function() {
+        this._keyBuffer = '';
+        this._keyMetaBuffer = '';
+    },
+
+    /**
+     * If the text view is inside a scrollable view, scrolls down by one page.
+     */
+    scrollPageDown: function() {
+        this._scrollPage(false);
+    },
+
+    /**
+     * If the text view is inside a scrollable view, scrolls up by one page.
+     */
+    scrollPageUp: function() {
+        this._scrollPage(true);
+    },
+
+    /**
+     * If this view is in a scrollable container, scrolls to the given
+     * character position.
+     */
+    scrollToPosition: function(position) {
+        var rect = this.editor.layoutManager.characterRectForPosition(position);
+        var rectX = rect.x, rectY = rect.y;
+        var rectWidth = rect.width, rectHeight = rect.height;
+
+        var frame = this.clippingFrame;
+        var frameX = frame.x, frameY = frame.y;
+
+        var padding = this.padding;
+        var width = frame.width - padding.right;
+        var height = frame.height - padding.bottom;
+
+        var x;
+        if (rectX >= frameX + 30 /* This is a hack to allow dragging to the left */
+                    && rectX + rectWidth < frameX + width) {
+            x = frameX;
+        } else {
+            x = rectX - width / 2 + rectWidth / 2;
+        }
+
+        var y;
+        if (rectY >= frameY && rectY + rectHeight < frameY + height) {
+            y = frameY;
+        } else {
+            y = rectY - height / 2 + rectHeight / 2;
+        }
+
+        this.editor.scrollTo({ x: x, y: y });
+    },
+
+    /**
+     * Selects all characters in the buffer.
+     */
+    selectAll: function() {
+        var lines = this.editor.layoutManager.textStorage.lines;
+        var lastRow = lines.length - 1;
+        this.setSelection({
+            start:  { row: 0, col: 0 },
+            end:    { row: lastRow, col: lines[lastRow].length }
+        });
+    },
+
+    selectDown: function() {
+        this._performVerticalKeyboardSelection(1);
+    },
+
+    selectLeft: function() {
+        this.moveCursorTo((this.editor.layoutManager.textStorage.
+            displacePosition(this.editor.buffer._selectedRange.end, -1)), true);
+    },
+
+    selectRight: function() {
+        this.moveCursorTo((this.editor.layoutManager.textStorage.
+            displacePosition(this.editor.buffer._selectedRange.end, 1)), true);
+    },
+
+    selectUp: function() {
+        this._performVerticalKeyboardSelection(-1);
+    },
+
+    /**
+     * Directly replaces the current selection with a new one.
+     */
+    setSelection: function(newRange, ensureVisible) {
+        var textStorage = this.editor.layoutManager.textStorage;
+
+        newRange = textStorage.clampRange(newRange);
+        if (Range.equal(newRange, this.editor.buffer._selectedRange)) {
+            return;
+        }
+
+        // Invalidate the old selection.
+        this._invalidateSelection();
+
+        // Set the new selection and invalidate it.
+        this.editor.buffer._selectedRange = newRange =
+                                                textStorage.clampRange(newRange);
+        this._invalidateSelection();
+
+        if (this._hasFocus) {
+            this._rearmInsertionPointBlinkTimer();
+        }
+
+        if (ensureVisible) {
+            this.scrollToPosition(newRange.end);
+        }
+
+        this.selectionChanged(newRange);
+        catalog.publish(this.editor, 'editorChange', 'selection', newRange);
+    },
+
+    textInserted: function(text) {
+        // We don't handle the new line char at this point.
+        if (text === '\n') {
+            return;
+        }
+
+        var preds = { isTextView: true, isCommandKey: false };
+        if (!this.editor.processKeyEvent(text, this, preds)) {
+            this.insertText(text);
+            this.resetKeyBuffers();
+        }
+    },
+
+    /**
+     * Changes the internal hasFocus flag if the current hasFocus value is not
+     * equal to the parameter 'value'. If 'fromTextInput' is true, then
+     * the textInput.focus() and textInput.blur() is not called. This is
+     * necessary as otherwise the textInput detects the blur event, calls
+     * hasFocus = false and the _setFocus function calls textInput.blur() again.
+     * If the textInput was blured, because the entire page lost the focus, then
+     * the foucs is not reset to the textInput when the page gains the focus again.
+     */
+    _setFocus: function(value, fromTextInput) {
+        if (value == this._hasFocus) {
+            return;
+        }
+
+        this._hasFocus = value;
+
+        if (this._hasFocus) {
+            this._rearmInsertionPointBlinkTimer();
+            this._invalidateSelection();
+            if (!fromTextInput) {
+                 this.textInput.focus();
+            }
+        } else {
+            if (this._insertionPointBlinkTimer) {
+                clearInterval(this._insertionPointBlinkTimer);
+                this._insertionPointBlinkTimer = null;
+            }
+            this._insertionPointVisible = true;
+            this._invalidateSelection();
+            if (!fromTextInput) {
+                 this.textInput.blur();
+            }
+        }
+    }
+});
+
+Object.defineProperties(exports.TextView.prototype, {
+    hasFocus: {
+        get: function() {
+            return this._hasFocus;
+        },
+
+        set: function(value) {
+            this._setFocus(value, false /* fromTextInput*/);
+        }
+    }
+});
+
+});
+
+bespin.tiki.module("text_editor:views/textinput",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+var Event = require('events').Event;
+
+var KeyUtil = require('keyboard:keyutil');
+
+/**
+ * @namespace
+ *
+ * This class provides a hidden text input to provide events similar to those
+ * defined in the DOM Level 3 specification. It allows views to support
+ * internationalized text input via non-US keyboards, dead keys, and/or IMEs.
+ * It also provides support for copy and paste. Currently, an invisible
+ * textarea is used, but in the future this module should use
+ * DOM 3 TextInput events directly where available.
+ *
+ * To use this class, instantiate it and provide the optional functions
+ *   - copy: function() { return 'text for clipboard' }
+ *   - cut: function() { 'Cut some text'; return 'text for clipboard'}
+ *   - textInserted: function(newInsertedText) { 'handle new inserted text'; }
+ * Note: Pasted text is provided through the textInserted(pastedText) function.
+ *
+ * You can also provide an DOM node to take focus from by providing the optional
+ * "takeFocusFrom" parameter.
+ *
+ * The DOM node created for text input is in the "domNode" attribute
+ * and that caller should add the DOM node to the document in the appropriate
+ * place.
+ */
+exports.TextInput = function(container, delegate) {
+    var domNode = this.domNode = document.createElement('textarea');
+    domNode.setAttribute('style', 'position: absolute; z-index: -99999; ' +
+          'width: 0px; height: 0px; margin: 0px; outline: none; border: 0;');
+         // 'z-index: 100; top: 20px; left: 20px; width: 50px; ' +
+         // 'height: 50px');
+
+    container.appendChild(domNode);
+
+    this.delegate = delegate;
+
+    this._attachEvents();
+};
+
+exports.TextInput.prototype = {
+    _composing: false,
+
+    domNode: null,
+
+    delegate: null,
+
+    // This function doesn't work on WebKit! The textContent comes out empty...
+    _textFieldChanged: function() {
+        if (this._composing || this._ignore) {
+            return;
+        }
+
+        var textField = this.domNode;
+        var text = textField.value;
+        // On FF textFieldChanged is called sometimes although nothing changed.
+        // -> don't call textInserted() in such a case.
+        if (text == '') {
+            return;
+        }
+        textField.value = '';
+
+        this._textInserted(text);
+    },
+
+    _copy: function() {
+        var copyData = false;
+        var delegate = this.delegate;
+        if (delegate && delegate.copy) {
+            copyData = delegate.copy();
+        }
+        return copyData;
+    },
+
+    _cut: function() {
+        var cutData = false;
+        var delegate = this.delegate;
+        if (delegate && delegate.cut) {
+            cutData = delegate.cut();
+        }
+        return cutData;
+    },
+
+    _textInserted: function(text) {
+        var delegate = this.delegate;
+        if (delegate && delegate.textInserted) {
+            delegate.textInserted(text);
+        }
+    },
+
+    _setValueAndSelect: function(text) {
+        var textField = this.domNode;
+        textField.value = text;
+        textField.select();
+    },
+
+    /**
+     * Gives focus to the field editor so that input events will be
+     * delivered to the view. If you override willBecomeKeyResponderFrom(),
+     * you should call this function in your implementation.
+     */
+    focus: function() {
+        this.domNode.focus();
+    },
+
+    /**
+     * Removes focus from the invisible text input so that input events are no
+     * longer delivered to this view. If you override willLoseKeyResponderTo(),
+     * you should call this function in your implementation.
+     */
+     blur: function() {
+        this.domNode.blur();
+    },
+
+    /**
+     * Attaches notification listeners to the text field so that your view will
+     * be notified of events. If you override this method, you should call
+     * that function as well.
+     */
+    _attachEvents: function() {
+        var textField = this.domNode, self = this;
+
+        // Listen focus/blur event.
+        textField.addEventListener('focus', function(evt) {
+            if (self.delegate && self.delegate.didFocus) {
+                self.delegate.didFocus();
+            }
+        }, false);
+        textField.addEventListener('blur', function(evt) {
+            if (self.delegate && self.delegate.didBlur) {
+                self.delegate.didBlur();
+            }
+        }, false);
+
+        KeyUtil.addKeyDownListener(textField, function(evt) {
+            if (self.delegate && self.delegate.keyDown) {
+                return self.delegate.keyDown(evt);
+            } else {
+                return false;
+            }
+        });
+
+        // No way that I can see around this ugly browser sniffing, without
+        // more complicated hacks. No browsers have a complete enough
+        // implementation of DOM 3 events at the current time (12/2009). --pcw
+        if (util.isWebKit) {    // Chrome too
+            // On Chrome the compositionend event is fired as well as the
+            // textInput event, but only one of them has to be handled.
+            if (!util.isChrome) {
+                textField.addEventListener('compositionend', function(evt) {
+                    self._textInserted(evt.data);
+                }, false);
+            }
+            textField.addEventListener('textInput', function(evt) {
+                self._textInserted(evt.data);
+            }, false);
+            textField.addEventListener('paste', function(evt) {
+                self._textInserted(evt.clipboardData.
+                    getData('text/plain'));
+                evt.preventDefault();
+            }, false);
+        } else {
+            var textFieldChangedFn = self._textFieldChanged.bind(self);
+
+            // Same as above, but executes after all pending events. This
+            // ensures that content gets added to the text field before the
+            // value field is read.
+            var textFieldChangedLater = function() {
+                window.setTimeout(textFieldChangedFn, 0);
+            };
+
+            textField.addEventListener('keydown', textFieldChangedLater,
+                false);
+            textField.addEventListener('keypress', textFieldChangedFn, false);
+            textField.addEventListener('keyup', textFieldChangedFn, false);
+
+            textField.addEventListener('compositionstart', function(evt) {
+                self._composing = true;
+            }, false);
+            textField.addEventListener('compositionend', function(evt) {
+                self._composing = false;
+                self._textFieldChanged();
+            }, false);
+
+            textField.addEventListener('paste', function(evt) {
+                // FIXME: This is ugly and could result in extraneous text
+                // being included as part of the text if extra DOMNodeInserted
+                // or DOMCharacterDataModified events happen to be in the queue
+                // when this function runs. But until Fx supports TextInput
+                // events, there's nothing better we can do.
+
+                // Waits till the paste content is pasted to the textarea.
+                // Sometimes a delay of 0 is too short for Fx. In such a case
+                // the keyUp events occur a little bit later and the pasted
+                // content is detected there.
+                self._setValueAndSelect('');
+                window.setTimeout(function() {
+                    self._textFieldChanged();
+                }, 0);
+            }, false);
+        }
+
+        // Here comes the code for copy and cut...
+
+        // This is the basic copy and cut function. Depending on the
+        // OS and browser this function needs to be extended.
+        var copyCutBaseFn = function(evt) {
+            // Get the data that should be copied/cutted.
+            var copyCutData = evt.type.indexOf('copy') != -1 ?
+                            self._copy() :
+                            self._cut();
+            // Set the textField's value equal to the copyCutData.
+            // After this function is called, the real copy or cut
+            // event takes place and the selected text in the
+            // textField is pushed to the OS's clipboard.
+            self._setValueAndSelect(copyCutData);
+        };
+
+        // For all browsers that are not Safari running on Mac.
+        if (!(util.isWebKit && !util.isChrome && util.isMac)) {
+            var copyCutMozillaFn = false;
+            if (util.isMozilla) {
+                // If the browser is Mozilla like, the copyCut function has to
+                // be extended.
+                copyCutMozillaFn = function(evt) {
+                    // Call the basic copyCut function.
+                    copyCutBaseFn(evt);
+
+                    self._ignore = true;
+                    window.setTimeout(function() {
+                        self._setValueAndSelect('');
+                        self._ignore = false;
+                    }, 0);
+                };
+            }
+            textField.addEventListener('copy', copyCutMozillaFn ||
+                copyCutBaseFn, false);
+            textField.addEventListener('cut',  copyCutMozillaFn ||
+                copyCutBaseFn, false);
+         } else {
+            // For Safari on Mac (only!) the copy and cut event only occurs if
+            // you have some text selected. Fortunately, the beforecopy and
+            // beforecut event occurs before the copy or cut event does so we
+            // can put the to be copied or cutted text in the textarea.
+
+            // Also, the cut event is fired twice. If it's fired twice within a
+            // certain time period, the second call will be skipped.
+            var lastCutCall = new Date().getTime();
+            var copyCutSafariMacFn = function(evt) {
+                var doCut = evt.type.indexOf('cut') != -1;
+                if (doCut && new Date().getTime() - lastCutCall < 10) {
+                    return;
+                }
+
+                // Call the basic copyCut function.
+                copyCutBaseFn(evt);
+
+                if (doCut) {
+                    lastCutCall = new Date().getTime();
+                }
+            };
+
+            textField.addEventListener('beforecopy', copyCutSafariMacFn,
+                false);
+            textField.addEventListener('beforecut',  copyCutSafariMacFn,
+                false);
+        }
+    }
+};
+
+
+});
+
+bespin.tiki.module("text_editor:index",function(require,exports,module) {
+
+});
+;bespin.tiki.register("::less", {
+    name: "less",
+    dependencies: {  }
+});
+bespin.tiki.module("less:index",function(require,exports,module) {
+"define metadata";
+({
+    "description": "Leaner CSS",
+    "url": "http://lesscss.org",
+    "dependencies": {},
+    "provides": [],
+    "keywords": ["css", "parser", "lesscss", "browser"],
+    "author": "Alexis Sellier <self@cloudhead.net>",
+    "contributors": [],
+    "version": "1.0.11"
+});
+"end";
+
+// --- Begin less.js ---
+
+//
+// LESS - Leaner CSS v1.0.11
+// http://lesscss.org
+// 
+// Copyright (c) 2010, Alexis Sellier
+// Licensed under the MIT license.
+//
+
+// Tell the LESS library that this is a dist build. Important when using the
+// dist build as a one-file CommonJS package.
+var __LESS_DIST__ = true;
+
+// ecma-5.js
+//
+// -- kriskowal Kris Kowal Copyright (C) 2009-2010 MIT License
+// -- tlrobinson Tom Robinson
+// dantman Daniel Friesen
+
+//
+// Array
+//
+if (!Array.isArray) {
+    Array.isArray = function(obj) {
+        return Object.prototype.toString.call(obj) === "[object Array]" ||
+               (obj instanceof Array);
+    };
+}
+if (!Array.prototype.forEach) {
+    Array.prototype.forEach =  function(block, thisObject) {
+        var len = this.length >>> 0;
+        for (var i = 0; i < len; i++) {
+            if (i in this) {
+                block.call(thisObject, this[i], i, this);
+            }
+        }
+    };
+}
+if (!Array.prototype.map) {
+    Array.prototype.map = function(fun /*, thisp*/) {
+        var len = this.length >>> 0;
+        var res = new Array(len);
+        var thisp = arguments[1];
+
+        for (var i = 0; i < len; i++) {
+            if (i in this) {
+                res[i] = fun.call(thisp, this[i], i, this);
+            }
+        }
+        return res;
+    };
+}
+if (!Array.prototype.filter) {
+    Array.prototype.filter = function (block /*, thisp */) {
+        var values = [];
+        var thisp = arguments[1];
+        for (var i = 0; i < this.length; i++) {
+            if (block.call(thisp, this[i])) {
+                values.push(this[i]);
+            }
+        }
+        return values;
+    };
+}
+if (!Array.prototype.reduce) {
+    Array.prototype.reduce = function(fun /*, initial*/) {
+        var len = this.length >>> 0;
+        var i = 0;
+
+        // no value to return if no initial value and an empty array
+        if (len === 0 && arguments.length === 1) throw new TypeError();
+
+        if (arguments.length >= 2) {
+            var rv = arguments[1];
+        } else {
+            do {
+                if (i in this) {
+                    rv = this[i++];
+                    break;
+                }
+                // if array contains no values, no initial value to return
+                if (++i >= len) throw new TypeError();
+            } while (true);
+        }
+        for (; i < len; i++) {
+            if (i in this) {
+                rv = fun.call(null, rv, this[i], i, this);
+            }
+        }
+        return rv;
+    };
+}
+if (!Array.prototype.indexOf) {
+    Array.prototype.indexOf = function (value /*, fromIndex */ ) {
+        var length = this.length;
+        var i = arguments[1] || 0;
+
+        if (!length)     return -1;
+        if (i >= length) return -1;
+        if (i < 0)       i += length;
+
+        for (; i < length; i++) {
+            if (!Object.prototype.hasOwnProperty.call(this, i)) { continue }
+            if (value === this[i]) return i;
+        }
+        return -1;
+    };
+}
+
+//
+// Object
+//
+if (!Object.keys) {
+    Object.keys = function (object) {
+        var keys = [];
+        for (var name in object) {
+            if (Object.prototype.hasOwnProperty.call(object, name)) {
+                keys.push(name);
+            }
+        }
+        return keys;
+    };
+}
+
+//
+// String
+//
+if (!String.prototype.trim) {
+    String.prototype.trim = function () {
+        return String(this).replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+    };
+}
+if (typeof(require) !== 'undefined') {
+    var less = exports;
+
+    if (typeof(__LESS_DIST__) === 'undefined') {
+        var tree = require('less/tree');
+    } else {
+        var tree = {};
+    }
+} else {
+    var less = tree = {};
+}
+//
+// less.js - parser
+//
+//    A relatively straight-forward recursive-descent parser.
+//    There is no tokenization/lexing stage, the input is parsed
+//    in one sweep.
+//
+//    To make the parser fast enough to run in the browser, several
+//    optimization had to be made:
+//
+//    - Instead of the more commonly used technique of slicing the
+//      input string on every match, we use global regexps (/g),
+//      and move the `lastIndex` pointer on match, foregoing `slice()`
+//      completely. This gives us a 3x speed-up.
+//
+//    - Matching on a huge input is often cause of slowdowns,
+//      especially with the /g flag. The solution to that is to
+//      chunkify the input: we split it by /\n\n/, just to be on
+//      the safe side. The chunks are stored in the `chunks` var,
+//      `j` holds the current chunk index, and `current` holds
+//      the index of the current chunk in relation to `input`.
+//      This gives us an almost 4x speed-up.
+//
+//    - In many cases, we don't need to match individual tokens;
+//      for example, if a value doesn't hold any variables, operations
+//      or dynamic references, the parser can effectively 'skip' it,
+//      treating it as a literal.
+//      An example would be '1px solid #000' - which evaluates to itself,
+//      we don't need to know what the individual components are.
+//      The drawback, of course is that you don't get the benefits of
+//      syntax-checking on the CSS. This gives us a 50% speed-up in the parser,
+//      and a smaller speed-up in the code-gen.
+//
+//
+//    Token matching is done with the `$` function, which either takes
+//    a terminal string or regexp, or a non-terminal function to call.
+//    It also takes care of moving all the indices forwards.
+//
+//
+less.Parser = function Parser(env) {
+    var input,       // LeSS input string
+        i,           // current index in `input`
+        j,           // current chunk
+        furthest,    // furthest index the parser has gone to
+        chunks,      // chunkified input
+        current,     // index of current chunk, in `input`
+        inputLength,
+        parser;
+
+    var that = this;
+
+    // This function is called after all files
+    // have been imported through `@import`.
+    var finish = function () {};
+
+    var imports = this.imports = {
+        paths: env && env.paths || [],  // Search paths, when importing
+        queue: [],                      // Files which haven't been imported yet
+        files: {},                      // Holds the imported parse trees
+        push: function (path, callback) {
+            var that = this;
+            this.queue.push(path);
+
+            //
+            // Import a file asynchronously
+            //
+            less.Parser.importer(path, this.paths, function (root) {
+                that.queue.splice(that.queue.indexOf(path), 1); // Remove the path from the queue
+                that.files[path] = root;                        // Store the root
+
+                callback(root);
+
+                if (that.queue.length === 0) { finish() }       // Call `finish` if we're done importing
+            });
+        }
+    };
+
+    //
+    // Parse from a token, regexp or string, and move forward if match
+    //
+    function $(tok) {
+        var match, args, length, c, index, endIndex;
+
+        //
+        // Non-terminal
+        //
+        if (tok instanceof Function) {
+            return tok.call(parser.parsers);
+        //
+        // Terminal
+        //
+        //     Either match a single character in the input,
+        //     or match a regexp in the current chunk (chunk[j]).
+        //
+        } else if (typeof(tok) === 'string') {
+            match = input.charAt(i) === tok ? tok : null;
+            length = 1;
+
+        //  1. We move to the next chunk, if necessary.
+        //  2. Set the `lastIndex` to be relative
+        //     to the current chunk, and try to match in it.
+        //  3. Make sure we matched at `index`. Because we use
+        //     the /g flag, the match could be anywhere in the
+        //     chunk. We have to make sure it's at our previous
+        //     index, which we stored in [2].
+        //
+        } else {
+            if (i >= current + chunks[j].length &&
+                j < chunks.length - 1) { // 1.
+                current += chunks[j++].length;
+            }
+            tok.lastIndex = index =  i - current; // 2.
+            match = tok.exec(chunks[j]);
+
+            if (match) {
+                length = match[0].length;
+                if (tok.lastIndex - length !== index) { return } // 3.
+            }
+        }
+
+        // The match is confirmed, add the match length to `i`,
+        // and consume any extra white-space characters (' ' || '\n')
+        // which come after that. The reason for this is that LeSS's
+        // grammar is mostly white-space insensitive.
+        //
+        if (match) {
+            i += length;
+            endIndex = current + chunks[j].length;
+
+            while (i <= endIndex) {
+                c = input.charCodeAt(i);
+                if (! (c === 32 || c === 10 || c === 9)) { break }
+                i++;
+            }
+
+            if(typeof(match) === 'string') {
+                return match;
+            } else {
+                return match.length === 1 ? match[0] : match;
+            }
+        }
+    }
+
+    // Same as $(), but don't change the state of the parser,
+    // just return the match.
+    function peek(tok) {
+        var match;
+
+        if (typeof(tok) === 'string') {
+            return input.charAt(i) === tok;
+        } else {
+            tok.lastIndex = i;
+
+            if ((match = tok.exec(input)) &&
+               (tok.lastIndex - match[0].length === i)) {
+                return match;
+            }
+        }
+    }
+
+    this.env = env || {};
+
+    // The optimization level dictates the thoroughness of the parser,
+    // the lower the number, the less nodes it will create in the tree.
+    // This could matter for debugging, or if you want to access
+    // the individual nodes in the tree.
+    this.optimization = ('optimization' in this.env) ? this.env.optimization : 1;
+
+    //
+    // The Parser
+    //
+    return parser = {
+
+        imports: imports,
+        //
+        // Parse an input string into an abstract syntax tree,
+        // call `callback` when done.
+        //
+        parse: function (str, callback) {
+            var root, start, end, zone, line, lines, buff = [], c, error = null;
+
+            i = j = current = furthest = 0;
+            chunks = [];
+            input = str.replace(/\r\n/g, '\n');
+
+            // Split the input into chunks,
+            // delimited by /\n\n/ and 
+            // removing comments (see rationale above),
+            // depending on the level of optimization.
+            if (that.optimization > 0) {
+                input = input.replace(/\/\*(?:[^*]|\*+[^\/*])*\*+\//g, function (comment) {
+                    return that.optimization > 1 ? '' : comment.replace(/\n(\s*\n)+/g, '\n');
+                });
+                chunks = input.split(/^(?=\n)/mg);
+            } else {
+                chunks = [input];
+            }
+            inputLength = input.length;
+
+            // Start with the primary rule.
+            // The whole syntax tree is held under a Ruleset node,
+            // with the `root` property set to true, so no `{}` are
+            // output. The callback is called when the input is parsed.
+            root = new(tree.Ruleset)([], $(this.parsers.primary));
+            root.root = true;
+
+            root.toCSS = (function (toCSS) {
+                var line, lines, column;
+
+                return function () {
+                    try {
+                        return toCSS.call(this);
+                    } catch (e) {
+                        lines = input.split('\n');
+                        line = (input.slice(0, e.index).match(/\n/g) || "").length + 1;
+                        for (var n = e.index, column = -1;
+                                 n >= 0 && input.charAt(n) !== '\n';
+                                 n--) { column++ }
+
+                        throw {
+                            name: "NameError",
+                            message: e.message,
+                            line: line,
+                            column: column,
+                            extract: [
+                                lines[line - 2],
+                                lines[line - 1],
+                                lines[line]
+                            ]
+                        };
+                    }
+                };
+            })(root.toCSS);
+
+            // If `i` is smaller than the `input.length - 1`,
+            // it means the parser wasn't able to parse the whole
+            // string, so we've got a parsing error.
+            //
+            // We try to extract a \n delimited string,
+            // showing the line where the parse error occured.
+            // We split it up into two parts (the part which parsed,
+            // and the part which didn't), so we can color them differently.
+            if (i < input.length - 1) {
+                i = furthest;
+                lines = input.split('\n');
+                line = (input.slice(0, i).match(/\n/g) || "").length + 1;
+
+                for (var n = i, column = -1; n >= 0 && input.charAt(n) !== '\n'; n--) { column++ }
+
+                error = {
+                    name: "ParseError",
+                    message: "Syntax Error on line " + line,
+                    filename: env.filename,
+                    line: line,
+                    column: column,
+                    extract: [
+                        lines[line - 2],
+                        lines[line - 1],
+                        lines[line]
+                    ]
+                };
+            }
+
+            if (this.imports.queue.length > 0) {
+                finish = function () { callback(error, root) };
+            } else {
+                callback(error, root);
+            }
+        },
+
+        //
+        // Here in, the parsing rules/functions
+        //
+        // The basic structure of the syntax tree generated is as follows:
+        //
+        //   Ruleset ->  Rule -> Value -> Expression -> Entity
+        //
+        // Here's some LESS code:
+        //
+        //    .class {
+        //      color: #fff;
+        //      border: 1px solid #000;
+        //      width: @w + 4px;
+        //      > .child {...}
+        //    }
+        //
+        // And here's what the parse tree might look like:
+        //
+        //     Ruleset (Selector '.class', [
+        //         Rule ("color",  Value ([Expression [Color #fff]]))
+        //         Rule ("border", Value ([Expression [Dimension 1px][Keyword "solid"][Color #000]]))
+        //         Rule ("width",  Value ([Expression [Operation "+" [Variable "@w"][Dimension 4px]]]))
+        //         Ruleset (Selector [Element '>', '.child'], [...])
+        //     ])
+        //
+        //  In general, most rules will try to parse a token with the `$()` function, and if the return
+        //  value is truly, will return a new node, of the relevant type. Sometimes, we need to check
+        //  first, before parsing, that's when we use `peek()`.
+        //
+        parsers: {
+            //
+            // The `primary` rule is the *entry* and *exit* point of the parser.
+            // The rules here can appear at any level of the parse tree.
+            //
+            // The recursive nature of the grammar is an interplay between the `block`
+            // rule, which represents `{ ... }`, the `ruleset` rule, and this `primary` rule,
+            // as represented by this simplified grammar:
+            //
+            //     primary  →  (ruleset | rule)+
+            //     ruleset  →  selector+ block
+            //     block    →  '{' primary '}'
+            //
+            // Only at one point is the primary rule not called from the
+            // block rule: at the root level.
+            //
+            primary: function () {
+                var node, root = [];
+
+                while (node = $(this.mixin.definition) || $(this.rule)    ||  $(this.ruleset) ||
+                              $(this.mixin.call)       || $(this.comment) ||
+                              $(/[\n\s]+/g)            || $(this.directive)) {
+                    root.push(node);
+                }
+                return root;
+            },
+
+            // We create a Comment node for CSS comments `/* */`,
+            // but keep the LeSS comments `//` silent, by just skipping
+            // over them.
+            comment: function () {
+                var comment;
+
+                if (input.charAt(i) !== '/') return;
+
+                if (comment = $(/\/\*(?:[^*]|\*+[^\/*])*\*+\/\n?/g)) {
+                    return new(tree.Comment)(comment);
+                } else {
+                    return $(/\/\/.*/g);
+                }
+            },
+
+            //
+            // Entities are tokens which can be found inside an Expression
+            //
+            entities: {
+                //
+                // A string, which supports escaping " and '
+                //
+                //     "milky way" 'he\'s the one!'
+                //
+                quoted: function () {
+                    var str;
+                    if (input.charAt(i) !== '"' && input.charAt(i) !== "'") return;
+
+                    if (str = $(/"((?:[^"\\\r\n]|\\.)*)"|'((?:[^'\\\r\n]|\\.)*)'/g)) {
+                        return new(tree.Quoted)(str[0], str[1] || str[2]);
+                    }
+                },
+
+                //
+                // A catch-all word, such as:
+                //
+                //     black border-collapse
+                //
+                keyword: function () {
+                    var k;
+                    if (k = $(/[A-Za-z-]+/g)) { return new(tree.Keyword)(k) }
+                },
+
+                //
+                // A function call
+                //
+                //     rgb(255, 0, 255)
+                //
+                // We also try to catch IE's `alpha()`, but let the `alpha` parser
+                // deal with the details.
+                //
+                // The arguments are parsed with the `entities.arguments` parser.
+                //
+                call: function () {
+                    var name, args;
+
+                    if (! (name = $(/([a-zA-Z0-9_-]+|%)\(/g))) return;
+
+                    if (name[1].toLowerCase() === 'alpha') { return $(this.alpha) }
+
+                    args = $(this.entities.arguments);
+
+                    if (! $(')')) return;
+
+                    if (name) { return new(tree.Call)(name[1], args) }
+                },
+                arguments: function () {
+                    var args = [], arg;
+
+                    while (arg = $(this.expression)) {
+                        args.push(arg);
+                        if (! $(',')) { break }
+                    }
+                    return args;
+                },
+                literal: function () {
+                    return $(this.entities.dimension) ||
+                           $(this.entities.color) ||
+                           $(this.entities.quoted);
+                },
+
+                //
+                // Parse url() tokens
+                //
+                // We use a specific rule for urls, because they don't really behave like
+                // standard function calls. The difference is that the argument doesn't have
+                // to be enclosed within a string, so it can't be parsed as an Expression.
+                //
+                url: function () {
+                    var value;
+
+                    if (input.charAt(i) !== 'u' || !$(/url\(/g)) return;
+                    value = $(this.entities.quoted) || $(/[-a-zA-Z0-9_%@$\/.&=:;#+?]+/g);
+                    if (! $(')')) throw new(Error)("missing closing ) for url()");
+
+                    return new(tree.URL)(value.value ? value : new(tree.Anonymous)(value));
+                },
+
+                //
+                // A Variable entity, such as `@fink`, in
+                //
+                //     width: @fink + 2px
+                //
+                // We use a different parser for variable definitions,
+                // see `parsers.variable`.
+                //
+                variable: function () {
+                    var name, index = i;
+
+                    if (input.charAt(i) === '@' && (name = $(/@[a-zA-Z0-9_-]+/g))) {
+                        return new(tree.Variable)(name, index);
+                    }
+                },
+
+                //
+                // A Hexadecimal color
+                //
+                //     #4F3C2F
+                //
+                // `rgb` and `hsl` colors are parsed through the `entities.call` parser.
+                //
+                color: function () {
+                    var rgb;
+
+                    if (input.charAt(i) === '#' && (rgb = $(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})/g))) {
+                        return new(tree.Color)(rgb[1]);
+                    }
+                },
+
+                //
+                // A Dimension, that is, a number and a unit
+                //
+                //     0.5em 95%
+                //
+                dimension: function () {
+                    var value, c = input.charCodeAt(i);
+                    if ((c > 57 || c < 45) || c === 47) return;
+
+                    if (value = $(/(-?[0-9]*\.?[0-9]+)(px|%|em|pc|ex|in|deg|s|ms|pt|cm|mm)?/g)) {
+                        return new(tree.Dimension)(value[1], value[2]);
+                    }
+                }
+            },
+
+            //
+            // The variable part of a variable definition. Used in the `rule` parser
+            //
+            //     @fink:
+            //
+            variable: function () {
+                var name;
+
+                if (input.charAt(i) === '@' && (name = $(/(@[a-zA-Z0-9_-]+)\s*:/g))) { return name[1] }
+            },
+
+            //
+            // A font size/line-height shorthand
+            //
+            //     small/12px
+            //
+            // We need to peek first, or we'll match on keywords and dimensions
+            //
+            shorthand: function () {
+                var a, b;
+
+                if (! peek(/[@\w.-]+\/[@\w.-]+/g)) return;
+
+                if ((a = $(this.entity)) && $('/') && (b = $(this.entity))) {
+                    return new(tree.Shorthand)(a, b);
+                }
+            },
+
+            //
+            // Mixins
+            //
+            mixin: {
+                //
+                // A Mixin call, with an optional argument list
+                //
+                //     #mixins > .square(#fff);
+                //     .rounded(4px, black);
+                //     .button;
+                //
+                // The `while` loop is there because mixins can be
+                // namespaced, but we only support the child and descendant
+                // selector for now.
+                //
+                call: function () {
+                    var elements = [], e, c, args, index = i;
+
+                    while (e = $(/[#.][a-zA-Z0-9_-]+/g)) {
+                        elements.push(new(tree.Element)(c, e));
+                        c = $('>');
+                    }
+                    $('(') && (args = $(this.entities.arguments)) && $(')');
+
+                    if (elements.length > 0 && ($(';') || peek('}'))) {
+                        return new(tree.mixin.Call)(elements, args, index);
+                    }
+                },
+
+                //
+                // A Mixin definition, with a list of parameters
+                //
+                //     .rounded (@radius: 2px, @color) {
+                //        ...
+                //     }
+                //
+                // Until we have a finer grained state-machine, we have to
+                // do a look-ahead, to make sure we don't have a mixin call.
+                // See the `rule` function for more information.
+                //
+                // We start by matching `.rounded (`, and then proceed on to
+                // the argument list, which has optional default values.
+                // We store the parameters in `params`, with a `value` key,
+                // if there is a value, such as in the case of `@radius`.
+                //
+                // Once we've got our params list, and a closing `)`, we parse
+                // the `{...}` block.
+                //
+                definition: function () {
+                    var name, params = [], match, ruleset, param, value;
+
+                    if (input.charAt(i) !== '.' || peek(/[^{]*(;|})/g)) return;
+
+                    if (match = $(/([#.][a-zA-Z0-9_-]+)\s*\(/g)) {
+                        name = match[1];
+
+                        while (param = $(/@[\w-]+/g) || $(this.entities.literal)
+                                                     || $(this.entities.keyword)) {
+                            // Variable
+                            if (param[0] === '@') {
+                                if ($(':')) {
+                                    if (value = $(this.expression)) {
+                                        params.push({ name: param, value: value });
+                                    } else {
+                                        throw new(Error)("Expected value");
+                                    }
+                                } else {
+                                    params.push({ name: param });
+                                }
+                            } else {
+                                params.push({ value: param });
+                            }
+                            if (! $(',')) { break }
+                        }
+                        if (! $(')')) throw new(Error)("Expected )");
+
+                        ruleset = $(this.block);
+
+                        if (ruleset) {
+                            return new(tree.mixin.Definition)(name, params, ruleset);
+                        }
+                    }
+                }
+            },
+
+            //
+            // Entities are the smallest recognized token,
+            // and can be found inside a rule's value.
+            //
+            entity: function () {
+                return $(this.entities.literal) || $(this.entities.variable) || $(this.entities.url) ||
+                       $(this.entities.call)    || $(this.entities.keyword);
+            },
+
+            //
+            // A Rule terminator. Note that we use `peek()` to check for '}',
+            // because the `block` rule will be expecting it, but we still need to make sure
+            // it's there, if ';' was ommitted.
+            //
+            end: function () {
+                return $(';') || peek('}');
+            },
+
+            //
+            // IE's alpha function
+            //
+            //     alpha(opacity=88)
+            //
+            alpha: function () {
+                var value;
+
+                if (! $(/opacity=/gi)) return;
+                if (value = $(/[0-9]+/g) || $(this.entities.variable)) {
+                    if (! $(')')) throw new(Error)("missing closing ) for alpha()");
+                    return new(tree.Alpha)(value);
+                }
+            },
+
+            //
+            // A Selector Element
+            //
+            //     div
+            //     + h1
+            //     #socks
+            //     input[type="text"]
+            //
+            // Elements are the building blocks for Selectors,
+            // they are made out of a `Combinator` (see combinator rule),
+            // and an element name, such as a tag a class, or `*`.
+            //
+            element: function () {
+                var e, t;
+
+                c = $(this.combinator);
+                e = $(/[.#:]?[a-zA-Z0-9_-]+/g) || $('*') || $(this.attribute) || $(/\([^)@]+\)/g);
+
+                if (e) { return new(tree.Element)(c, e) }
+            },
+
+            //
+            // Combinators combine elements together, in a Selector.
+            //
+            // Because our parser isn't white-space sensitive, special care
+            // has to be taken, when parsing the descendant combinator, ` `,
+            // as it's an empty space. We have to check the previous character
+            // in the input, to see if it's a ` ` character. More info on how
+            // we deal with this in *combinator.js*.
+            //
+            combinator: function () {
+                var match;
+                if (match = $(/[+>~]/g) || $('&') || $(/::/g)) {
+                    return new(tree.Combinator)(match);
+                } else {
+                    return new(tree.Combinator)(input.charAt(i - 1) === " " ? " " : null);
+                }
+            },
+
+            //
+            // A CSS Selector
+            //
+            //     .class > div + h1
+            //     li a:hover
+            //
+            // Selectors are made out of one or more Elements, see above.
+            //
+            selector: function () {
+                var sel, e, elements = [], match;
+
+                while (e = $(this.element)) { elements.push(e) }
+
+                if (elements.length > 0) { return new(tree.Selector)(elements) }
+            },
+            tag: function () {
+                return $(/[a-zA-Z][a-zA-Z-]*[0-9]?/g) || $('*');
+            },
+            attribute: function () {
+                var attr = '', key, val, op;
+
+                if (! $('[')) return;
+
+                if (key = $(/[a-z-]+/g) || $(this.entities.quoted)) {
+                    if ((op = $(/[|~*$^]?=/g)) &&
+                        (val = $(this.entities.quoted) || $(/[\w-]+/g))) {
+                        attr = [key, op, val.toCSS ? val.toCSS() : val].join('');
+                    } else { attr = key }
+                }
+
+                if (! $(']')) return;
+
+                if (attr) { return "[" + attr + "]" }
+            },
+
+            //
+            // The `block` rule is used by `ruleset` and `mixin.definition`.
+            // It's a wrapper around the `primary` rule, with added `{}`.
+            //
+            block: function () {
+                var content;
+
+                if ($('{') && (content = $(this.primary)) && $('}')) {
+                    return content;
+                }
+            },
+
+            //
+            // div, .class, body > p {...}
+            //
+            ruleset: function () {
+                var selectors = [], s, rules, match, memo = i;
+
+                if (match = peek(/([a-z.#: _-]+)[\s\n]*\{/g)) {
+                    i += match[0].length - 1;
+                    selectors = [new(tree.Selector)([new(tree.Element)(null, match[1])])];
+                } else {
+                    while (s = $(this.selector)) {
+                        selectors.push(s);
+                        if (! $(',')) { break }
+                    }
+                    if (s) $(this.comment);
+                }
+
+                if (selectors.length > 0 && (rules = $(this.block))) {
+                    return new(tree.Ruleset)(selectors, rules);
+                } else {
+                    // Backtrack
+                    furthest = i;
+                    i = memo;
+                }
+            },
+            rule: function () {
+                var value;
+                var memo = i;
+
+                if (name = $(this.property) || $(this.variable)) {
+                    if ((name.charAt(0) != '@') && (match = peek(/([^@+\/*(;{}-]*);/g))) {
+                        i += match[0].length - 1;
+                        value = new(tree.Anonymous)(match[1]);
+                    } else if (name === "font") {
+                        value = $(this.font);
+                    } else {
+                        value = $(this.value);
+                    }
+
+                    if ($(this.end)) {
+                        return new(tree.Rule)(name, value, memo);
+                    } else {
+                        furthest = i;
+                        i = memo;
+                    }
+                }
+            },
+
+            //
+            // An @import directive
+            //
+            //     @import "lib";
+            //
+            // Depending on our environemnt, importing is done differently:
+            // In the browser, it's an XHR request, in Node, it would be a
+            // file-system operation. The function used for importing is
+            // stored in `import`, which we pass to the Import constructor.
+            //
+            "import": function () {
+                var path;
+                if ($(/@import\s+/g) &&
+                    (path = $(this.entities.quoted) || $(this.entities.url)) &&
+                    $(';')) {
+                    return new(tree.Import)(path, imports);
+                }
+            },
+
+            //
+            // A CSS Directive
+            //
+            //     @charset "utf-8";
+            //
+            directive: function () {
+                var name, value, rules, types;
+
+                if (input.charAt(i) !== '@') return;
+
+                if (value = $(this['import'])) {
+                    return value;
+                } else if (name = $(/@media|@page/g)) {
+                    types = $(/[^{]+/g).trim();
+                    if (rules = $(this.block)) {
+                        return new(tree.Directive)(name + " " + types, rules);
+                    }
+                } else if (name = $(/@[-a-z]+/g)) {
+                    if (name === '@font-face') {
+                        if (rules = $(this.block)) {
+                            return new(tree.Directive)(name, rules);
+                        }
+                    } else if ((value = $(this.entity)) && $(';')) {
+                        return new(tree.Directive)(name, value);
+                    }
+                }
+            },
+            font: function () {
+                var value = [], expression = [], weight, shorthand, font, e;
+
+                while (e = $(this.shorthand) || $(this.entity)) {
+                    expression.push(e);
+                }
+                value.push(new(tree.Expression)(expression));
+
+                if ($(',')) {
+                    while (e = $(this.expression)) {
+                        value.push(e);
+                        if (! $(',')) { break }
+                    }
+                }
+                return new(tree.Value)(value, $(this.important));
+            },
+
+            //
+            // A Value is a comma-delimited list of Expressions
+            //
+            //     font-family: Baskerville, Georgia, serif;
+            //
+            // In a Rule, a Value represents everything after the `:`,
+            // and before the `;`.
+            //
+            value: function () {
+                var e, expressions = [], important;
+
+                while (e = $(this.expression)) {
+                    expressions.push(e);
+                    if (! $(',')) { break }
+                }
+                important = $(this.important);
+
+                if (expressions.length > 0) {
+                    return new(tree.Value)(expressions, important);
+                }
+            },
+            important: function () {
+                return $(/!\s*important/g);
+            },
+            sub: function () {
+                var e;
+
+                if ($('(') && (e = $(this.expression)) && $(')')) {
+                    return e;
+                }
+            },
+            multiplication: function () {
+                var m, a, op, operation;
+                if (m = $(this.operand)) {
+                    while ((op = $(/[\/*]/g)) && (a = $(this.operand))) {
+                        operation = new(tree.Operation)(op, [operation || m, a]);
+                    }
+                    return operation || m;
+                }
+            },
+            addition: function () {
+                var m, a, op, operation;
+                if (m = $(this.multiplication)) {
+                    while ((op = $(/[-+]\s+/g) || (input.charAt(i - 1) != ' ' && $(/[-+]/g))) &&
+                           (a = $(this.multiplication))) {
+                        operation = new(tree.Operation)(op, [operation || m, a]);
+                    }
+                    return operation || m;
+                }
+            },
+
+            //
+            // An operand is anything that can be part of an operation,
+            // such as a Color, or a Variable
+            //
+            operand: function () {
+                return $(this.sub) || $(this.entities.dimension) ||
+                       $(this.entities.color) || $(this.entities.variable);
+            },
+
+            //
+            // Expressions either represent mathematical operations,
+            // or white-space delimited Entities.
+            //
+            //     1px solid black
+            //     @var * 2
+            //
+            expression: function () {
+                var e, delim, entities = [], d;
+
+                while (e = $(this.addition) || $(this.entity)) {
+                    entities.push(e);
+                }
+                if (entities.length > 0) {
+                    return new(tree.Expression)(entities);
+                }
+            },
+            property: function () {
+                var name;
+
+                if (name = $(/(\*?-?[-a-z_0-9]+)\s*:/g)) {
+                    return name[1];
+                }
+            }
+        }
+    };
+};
+
+less.Parser.importer = null;
+
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.functions = {
+    rgb: function (r, g, b) {
+        return this.rgba(r, g, b, 1.0);
+    },
+    rgba: function (r, g, b, a) {
+        var rgb = [r, g, b].map(function (c) { return number(c) }),
+            a = number(a);
+        return new(tree.Color)(rgb, a);
+    },
+    hsl: function (h, s, l) {
+        return this.hsla(h, s, l, 1.0);
+    },
+    hsla: function (h, s, l, a) {
+        h = (((number(h) % 360) + 360) % 360) / 360;
+        s = number(s); l = number(l); a = number(a);
+
+        //require('sys').puts(h, s, l)
+
+        var m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s;
+        var m1 = l * 2 - m2;
+
+        return this.rgba(hue(h + 1/3) * 255,
+                         hue(h)       * 255,
+                         hue(h - 1/3) * 255,
+                         a);
+
+        function hue(h) {
+            h = h < 0 ? h + 1 : (h > 1 ? h - 1 : h);
+            if      (h * 6 < 1) return m1 + (m2 - m1) * h * 6;
+            else if (h * 2 < 1) return m2;
+            else if (h * 3 < 2) return m1 + (m2 - m1) * (2/3 - h) * 6;
+            else                return m1;
+        }
+    },
+    opacity: function(color, amount) {
+        var alpha = number(amount) * (color.alpha || 1.0);
+        return new(tree.Color)(color.rgb, number(amount));
+    },
+    saturate: function (color, amount) {
+        var hsl = color.toHSL();
+
+        hsl.s += amount.value / 100;
+        hsl.s = clamp(hsl.s);
+        return this.hsl(hsl.h, hsl.s, hsl.l);
+    },
+    desaturate: function (color, amount) {
+        var hsl = color.toHSL();
+
+        hsl.s -= amount.value / 100;
+        hsl.s = clamp(hsl.s);
+        return this.hsl(hsl.h, hsl.s, hsl.l);
+    },
+    lighten: function (color, amount) {
+        var hsl = color.toHSL();
+
+        hsl.l *= (1 + amount.value / 100);
+        hsl.l = clamp(hsl.l);
+        return this.hsl(hsl.h, hsl.s, hsl.l);
+    },
+    darken: function (color, amount) {
+        var hsl = color.toHSL();
+
+        hsl.l *= (1 - amount.value / 100);
+        hsl.l = clamp(hsl.l);
+        return this.hsl(hsl.h, hsl.s, hsl.l);
+    },
+    greyscale: function (color, amount) {
+        return this.desaturate(color, new(tree.Dimension)(100));
+    },
+    e: function (str) {
+        return new(tree.Anonymous)(str);
+    },
+    '%': function (quoted /* arg, arg, ...*/) {
+        var args = Array.prototype.slice.call(arguments, 1),
+            str = quoted.content;
+
+        for (var i = 0; i < args.length; i++) {
+            str = str.replace(/%s/,    args[i].content)
+                     .replace(/%[da]/, args[i].toCSS());
+        }
+        str = str.replace(/%%/g, '%');
+        return new(tree.Quoted)('"' + str + '"', str);
+    }
+};
+
+function number(n) {
+    if (n instanceof tree.Dimension) {
+        return parseFloat(n.unit == '%' ? n.value / 100 : n.value);
+    } else if (typeof(n) === 'number') {
+        return n;
+    } else {
+        throw {
+            error: "RuntimeError",
+            message: "color functions take numbers as parameters"
+        };
+    }
+}
+
+function clamp(val) {
+    return Math.min(1, Math.max(0, val));
+}
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Alpha = function Alpha(val) {
+    this.value = val;
+};
+tree.Alpha.prototype = {
+    toCSS: function () {
+        return "alpha(opacity=" + this.value.toCSS() + ")";
+    },
+    eval: function () { return this }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Anonymous = function Anonymous(string) {
+    this.value = string.content || string;
+};
+tree.Anonymous.prototype = {
+    toCSS: function () {
+        return this.value;
+    },
+    eval: function () { return this }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+//
+// A function call node.
+//
+tree.Call = function Call(name, args) {
+    this.name = name;
+    this.args = args;
+};
+tree.Call.prototype = {
+    //
+    // When evaluating a function call,
+    // we either find the function in `tree.functions` [1],
+    // in which case we call it, passing the  evaluated arguments,
+    // or we simply print it out as it appeared originally [2].
+    //
+    // The *functions.js* file contains the built-in functions.
+    //
+    // The reason why we evaluate the arguments, is in the case where
+    // we try to pass a variable to a function, like: `saturate(@color)`.
+    // The function should receive the value, not the variable.
+    //
+    eval: function (env) {
+        var args = this.args.map(function (a) { return a.eval(env) });
+
+        if (this.name in tree.functions) { // 1.
+            return tree.functions[this.name].apply(tree.functions, args);
+        } else { // 2.
+            return new(tree.Anonymous)(this.name +
+                   "(" + args.map(function (a) { return a.toCSS() }).join(', ') + ")");
+        }
+    },
+
+    toCSS: function (env) {
+        return this.eval(env).toCSS();
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+//
+// RGB Colors - #ff0014, #eee
+//
+tree.Color = function Color(rgb, a) {
+    //
+    // The end goal here, is to parse the arguments
+    // into an integer triplet, such as `128, 255, 0`
+    //
+    // This facilitates operations and conversions.
+    //
+    if (Array.isArray(rgb)) {
+        this.rgb = rgb;
+        this.alpha = a;
+    } else if (rgb.length == 6) {
+        this.rgb = rgb.match(/.{2}/g).map(function (c) {
+            return parseInt(c, 16);
+        });
+    } else {
+        this.rgb = rgb.split('').map(function (c) {
+            return parseInt(c + c, 16);
+        });
+    }
+};
+tree.Color.prototype = {
+    eval: function () { return this },
+
+    //
+    // If we have some transparency, the only way to represent it
+    // is via `rgba`. Otherwise, we use the hex representation,
+    // which has better compatibility with older browsers.
+    // Values are capped between `0` and `255`, rounded and zero-padded.
+    //
+    toCSS: function () {
+        if (this.alpha && this.alpha < 1.0) {
+            return "rgba(" + this.rgb.concat(this.alpha).join(', ') + ")";
+        } else {
+            return '#' + this.rgb.map(function (i) {
+                i = Math.round(i);
+                i = (i > 255 ? 255 : (i < 0 ? 0 : i)).toString(16);
+                return i.length === 1 ? '0' + i : i;
+            }).join('');
+        }
+    },
+
+    //
+    // Operations have to be done per-channel, if not,
+    // channels will spill onto each other. Once we have
+    // our result, in the form of an integer triplet,
+    // we create a new Color node to hold the result.
+    //
+    operate: function (op, other) {
+        var result = [];
+
+        if (! (other instanceof tree.Color)) {
+            other = other.toColor();
+        }
+
+        for (var c = 0; c < 3; c++) {
+            result[c] = tree.operate(op, this.rgb[c], other.rgb[c]);
+        }
+        return new(tree.Color)(result);
+    },
+
+    toHSL: function () {
+        var r = this.rgb[0] / 255,
+            g = this.rgb[1] / 255,
+            b = this.rgb[2] / 255;
+
+        var max = Math.max(r, g, b), min = Math.min(r, g, b);
+        var h, s, l = (max + min) / 2, d = max - min;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2;               break;
+                case b: h = (r - g) / d + 4;               break;
+            }
+            h /= 6;
+        }
+        return { h: h * 360, s: s, l: l };
+    }
+};
+
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Comment = function Comment(value) {
+    this.value = value;
+};
+tree.Comment.prototype = {
+    toCSS: function () {
+        return this.value;
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+//
+// A number with a unit
+//
+tree.Dimension = function Dimension(value, unit) {
+    this.value = parseFloat(value);
+    this.unit = unit || null;
+};
+
+tree.Dimension.prototype = {
+    eval: function () { return this },
+    toColor: function () {
+        return new(tree.Color)([this.value, this.value, this.value]);
+    },
+    toCSS: function () {
+        var css = this.value + this.unit;
+        return css;
+    },
+
+    // In an operation between two Dimensions,
+    // we default to the first Dimension's unit,
+    // so `1px + 2em` will yield `3px`.
+    // In the future, we could implement some unit
+    // conversions such that `100cm + 10mm` would yield
+    // `101cm`.
+    operate: function (op, other) {
+        return new(tree.Dimension)
+                  (tree.operate(op, this.value, other.value),
+                  this.unit || other.unit);
+    }
+};
+
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Directive = function Directive(name, value) {
+    this.name = name;
+    if (Array.isArray(value)) {
+        this.ruleset = new(tree.Ruleset)([], value);
+    } else {
+        this.value = value;
+    }
+};
+tree.Directive.prototype = {
+    toCSS: function (ctx, env) {
+        if (this.ruleset) {
+            this.ruleset.root = true;
+            return this.name + ' {\n  ' +
+                   this.ruleset.toCSS(ctx, env).trim().replace(/\n/g, '\n  ') + '\n}\n';
+        } else {
+            return this.name + ' ' + this.value.toCSS() + ';\n';
+        }
+    },
+    eval: function (env) {
+        env.frames.unshift(this);
+        this.ruleset && this.ruleset.evalRules(env);
+        env.frames.shift();
+        return this;
+    },
+    variable: function (name) { return tree.Ruleset.prototype.variable.call(this.ruleset, name) },
+    find: function () { return tree.Ruleset.prototype.find.apply(this.ruleset, arguments) },
+    rulesets: function () { return tree.Ruleset.prototype.rulesets.apply(this.ruleset) }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Element = function Element(combinator, value) {
+    this.combinator = combinator instanceof tree.Combinator ?
+                      combinator : new(tree.Combinator)(combinator);
+    this.value = value.trim();
+};
+tree.Element.prototype.toCSS = function () {
+    return this.combinator.toCSS() + this.value;
+};
+
+tree.Combinator = function Combinator(value) {
+    if (value === ' ') {
+        this.value = ' ';
+    } else {
+        this.value = value ? value.trim() : "";
+    }
+};
+tree.Combinator.prototype.toCSS = function () {
+    switch (this.value) {
+        case ''  : return '';
+        case ' ' : return ' ';
+        case '&' : return '';
+        case ':' : return ' :';
+        case '::': return '::';
+        case '+' : return ' + ';
+        case '~' : return ' ~ ';
+        case '>' : return ' > ';
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Expression = function Expression(value) { this.value = value };
+tree.Expression.prototype = {
+    eval: function (env) {
+        if (this.value.length > 1) {
+            return new(tree.Expression)(this.value.map(function (e) {
+                return e.eval(env);
+            }));
+        } else {
+            return this.value[0].eval(env);
+        }
+    },
+    toCSS: function () {
+        return this.value.map(function (e) {
+            return e.toCSS();
+        }).join(' ');
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+//
+// CSS @import node
+//
+// The general strategy here is that we don't want to wait
+// for the parsing to be completed, before we start importing
+// the file. That's because in the context of a browser,
+// most of the time will be spent waiting for the server to respond.
+//
+// On creation, we push the import path to our import queue, though
+// `import,push`, we also pass it a callback, which it'll call once
+// the file has been fetched, and parsed.
+//
+tree.Import = function Import(path, imports) {
+    var that = this;
+
+    this._path = path;
+
+    // The '.less' extension is optional
+    if (path instanceof tree.Quoted) {
+        this.path = /\.(le?|c)ss$/.test(path.content) ? path.content : path.content + '.less';
+    } else {
+        this.path = path.value.content || path.value;
+    }
+
+    this.css = /css$/.test(this.path);
+
+    // Only pre-compile .less files
+    if (! this.css) {
+        imports.push(this.path, function (root) {
+            that.root = root;
+        });
+    }
+};
+
+//
+// The actual import node doesn't return anything, when converted to CSS.
+// The reason is that it's used at the evaluation stage, so that the rules
+// it imports can be treated like any other rules.
+//
+// In `eval`, we make sure all Import nodes get evaluated, recursively, so
+// we end up with a flat structure, which can easily be imported in the parent
+// ruleset.
+//
+tree.Import.prototype = {
+    toCSS: function () {
+        if (this.css) {
+            return "@import " + this._path.toCSS() + ';\n';
+        } else {
+            return "";
+        }
+    },
+    eval: function () {
+        if (this.css) {
+            return this;
+        } else {
+            for (var i = 0; i < this.root.rules.length; i++) {
+                if (this.root.rules[i] instanceof tree.Import) {
+                    Array.prototype
+                         .splice
+                         .apply(this.root.rules,
+                                [i, 1].concat(this.root.rules[i].eval()));
+                }
+            }
+            return this.root.rules;
+        }
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Keyword = function Keyword(value) { this.value = value };
+tree.Keyword.prototype = {
+    eval: function () { return this },
+    toCSS: function () { return this.value }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.mixin = {};
+tree.mixin.Call = function MixinCall(elements, args, index) {
+    this.selector = new(tree.Selector)(elements);
+    this.arguments = args;
+    this.index = index;
+};
+tree.mixin.Call.prototype = {
+    eval: function (env) {
+        var mixins, rules = [], match = false;
+
+        for (var i = 0; i < env.frames.length; i++) {
+            if ((mixins = env.frames[i].find(this.selector)).length > 0) {
+                for (var m = 0; m < mixins.length; m++) {
+                    if (mixins[m].match(this.arguments, env)) {
+                        try {
+                            Array.prototype.push.apply(
+                                  rules, mixins[m].eval(this.arguments, env).rules);
+                            match = true;
+                        } catch (e) {
+                            throw { message: e.message, index: this.index };
+                        }
+                    }
+                }
+                if (match) {
+                    return rules;
+                } else {
+                    throw { message: 'No matching definition was found for `' +
+                                      this.selector.toCSS().trim() + '('      +
+                                      this.arguments.map(function (a) {
+                                          return a.toCSS();
+                                      }).join(', ') + ")`",
+                            index:   this.index };
+                }
+            }
+        }
+        throw { message: this.selector.toCSS().trim() + " is undefined",
+                index: this.index };
+    }
+};
+
+tree.mixin.Definition = function MixinDefinition(name, params, rules) {
+    this.name = name;
+    this.selectors = [new(tree.Selector)([new(tree.Element)(null, name)])];
+    this.params = params;
+    this.arity = params.length;
+    this.rules = rules;
+    this._lookups = {};
+    this.required = params.reduce(function (count, p) {
+        if (p.name && !p.value) { return count + 1 }
+        else                    { return count }
+    }, 0);
+};
+tree.mixin.Definition.prototype = {
+    toCSS: function () { return "" },
+    variable: function (name) { return tree.Ruleset.prototype.variable.call(this, name) },
+    find: function () { return tree.Ruleset.prototype.find.apply(this, arguments) },
+    rulesets: function () { return tree.Ruleset.prototype.rulesets.apply(this) },
+
+    eval: function (args, env) {
+        var frame = new(tree.Ruleset)(null, []), context;
+
+        for (var i = 0, val; i < this.params.length; i++) {
+            if (this.params[i].name) {
+                if (val = (args && args[i]) || this.params[i].value) {
+                    frame.rules.unshift(new(tree.Rule)(this.params[i].name, val.eval(env)));
+                } else {
+                    throw { message: "wrong number of arguments for " + this.name +
+                            ' (' + args.length + ' for ' + this.arity + ')' };
+                }
+            }
+        }
+        return new(tree.Ruleset)(null, this.rules).evalRules({
+            frames: [this, frame].concat(env.frames)
+        });
+    },
+    match: function (args, env) {
+        var argsLength = (args && args.length) || 0;
+
+        if (argsLength < this.required) {
+            return false;
+        }
+
+        for (var i = 0; i < Math.min(argsLength, this.arity); i++) {
+            if (!this.params[i].name) {
+                if (args[i].wildcard) { continue }
+                else if (args[i].eval(env).toCSS() != this.params[i].value.eval(env).toCSS()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Operation = function Operation(op, operands) {
+    this.op = op.trim();
+    this.operands = operands;
+};
+tree.Operation.prototype.eval = function (env) {
+    var a = this.operands[0].eval(env),
+        b = this.operands[1].eval(env),
+        temp;
+
+    if (a instanceof tree.Dimension && b instanceof tree.Color) {
+        if (this.op === '*' || this.op === '+') {
+            temp = b, b = a, a = temp;
+        } else {
+            throw { name: "OperationError",
+                    message: "Can't substract or divide a color from a number" };
+        }
+    }
+    return a.operate(this.op, b);
+};
+
+tree.operate = function (op, a, b) {
+    switch (op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return a / b;
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Quoted = function Quoted(value, content) {
+    this.value = value;
+    this.content = content;
+};
+tree.Quoted.prototype = {
+    toCSS: function () {
+        var css = this.value;
+        return css;
+    },
+    eval: function () {
+        return this;
+    }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Rule = function Rule(name, value, index) {
+    this.name = name;
+    this.value = (value instanceof tree.Value) ? value : new(tree.Value)([value]);
+    this.index = index;
+
+    if (name.charAt(0) === '@') {
+        this.variable = true;
+    } else { this.variable = false }
+};
+tree.Rule.prototype.toCSS = function () {
+    if (this.variable) { return "" }
+    else {
+        return this.name + ": " + this.value.toCSS() + ";";
+    }
+};
+
+tree.Rule.prototype.eval = function (context) {
+    return new(tree.Rule)(this.name, this.value.eval(context));
+};
+
+tree.Value = function Value(value) {
+    this.value = value;
+    this.is = 'value';
+};
+tree.Value.prototype = {
+    eval: function (env) {
+        if (this.value.length === 1) {
+            return this.value[0].eval(env);
+        } else {
+            return new(tree.Value)(this.value.map(function (v) {
+                return v.eval(env);
+            }));
+        }
+    },
+    toCSS: function () {
+        return this.value.map(function (e) {
+            return e.toCSS();
+        }).join(', ');
+    }
+};
+
+tree.Shorthand = function Shorthand(a, b) {
+    this.a = a;
+    this.b = b;
+};
+
+tree.Shorthand.prototype = {
+    toCSS: function (env) {
+        return this.a.toCSS(env) + "/" + this.b.toCSS(env);
+    },
+    eval: function () { return this }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Ruleset = function Ruleset(selectors, rules) {
+    this.selectors = selectors;
+    this.rules = rules;
+    this._lookups = {};
+};
+tree.Ruleset.prototype = {
+    eval: function () { return this },
+    evalRules: function (context) {
+        var rules = [];
+
+        this.rules.forEach(function (rule) {
+            if (rule.evalRules) {
+                rules.push(rule.evalRules(context));
+            } else if (rule instanceof tree.mixin.Call) {
+                Array.prototype.push.apply(rules, rule.eval(context));
+            } else {
+                rules.push(rule.eval(context));
+            }
+        });
+        this.rules = rules;
+        return this;
+    },
+    match: function (args) {
+        return !args || args.length === 0;
+    },
+    variable: function (name) {
+        if (this._variables) { return this._variables[name] }
+        else {
+            return (this._variables = this.rules.reduce(function (hash, r) {
+                if (r instanceof tree.Rule && r.variable === true) {
+                    hash[r.name] = r;
+                }
+                return hash;
+            }, {}))[name];
+        }
+    },
+    rulesets: function () {
+        if (this._rulesets) { return this._rulesets }
+        else {
+            return this._rulesets = this.rules.filter(function (r) {
+                if (r instanceof tree.Ruleset || r instanceof tree.mixin.Definition) { return r }
+            });
+        }
+    },
+    find: function (selector, self) {
+        self = self || this;
+        var rules = [], rule, match,
+            key = selector.toCSS();
+
+        if (key in this._lookups) { return this._lookups[key] }
+
+        this.rulesets().forEach(function (rule) {
+            if (rule !== self) {
+                for (var j = 0; j < rule.selectors.length; j++) {
+                    if (match = selector.match(rule.selectors[j])) {
+                        if (selector.elements.length > 1) {
+                            Array.prototype.push.apply(rules, rule.find(
+                                new(tree.Selector)(selector.elements.slice(1)), self));
+                        } else {
+                            rules.push(rule);
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+        return this._lookups[key] = rules;
+    },
+    //
+    // Entry point for code generation
+    //
+    //     `context` holds an array of arrays.
+    //
+    toCSS: function (context, env) {
+        var css = [],      // The CSS output
+            rules = [],    // node.Rule instances
+            rulesets = [], // node.Ruleset instances
+            paths = [],    // Current selectors
+            selector,      // The fully rendered selector
+            rule;
+
+        if (! this.root) {
+            if (context.length === 0) {
+                paths = this.selectors.map(function (s) { return [s] });
+            } else {
+                for (var s = 0; s < this.selectors.length; s++) {
+                    for (var c = 0; c < context.length; c++) {
+                        paths.push(context[c].concat([this.selectors[s]]));
+                    }
+                }
+            }
+        } else {
+            context = [], env = { frames: [] }
+            for (var i = 0; i < this.rules.length; i++) {
+                if (this.rules[i] instanceof tree.Import) {
+                    Array.prototype.splice
+                         .apply(this.rules, [i, 1].concat(this.rules[i].eval(env)));
+                }
+            }
+        }
+
+        // push the current ruleset to the frames stack
+        env.frames.unshift(this);
+
+        // Evaluate mixins
+        for (var i = 0; i < this.rules.length; i++) {
+            if (this.rules[i] instanceof tree.mixin.Call) {
+                Array.prototype.splice
+                     .apply(this.rules, [i, 1].concat(this.rules[i].eval(env)));
+            }
+        }
+
+        // Evaluate rules and rulesets
+        for (var i = 0; i < this.rules.length; i++) {
+            rule = this.rules[i];
+
+            if (rule instanceof tree.Directive) {
+                rulesets.push(rule.eval(env).toCSS(paths, env));
+            } else if (rule.rules) {
+                rulesets.push(rule.toCSS(paths, env));
+            } else if (rule instanceof tree.Comment) {
+                if (this.root) {
+                    rulesets.push(rule.toCSS());
+                } else {
+                    rules.push(rule.toCSS());
+                }
+            } else {
+                if (rule.toCSS && !rule.variable) {
+                    rules.push(rule.eval(env).toCSS());
+                } else if (rule.value && !rule.variable) {
+                    rules.push(rule.value.toString());
+                }
+            }
+        } 
+
+        rulesets = rulesets.join('');
+
+        // If this is the root node, we don't render
+        // a selector, or {}.
+        // Otherwise, only output if this ruleset has rules.
+        if (this.root) {
+            css.push(rules.join('\n'));
+        } else {
+            if (rules.length > 0) {
+                selector = paths.map(function (p) {
+                    return p.map(function (s) {
+                        return s.toCSS();
+                    }).join('').trim();
+                }).join(paths.length > 3 ? ',\n' : ', ');
+                css.push(selector, " {\n  " + rules.join('\n  ') + "\n}\n");
+            }
+        }
+        css.push(rulesets);
+
+        // Pop the stack
+        env.frames.shift();
+
+        return css.join('');
+    }
+};
+
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Selector = function Selector(elements) {
+    this.elements = elements;
+    if (this.elements[0].combinator.value === "") {
+        this.elements[0].combinator.value = ' ';
+    }
+};
+tree.Selector.prototype.match = function (other) {
+    if (this.elements[0].value === other.elements[0].value) {
+        return true;
+    } else {
+        return false;
+    }
+};
+tree.Selector.prototype.toCSS = function () {
+    if (this._css) { return this._css }
+
+    return this._css = this.elements.map(function (e) {
+        if (typeof(e) === 'string') {
+            return ' ' + e.trim();
+        } else {
+            return e.toCSS();
+        }
+    }).join('');
+};
+
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.URL = function URL(val) {
+    this.value = val;
+};
+tree.URL.prototype = {
+    toCSS: function () {
+        return "url(" + this.value.toCSS() + ")";
+    },
+    eval: function () { return this }
+};
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.Variable = function Variable(name, index) { this.name = name, this.index = index };
+tree.Variable.prototype = {
+    eval: function (env) {
+        var variable, v, name = this.name;
+
+        if (variable = tree.find(env.frames, function (frame) {
+            if (v = frame.variable(name)) {
+                return v.value.eval(env);
+            }
+        })) { return variable }
+        else {
+            throw { message: "variable " + this.name + " is undefined",
+                    index: this.index };
+        }
+    }
+};
+
+if (typeof(require) !== 'undefined' && typeof(__LESS_DIST__) === 'undefined') { var tree = require('less/tree') }
+
+tree.find = function (obj, fun) {
+    for (var i = 0, r; i < obj.length; i++) {
+        if (r = fun.call(obj, obj[i])) { return r }
+    }
+    return null;
+};
+(function () {
+//
+// Select all links with the 'rel' attribute set to "less"
+//
+var sheets = [];
+
+less.env = location.hostname == '127.0.0.1' ||
+           location.hostname == '0.0.0.0'   ||
+           location.hostname == 'localhost' ||
+           location.protocol == 'file:'     ? 'development'
+                                            : 'production';
+
+
+// Load the stylesheets when the body is ready
+var readyTimer = setInterval(function () {
+    if (document.body) {
+        if (!document.querySelectorAll && typeof(jQuery) === "undefined") {
+            log("No selector method found");
+        } else {
+            sheets = (document.querySelectorAll || jQuery).call(document, 'link[rel="stylesheet/less"]');
+        }
+        clearInterval(readyTimer);
+
+        loadStyleSheets(function (root, sheet, env) {
+            createCSS(root.toCSS(), sheet, env.lastModified);
+
+            if (env.local) {
+                log("less: loading " + sheet.href + " from local storage.");
+            } else {
+                log("less: parsed " + sheet.href + " successfully.");
+            }
+        });
+    }
+}, 10);
+
+//
+// Auto-refresh
+//
+if (less.env === 'development') {
+    refreshTimer = setInterval(function () {
+        if (/!refresh/.test(location.hash)) {
+            loadStyleSheets(function (root, sheet, lastModified) {
+                createCSS(root.toCSS(), sheet, lastModified);
+            });
+        }
+    }, 1000);
+}
+
+function loadStyleSheets(callback) {
+    for (var i = 0; i < sheets.length; i++) {
+        loadStyleSheet(sheets[i], callback);
+    }
+}
+
+function loadStyleSheet(sheet, callback) {
+    var css = typeof(localStorage) !== "undefined" && localStorage.getItem(sheet.href);
+    var styles = css && JSON.parse(css);
+
+    xhr(sheet.href, function (data, lastModified) {
+        if (styles && (new(Date)(lastModified).valueOf() ===
+                       new(Date)(styles.timestamp).valueOf())) {
+            // Use local copy
+            createCSS(styles.css, sheet);
+            callback(null, sheet, { local: true });
+        } else {
+            // Use remote copy (re-parse)
+            new(less.Parser)({ optimization: 3 }).parse(data, function (e, root) {
+                if (e) { return error(e, sheet.href) }
+                try {
+                    callback(root, sheet, { local: false, lastModified: lastModified });
+                } catch (e) {
+                    error(e, sheet.href);
+                }
+            });
+        }
+    }, function (status) {
+        throw new(Error)("Couldn't load " + sheet.href + " (" + status + ")");
+    });
+}
+
+function createCSS(styles, sheet, lastModified) {
+    var css = document.createElement('style');
+    css.type = 'text/css';
+    css.media = 'screen';
+    css.title = 'less-sheet';
+
+    if (sheet) {
+        css.title = sheet.title || sheet.href.match(/(?:^|\/)([-\w]+)\.[a-z]+$/i)[1];
+
+        // Don't update the local store if the file wasn't modified
+        if (lastModified && typeof(localStorage) !== "undefined") {
+            localStorage.setItem(sheet.href, JSON.stringify({ timestamp: lastModified, css: styles }));
+        }
+    }
+
+    if (css.styleSheet) {
+        css.styleSheet.cssText = styles;
+    } else {
+        css.appendChild(document.createTextNode(styles));
+    }
+    document.getElementsByTagName('head')[0].appendChild(css);
+}
+
+function xhr(url, callback, errback) {
+    var xhr = getXMLHttpRequest();
+
+    if (window.location.protocol === "file:") {
+        xhr.open('GET', url, false);
+        xhr.send(null);
+        if (xhr.status === 0) {
+            callback(xhr.responseText);
+        } else {
+            errback(xhr.status);
+        }
+    } else {
+        xhr.open('GET', url, true);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState == 4) {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    callback(xhr.responseText,
+                             xhr.getResponseHeader("Last-Modified"));
+                } else if (typeof(errback) === 'function') {
+                    errback(xhr.status);
+                }
+            }
+        };
+        xhr.send(null);
+    }
+}
+
+function getXMLHttpRequest() {
+    if (window.XMLHttpRequest) {
+        return new(XMLHttpRequest);
+    } else {
+        try {
+            return new(ActiveXObject)("MSXML2.XMLHTTP.3.0");
+        } catch (e) {
+            log("less: browser doesn't support AJAX.");
+            return null;
+        }
+    }
+}
+
+function log(str) {
+    if (less.env == 'development' && typeof(console) !== "undefined") { console.log(str) }
+}
+
+function error(e, href) {
+    var template = ['<div>',
+                        '<pre class="ctx"><span>[-1]</span>{0}</pre>',
+                        '<pre><span>[0]</span>{current}</pre>',
+                        '<pre class="ctx"><span>[1]</span>{2}</pre>',
+                    '</div>'].join('\n');
+
+    var elem = document.createElement('div'), timer;
+    elem.id = "less-error-message";
+    elem.innerHTML = '<h3>' + (e.message || 'There is an error in your .less file') + '</h3>' +
+                     '<p><a href="' + href   + '">' + href + "</a> "                +
+                     'on line '     + e.line + ', column ' + (e.column + 1)         + ':</p>' +
+                     template.replace(/\[(-?\d)\]/g, function (_, i) {
+                         return e.line + parseInt(i);
+                     }).replace(/\{(\d)\}/g, function (_, i) {
+                         return e.extract[parseInt(i)];
+                     }).replace(/\{current\}/, e.extract[1].slice(0, e.column)      +
+                                               '<span class="error">'               +
+                                               e.extract[1].slice(e.column)         +
+                                               '</span>');
+    // CSS for error messages
+    createCSS([
+        '#less-error-message span {',
+            'margin-right: 15px;',
+        '}',
+        '#less-error-message pre {',
+            'color: #ee4444;',
+            'padding: 4px 0;',
+            'margin: 0;',
+        '}',
+        '#less-error-message pre.ctx {',
+            'color: #dd7777;',
+        '}',
+        '#less-error-message h3 {',
+            'padding: 15px 0 5px 0;',
+            'margin: 0;',
+        '}',
+        '#less-error-message a {',
+            'color: #10a',
+        '}',
+        '#less-error-message .error {',
+            'color: red;',
+            'font-weight: bold;',
+            'padding-bottom: 2px;',
+            'border-bottom: 1px dashed red;',
+        '}'
+    ].join(''));
+
+    elem.style.cssText = [
+        "font-family: Arial, sans-serif",
+        "border: 1px solid #e00",
+        "background-color: #eee",
+        "border-radius: 5px",
+        "color: #e00",
+        "padding: 15px",
+        "margin-bottom: 15px"
+    ].join(';');
+
+    if (less.env == 'development') {
+        timer = setInterval(function () {
+            if (document.body) {
+                document.body.insertBefore(elem, document.body.childNodes[0]);
+                clearInterval(timer);
+            }
+        }, 10);
+    }
+}
+
+less.Parser.importer = function (path, paths, callback) {
+    loadStyleSheet({ href: path, title: path }, function (root) {
+        callback(root);
+    });
+};
+
+})();
+
+// --- End less.js ---
+
+});
+;bespin.tiki.register("::theme_manager_base", {
+    name: "theme_manager_base",
+    dependencies: {  }
+});
+bespin.tiki.module("theme_manager_base:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+"define metadata";
+({
+    "description": "Defines extension points required for theming",
+    "dependencies": { },
+    "environments": { "main": true },
+    "share": true,
+    "provides": [
+        {
+            "ep": "extensionpoint",
+            "name": "themestyles",
+            "description": "(Less)files holding the CSS style information for the UI.",
+
+            "params": [
+                {
+                    "name": "url",
+                    "required": true,
+                    "description": "Name of the ThemeStylesFile - can also be an array of files."
+                }
+            ]
+        },
+        {
+            "ep": "extensionpoint",
+            "name": "themeChange",
+            "description": "Event: Notify when the theme(styles) changed.",
+
+            "params": [
+                {
+                    "name": "pointer",
+                    "required": true,
+                    "description": "Function that is called whenever the theme is changed."
+                }
+            ]
+
+        },
+        {
+            "ep": "extensionpoint",
+            "name": "theme",
+            "indexOn": "name",
+            "description": "A theme is a way change the look of the application.",
+
+            "params": [
+                {
+                    "name": "url",
+                    "required": false,
+                    "description": "Name of a ThemeStylesFile that holds theme specific CSS rules - can also be an array of files."
+                },
+                {
+                    "name": "pointer",
+                    "required": true,
+                    "description": "Function that returns the ThemeData"
+                }
+            ]
+        }
+    ]
+})
+"end";
+
+});
+;bespin.tiki.register("::canon", {
+    name: "canon",
+    dependencies: { "environment": "0.0.0", "events": "0.0.0", "settings": "0.0.0" }
+});
+bespin.tiki.module("canon:history",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var Trace = require('bespin:util/stacktrace').Trace;
+var catalog = require('bespin:plugins').catalog;
+
+/**
+ * Current requirements are around displaying the command line, and provision
+ * of a 'history' command and cursor up|down navigation of history.
+ * <p>Future requirements could include:
+ * <ul>
+ * <li>Multiple command lines
+ * <li>The ability to recall key presses (i.e. requests with no output) which
+ * will likely be needed for macro recording or similar
+ * <li>The ability to store the command history either on the server or in the
+ * browser local storage.
+ * </ul>
+ * <p>The execute() command doesn't really live here, except as part of that
+ * last future requirement, and because it doesn't really have anywhere else to
+ * live.
+ */
+
+/**
+ * The array of requests that wish to announce their presence
+ */
+exports.requests = [];
+
+/**
+ * How many requests do we store?
+ */
+var maxRequestLength = 100;
+
+/**
+ * Called by Request instances when some output (or a cell to async() happens)
+ */
+exports.addRequestOutput = function(request) {
+    exports.requests.push(request);
+    // This could probably be optimized with some maths, but 99.99% of the
+    // time we will only be off by one, and I'm feeling lazy.
+    while (exports.requests.length > maxRequestLength) {
+        exports.requests.shiftObject();
+    }
+
+    catalog.publish(this, 'addedRequestOutput', null, request);
+};
+
+/**
+ * Execute a new command.
+ * This is basically an error trapping wrapper around request.command(...)
+ */
+exports.execute = function(args, request) {
+    // Check the function pointed to in the meta-data exists
+    if (!request.command) {
+        request.doneWithError('Command not found.');
+        return;
+    }
+
+    try {
+        request.command(args, request);
+    } catch (ex) {
+        var trace = new Trace(ex, true);
+        console.group('Error executing command \'' + request.typed + '\'');
+        console.log('command=', request.commandExt);
+        console.log('args=', args);
+        console.error(ex);
+        trace.log(3);
+        console.groupEnd();
+
+        request.doneWithError(ex);
+    }
+};
+
+});
+
+bespin.tiki.module("canon:request",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var Event = require('events').Event;
+var history = require('canon:history');
+
+/**
+ * To create an invocation, you need to do something like this (all the ctor
+ * args are optional):
+ * <pre>
+ * var request = new Request({
+ *     command: command,
+ *     commandExt: commandExt,
+ *     args: args,
+ *     typed: typed
+ * });
+ * </pre>
+ */
+exports.Request = function(options) {
+    options = options || {};
+
+    // Will be used in the keyboard case and the cli case
+    this.command = options.command;
+    this.commandExt = options.commandExt;
+
+    // Will be used only in the cli case
+    this.args = options.args;
+    this.typed = options.typed;
+
+    // Have we been initialized?
+    this._begunOutput = false;
+
+    this.start = new Date();
+    this.end = null;
+    this.completed = false;
+    this.error = false;
+
+    this.changed = new Event();
+};
+
+/**
+ * Lazy init to register with the history should only be done on output.
+ * init() is expensive, and won't be used in the majority of cases
+ */
+exports.Request.prototype._beginOutput = function() {
+    this._begunOutput = true;
+    this.outputs = [];
+
+    history.addRequestOutput(this);
+};
+
+/**
+ * Sugar for:
+ * <pre>request.error = true; request.done(output);</pre>
+ */
+exports.Request.prototype.doneWithError = function(content) {
+    this.error = true;
+    this.done(content);
+};
+
+/**
+ * Declares that this function will not be automatically done when
+ * the command exits
+ */
+exports.Request.prototype.async = function() {
+    if (!this._begunOutput) {
+        this._beginOutput();
+    }
+};
+
+/**
+ * Complete the currently executing command with successful output.
+ * @param output Either DOM node, an SproutCore element or something that
+ * can be used in the content of a DIV to create a DOM node.
+ */
+exports.Request.prototype.output = function(content) {
+    if (!this._begunOutput) {
+        this._beginOutput();
+    }
+
+    if (typeof content !== 'string' && !(content instanceof Node)) {
+        content = content.toString();
+    }
+
+    this.outputs.push(content);
+    this.changed();
+
+    return this;
+};
+
+/**
+ * All commands that do output must call this to indicate that the command
+ * has finished execution.
+ */
+exports.Request.prototype.done = function(content) {
+    this.completed = true;
+    this.end = new Date();
+    this.duration = this.end.getTime() - this.start.getTime();
+
+    if (content) {
+        this.output(content);
+    } else {
+        this.changed();
+    }
+};
+
+});
+
+bespin.tiki.module("canon:index",function(require,exports,module) {
+
+});
+;bespin.tiki.register("::traits", {
+    name: "traits",
+    dependencies: {  }
+});
+bespin.tiki.module("traits:index",function(require,exports,module) {
+// Copyright (C) 2010 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// See http://code.google.com/p/es-lab/wiki/Traits
+// for background on traits and a description of this library
+
+"define metadata";
+({
+    "description": "Traits library, traitsjs.org",
+    "dependencies": {},
+    "provides": []
+});
+"end";
+
+// --- Begin traits-0.1.js ---
+
+exports.Trait = (function(){
+
+  // == Ancillary functions ==
+  
+  // this signals that the current ES implementation supports properties,
+  // so probably also accessor properties
+  var SUPPORTS_DEFINEPROP = !!Object.defineProperty;
+
+  var call = Function.prototype.call;
+
+  /**
+   * An ad hoc version of bind that only binds the 'this' parameter.
+   */
+  var bindThis = Function.prototype.bind
+    ? function(fun, self) { return Function.prototype.bind.call(fun, self); }
+    : function(fun, self) {
+        function funcBound(var_args) {
+          return fun.apply(self, arguments);
+        }
+        return funcBound;
+      };
+
+  var hasOwnProperty = bindThis(call, Object.prototype.hasOwnProperty);
+  var slice = bindThis(call, Array.prototype.slice);
+    
+  // feature testing such that traits.js runs on both ES3 and ES5
+  var forEach = Array.prototype.forEach
+      ? bindThis(call, Array.prototype.forEach)
+      : function(arr, fun) {
+          for (var i = 0, len = arr.length; i < len; i++) { fun(arr[i]); }
+        };
+      
+  var freeze = Object.freeze || function(obj) { return obj; };
+  var getPrototypeOf = Object.getPrototypeOf || function(obj) { return Object.prototype };
+  var getOwnPropertyNames = Object.getOwnPropertyNames ||
+      function(obj) {
+        var props = [];
+        for (var p in obj) { if (hasOwnProperty(obj,p)) { props.push(p); } }
+        return props;
+      };
+  var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor ||
+      function(obj, name) {
+        return {
+          value: obj[name],
+          enumerable: true,
+          writable: true,
+          configurable: true
+        };
+      };
+  var defineProperty = Object.defineProperty ||
+      function(obj, name, pd) {
+        obj[name] = pd.value;
+      };
+  var defineProperties = Object.defineProperties ||
+      function(obj, propMap) {
+        for (var name in propMap) {
+          if (hasOwnProperty(propMap, name)) {
+            defineProperty(obj, name, propMap[name]);
+          }
+        }
+      };
+  var Object_create = Object.create ||
+      function(proto, propMap) {
+        var self;
+        function dummy() {};
+        dummy.prototype = proto || Object.prototype;
+        self = new dummy();
+        if (propMap) {
+          defineProperties(self, propMap);          
+        }
+        return self;
+      };
+  var getOwnProperties = Object.getOwnProperties ||
+      function(obj) {
+        var map = {};
+        forEach(getOwnPropertyNames(obj), function (name) {
+          map[name] = getOwnPropertyDescriptor(obj, name);
+        });
+        return map;
+      };
+  
+  // end of ES3 - ES5 compatibility functions
+  
+  function makeConflictAccessor(name) {
+    var accessor = function(var_args) {
+      throw new Error("Conflicting property: "+name);
+    };
+    freeze(accessor.prototype);
+    return freeze(accessor);
+  };
+
+  function makeRequiredPropDesc(name) {
+    return freeze({
+      value: undefined,
+      enumerable: false,
+      required: true
+    });
+  }
+  
+  function makeConflictingPropDesc(name) {
+    var conflict = makeConflictAccessor(name);
+    if (SUPPORTS_DEFINEPROP) {
+      return freeze({
+       get: conflict,
+       set: conflict,
+       enumerable: false,
+       conflict: true
+      }); 
+    } else {
+      return freeze({
+        value: conflict,
+        enumerable: false,
+        conflict: true
+      });
+    }
+  }
+  
+  /**
+   * Are x and y not observably distinguishable?
+   */
+  function identical(x, y) {
+    if (x === y) {
+      // 0 === -0, but they are not identical
+      return x !== 0 || 1/x === 1/y;
+    } else {
+      // NaN !== NaN, but they are identical.
+      // NaNs are the only non-reflexive value, i.e., if x !== x,
+      // then x is a NaN.
+      return x !== x && y !== y;
+    }
+  }
+
+  // Note: isSameDesc should return true if both
+  // desc1 and desc2 represent a 'required' property
+  // (otherwise two composed required properties would be turned into a conflict)
+  function isSameDesc(desc1, desc2) {
+    // for conflicting properties, don't compare values because
+    // the conflicting property values are never equal
+    if (desc1.conflict && desc2.conflict) {
+      return true;
+    } else {
+      return (   desc1.get === desc2.get
+              && desc1.set === desc2.set
+              && identical(desc1.value, desc2.value)
+              && desc1.enumerable === desc2.enumerable
+              && desc1.required === desc2.required
+              && desc1.conflict === desc2.conflict); 
+    }
+  }
+  
+  function freezeAndBind(meth, self) {
+    return freeze(bindThis(meth, self));
+  }
+
+  /* makeSet(['foo', ...]) => { foo: true, ...}
+   *
+   * makeSet returns an object whose own properties represent a set.
+   *
+   * Each string in the names array is added to the set.
+   *
+   * To test whether an element is in the set, perform:
+   *   hasOwnProperty(set, element)
+   */
+  function makeSet(names) {
+    var set = {};
+    forEach(names, function (name) {
+      set[name] = true;
+    });
+    return freeze(set);
+  }
+
+  // == singleton object to be used as the placeholder for a required property ==
+  
+  var required = freeze({ toString: function() { return '<Trait.required>'; } });
+
+  // == The public API methods ==
+
+  /**
+   * var newTrait = trait({ foo:required, ... })
+   *
+   * @param object an object record (in principle an object literal)
+   * @returns a new trait describing all of the own properties of the object
+   *          (both enumerable and non-enumerable)
+   *
+   * As a general rule, 'trait' should be invoked with an
+   * object literal, since the object merely serves as a record
+   * descriptor. Both its identity and its prototype chain are irrelevant.
+   * 
+   * Data properties bound to function objects in the argument will be flagged
+   * as 'method' properties. The prototype of these function objects is frozen.
+   * 
+   * Data properties bound to the 'required' singleton exported by this module
+   * will be marked as 'required' properties.
+   *
+   * The <tt>trait</tt> function is pure if no other code can witness the
+   * side-effects of freezing the prototypes of the methods. If <tt>trait</tt>
+   * is invoked with an object literal whose methods are represented as
+   * in-place anonymous functions, this should normally be the case.
+   */
+  function trait(obj) {
+    var map = {};
+    forEach(getOwnPropertyNames(obj), function (name) {
+      var pd = getOwnPropertyDescriptor(obj, name);
+      if (pd.value === required) {
+        pd = makeRequiredPropDesc(name);
+      } else if (typeof pd.value === 'function') {
+        pd.method = true;
+        if ('prototype' in pd.value) {
+          freeze(pd.value.prototype);
+        }
+      } else {
+        if (pd.get && pd.get.prototype) { freeze(pd.get.prototype); }
+        if (pd.set && pd.set.prototype) { freeze(pd.set.prototype); }
+      }
+      map[name] = pd;
+    });
+    return map;
+  }
+
+  /**
+   * var newTrait = compose(trait_1, trait_2, ..., trait_N)
+   *
+   * @param trait_i a trait object
+   * @returns a new trait containing the combined own properties of
+   *          all the trait_i.
+   * 
+   * If two or more traits have own properties with the same name, the new
+   * trait will contain a 'conflict' property for that name. 'compose' is
+   * a commutative and associative operation, and the order of its
+   * arguments is not significant.
+   *
+   * If 'compose' is invoked with < 2 arguments, then:
+   *   compose(trait_1) returns a trait equivalent to trait_1
+   *   compose() returns an empty trait
+   */
+  function compose(var_args) {
+    var traits = slice(arguments, 0);
+    var newTrait = {};
+    
+    forEach(traits, function (trait) {
+      forEach(getOwnPropertyNames(trait), function (name) {
+        var pd = trait[name];
+        if (hasOwnProperty(newTrait, name) &&
+            !newTrait[name].required) {
+          
+          // a non-required property with the same name was previously defined
+          // this is not a conflict if pd represents a 'required' property itself:
+          if (pd.required) {
+            return; // skip this property, the required property is now present
+          }
+            
+          if (!isSameDesc(newTrait[name], pd)) {
+            // a distinct, non-required property with the same name
+            // was previously defined by another trait => mark as conflicting property
+            newTrait[name] = makeConflictingPropDesc(name); 
+          } // else,
+          // properties are not in conflict if they refer to the same value
+          
+        } else {
+          newTrait[name] = pd;
+        }
+      });
+    });
+    
+    return freeze(newTrait);
+  }
+
+  /* var newTrait = exclude(['name', ...], trait)
+   *
+   * @param names a list of strings denoting property names.
+   * @param trait a trait some properties of which should be excluded.
+   * @returns a new trait with the same own properties as the original trait,
+   *          except that all property names appearing in the first argument
+   *          are replaced by required property descriptors.
+   *
+   * Note: exclude(A, exclude(B,t)) is equivalent to exclude(A U B, t)
+   */
+  function exclude(names, trait) {
+    var exclusions = makeSet(names);
+    var newTrait = {};
+    
+    forEach(getOwnPropertyNames(trait), function (name) {
+      // required properties are not excluded but ignored
+      if (!hasOwnProperty(exclusions, name) || trait[name].required) {
+        newTrait[name] = trait[name];
+      } else {
+        // excluded properties are replaced by required properties
+        newTrait[name] = makeRequiredPropDesc(name);
+      }
+    });
+    
+    return freeze(newTrait);
+  }
+
+  /**
+   * var newTrait = override(trait_1, trait_2, ..., trait_N)
+   *
+   * @returns a new trait with all of the combined properties of the argument traits.
+   *          In contrast to 'compose', 'override' immediately resolves all conflicts
+   *          resulting from this composition by overriding the properties of later
+   *          traits. Trait priority is from left to right. I.e. the properties of the
+   *          leftmost trait are never overridden.
+   *
+   *  override is associative:
+   *    override(t1,t2,t3) is equivalent to override(t1, override(t2, t3)) or
+   *    to override(override(t1, t2), t3)
+   *  override is not commutative: override(t1,t2) is not equivalent to override(t2,t1)
+   *
+   * override() returns an empty trait
+   * override(trait_1) returns a trait equivalent to trait_1
+   */
+  function override(var_args) {
+    var traits = slice(arguments, 0);
+    var newTrait = {};
+    forEach(traits, function (trait) {
+      forEach(getOwnPropertyNames(trait), function (name) {
+        var pd = trait[name];
+        // add this trait's property to the composite trait only if
+        // - the trait does not yet have this property
+        // - or, the trait does have the property, but it's a required property
+        if (!hasOwnProperty(newTrait, name) || newTrait[name].required) {
+          newTrait[name] = pd;
+        }
+      });
+    });
+    return freeze(newTrait);
+  }
+  
+  /**
+   * var newTrait = override(dominantTrait, recessiveTrait)
+   *
+   * @returns a new trait with all of the properties of dominantTrait
+   *          and all of the properties of recessiveTrait not in dominantTrait
+   *
+   * Note: override is associative:
+   *   override(t1, override(t2, t3)) is equivalent to override(override(t1, t2), t3)
+   */
+  /*function override(frontT, backT) {
+    var newTrait = {};
+    // first copy all of backT's properties into newTrait
+    forEach(getOwnPropertyNames(backT), function (name) {
+      newTrait[name] = backT[name];
+    });
+    // now override all these properties with frontT's properties
+    forEach(getOwnPropertyNames(frontT), function (name) {
+      var pd = frontT[name];
+      // frontT's required property does not override the provided property
+      if (!(pd.required && hasOwnProperty(newTrait, name))) {
+        newTrait[name] = pd; 
+      }      
+    });
+    
+    return freeze(newTrait);
+  }*/
+
+  /**
+   * var newTrait = rename(map, trait)
+   *
+   * @param map an object whose own properties serve as a mapping from
+            old names to new names.
+   * @param trait a trait object
+   * @returns a new trait with the same properties as the original trait,
+   *          except that all properties whose name is an own property
+   *          of map will be renamed to map[name], and a 'required' property
+   *          for name will be added instead.
+   *
+   * rename({a: 'b'}, t) eqv compose(exclude(['a'],t),
+   *                                 { a: { required: true },
+   *                                   b: t[a] })
+   *
+   * For each renamed property, a required property is generated.
+   * If the map renames two properties to the same name, a conflict is generated.
+   * If the map renames a property to an existing unrenamed property, a conflict is generated.
+   *
+   * Note: rename(A, rename(B, t)) is equivalent to rename(\n -> A(B(n)), t)
+   * Note: rename({...},exclude([...], t)) is not eqv to exclude([...],rename({...}, t))
+   */
+  function rename(map, trait) {
+    var renamedTrait = {};
+    forEach(getOwnPropertyNames(trait), function (name) {
+      // required props are never renamed
+      if (hasOwnProperty(map, name) && !trait[name].required) {
+        var alias = map[name]; // alias defined in map
+        if (hasOwnProperty(renamedTrait, alias) && !renamedTrait[alias].required) {
+          // could happen if 2 props are mapped to the same alias
+          renamedTrait[alias] = makeConflictingPropDesc(alias);
+        } else {
+          // add the property under an alias
+          renamedTrait[alias] = trait[name];
+        }
+        // add a required property under the original name
+        // but only if a property under the original name does not exist
+        // such a prop could exist if an earlier prop in the trait was previously
+        // aliased to this name
+        if (!hasOwnProperty(renamedTrait, name)) {
+          renamedTrait[name] = makeRequiredPropDesc(name);     
+        }
+      } else { // no alias defined
+        if (hasOwnProperty(renamedTrait, name)) {
+          // could happen if another prop was previously aliased to name
+          if (!trait[name].required) {
+            renamedTrait[name] = makeConflictingPropDesc(name);            
+          }
+          // else required property overridden by a previously aliased property
+          // and otherwise ignored
+        } else {
+          renamedTrait[name] = trait[name];
+        }
+      }
+    });
+    
+    return freeze(renamedTrait);
+  }
+  
+  /**
+   * var newTrait = resolve({ oldName: 'newName', excludeName: undefined, ... }, trait)
+   *
+   * This is a convenience function combining renaming and exclusion. It can be implemented
+   * as <tt>rename(map, exclude(exclusions, trait))</tt> where map is the subset of
+   * mappings from oldName to newName and exclusions is an array of all the keys that map
+   * to undefined (or another falsy value).
+   *
+   * @param resolutions an object whose own properties serve as a mapping from
+            old names to new names, or to undefined if the property should be excluded
+   * @param trait a trait object
+   * @returns a resolved trait with the same own properties as the original trait.
+   *
+   * In a resolved trait, all own properties whose name is an own property
+   * of resolutions will be renamed to resolutions[name] if it is truthy,
+   * or their value is changed into a required property descriptor if
+   * resolutions[name] is falsy.
+   *
+   * Note, it's important to _first_ exclude, _then_ rename, since exclude
+   * and rename are not associative, for example:
+   * rename({a: 'b'}, exclude(['b'], trait({ a:1,b:2 }))) eqv trait({b:1})
+   * exclude(['b'], rename({a: 'b'}, trait({ a:1,b:2 }))) eqv trait({b:Trait.required})
+   *
+   * writing resolve({a:'b', b: undefined},trait({a:1,b:2})) makes it clear that
+   * what is meant is to simply drop the old 'b' and rename 'a' to 'b'
+   */
+  function resolve(resolutions, trait) {
+    var renames = {};
+    var exclusions = [];
+    // preprocess renamed and excluded properties
+    for (var name in resolutions) {
+      if (hasOwnProperty(resolutions, name)) {
+        if (resolutions[name]) { // old name -> new name
+          renames[name] = resolutions[name];
+        } else { // name -> undefined
+          exclusions.push(name);
+        }
+      }
+    }
+    return rename(renames, exclude(exclusions, trait));
+  }
+
+  /**
+   * var obj = create(proto, trait)
+   *
+   * @param proto denotes the prototype of the completed object
+   * @param trait a trait object to be turned into a complete object
+   * @returns an object with all of the properties described by the trait.
+   * @throws 'Missing required property' the trait still contains a required property.
+   * @throws 'Remaining conflicting property' if the trait still contains a conflicting property.
+   *
+   * Trait.create is like Object.create, except that it generates
+   * high-integrity or final objects. In addition to creating a new object
+   * from a trait, it also ensures that:
+   *    - an exception is thrown if 'trait' still contains required properties
+   *    - an exception is thrown if 'trait' still contains conflicting properties
+   *    - the object is and all of its accessor and method properties are frozen
+   *    - the 'this' pseudovariable in all accessors and methods of the object is
+   *      bound to the composed object.
+   *
+   *  Use Object.create instead of Trait.create if you want to create
+   *  abstract or malleable objects. Keep in mind that for such objects:
+   *    - no exception is thrown if 'trait' still contains required properties
+   *      (the properties are simply dropped from the composite object)
+   *    - no exception is thrown if 'trait' still contains conflicting properties
+   *      (these properties remain as conflicting properties in the composite object)
+   *    - neither the object nor its accessor and method properties are frozen
+   *    - the 'this' pseudovariable in all accessors and methods of the object is
+   *      left unbound.
+   */
+  function create(proto, trait) {
+    var self = Object_create(proto);
+    var properties = {};
+  
+    forEach(getOwnPropertyNames(trait), function (name) {
+      var pd = trait[name];
+      // check for remaining 'required' properties
+      // Note: it's OK for the prototype to provide the properties
+      if (pd.required && !(name in proto)) {
+        throw new Error('Missing required property: '+name);
+      } else if (pd.conflict) { // check for remaining conflicting properties
+        throw new Error('Remaining conflicting property: '+name);
+      } else if ('value' in pd) { // data property
+        // freeze all function properties and their prototype
+        if (pd.method) { // the property is meant to be used as a method
+          // bind 'this' in trait method to the composite object
+          properties[name] = {
+            value: freezeAndBind(pd.value, self),
+            enumerable: pd.enumerable,
+            configurable: pd.configurable,
+            writable: pd.writable
+          };
+        } else {
+          properties[name] = pd;
+        }
+      } else { // accessor property
+        properties[name] = {
+          get: pd.get ? freezeAndBind(pd.get, self) : undefined,
+          set: pd.set ? freezeAndBind(pd.set, self) : undefined,
+          enumerable: pd.enumerable,
+          configurable: pd.configurable,
+          writable: pd.writable            
+        };
+      }
+    });
+
+    defineProperties(self, properties);
+    return freeze(self);
+  }
+
+  /** A shorthand for create(Object.prototype, trait({...}), options) */
+  function object(record, options) {
+    return create(Object.prototype, trait(record), options);
+  }
+
+  /**
+   * Tests whether two traits are equivalent. T1 is equivalent to T2 iff
+   * both describe the same set of property names and for all property
+   * names n, T1[n] is equivalent to T2[n]. Two property descriptors are
+   * equivalent if they have the same value, accessors and attributes.
+   *
+   * @return a boolean indicating whether the two argument traits are equivalent.
+   */
+  function eqv(trait1, trait2) {
+    var names1 = getOwnPropertyNames(trait1);
+    var names2 = getOwnPropertyNames(trait2);
+    var name;
+    if (names1.length !== names2.length) {
+      return false;
+    }
+    for (var i = 0; i < names1.length; i++) {
+      name = names1[i];
+      if (!trait2[name] || !isSameDesc(trait1[name], trait2[name])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  // if this code is ran in ES3 without an Object.create function, this
+  // library will define it on Object:
+  if (!Object.create) {
+    Object.create = Object_create;
+  }
+  // ES5 does not by default provide Object.getOwnProperties
+  // if it's not defined, the Traits library defines this utility function on Object
+  if(!Object.getOwnProperties) {
+    Object.getOwnProperties = getOwnProperties;
+  }
+  
+  // expose the public API of this module
+  function Trait(record) {
+    // calling Trait as a function creates a new atomic trait
+    return trait(record);
+  }
+  Trait.required = freeze(required);
+  Trait.compose = freeze(compose);
+  Trait.resolve = freeze(resolve);
+  Trait.override = freeze(override);
+  Trait.create = freeze(create);
+  Trait.eqv = freeze(eqv);
+  Trait.object = freeze(object); // not essential, cf. create + trait
+  return freeze(Trait);
+  
+})();
+
+// --- End traits-0.1.js ---
+
+
+});
+;bespin.tiki.register("::keyboard", {
+    name: "keyboard",
+    dependencies: { "canon": "0.0.0", "settings": "0.0.0" }
+});
+bespin.tiki.module("keyboard:keyboard",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var catalog = require('bespin:plugins').catalog;
+var console = require('bespin:console').console;
+var Trace = require('bespin:util/stacktrace').Trace;
+var util = require('bespin:util/util');
+
+var settings = require('settings').settings;
+
+var keyutil = require('keyboard:keyutil');
+var history = require('canon:history');
+var Request = require('canon:request').Request;
+var env = require('environment').env;
+
+/*
+ * Things to do to sanitize this code:
+ * - 'no command' is a bizarre special value at the very least it should be a
+ *   constant to make typos more obvious, but it would be better to refactor
+ *   so that a natural value like null worked.
+ * - sender seems to be totally customized to the editor case, and the functions
+ *   that we assume that it has make no sense for the commandLine case. We
+ *   should either document and implement the same function set for both cases
+ *   or admit that the cases are different enough to have separate
+ *   implementations.
+ * - remove remaining sproutcore-isms
+ * - fold buildFlags into processKeyEvent or something better, preferably the
+ *   latter. We don't want the environment to become a singleton
+ */
+
+/**
+ * Every time we call processKeyEvent, we pass in some flags that require the
+ * same processing to set them up. This function can be called to do that
+ * setup.
+ * @param env Probably environment.env
+ * @param flags Probably {} (but check other places where this is called)
+ */
+exports.buildFlags = function(flags) {
+    flags.context = env.contexts[0];
+    return flags;
+};
+
+/**
+ * The canon, or the repository of commands, contains functions to process
+ * events and dispatch command messages to targets.
+ * @class
+ */
+var KeyboardManager = function() { };
+
+util.mixin(KeyboardManager.prototype, {
+    _customKeymappingCache: { states: {} },
+
+    /**
+     * Searches through the command canon for an event matching the given flags
+     * with a key equivalent matching the given SproutCore event, and, if the
+     * command is found, sends a message to the appropriate target.
+     *
+     * This will get a couple of upgrades in the not-too-distant future:
+     * 1. caching in the Canon for fast lookup based on key
+     * 2. there will be an extra layer in between to allow remapping via
+     *    user preferences and keyboard mapping plugins
+     *
+     * @return True if a matching command was found, false otherwise.
+     */
+    processKeyEvent: function(evt, sender, flags) {
+        // Use our modified commandCodes function to detect the meta key in
+        // more circumstances than SproutCore alone does.
+        var symbolicName = keyutil.commandCodes(evt, true)[0];
+        if (util.none(symbolicName)) {
+            return false;
+        }
+
+        // TODO: Maybe it should be the job of our caller to do this?
+        exports.buildFlags(flags);
+
+        flags.isCommandKey = true;
+        return this._matchCommand(symbolicName, sender, flags);
+    },
+
+    _matchCommand: function(symbolicName, sender, flags) {
+        var match = this._findCommandExtension(symbolicName, sender, flags);
+        if (match && match.commandExt !== 'no command') {
+            if (flags.isTextView) {
+                sender.resetKeyBuffers();
+            }
+
+            var commandExt = match.commandExt;
+            commandExt.load(function(command) {
+                var request = new Request({
+                    command: command,
+                    commandExt: commandExt
+                });
+                history.execute(match.args, request);
+            });
+            return true;
+        }
+
+        // 'no command' is returned if a keyevent is handled but there is no
+        // command executed (for example when switchting the keyboard state).
+        if (match && match.commandExt === 'no command') {
+            return true;
+        } else {
+            return false;
+        }
+    },
+
+    _buildBindingsRegex: function(bindings) {
+        // Escape a given Regex string.
+        bindings.forEach(function(binding) {
+            if (!util.none(binding.key)) {
+                binding.key = new RegExp('^' + binding.key + '$');
+            } else if (Array.isArray(binding.regex)) {
+                binding.key = new RegExp('^' + binding.regex[1] + '$');
+                binding.regex = new RegExp(binding.regex.join('') + '$');
+            } else {
+                binding.regex = new RegExp(binding.regex + '$');
+            }
+        });
+    },
+
+    /**
+     * Build the RegExp from the keymapping as RegExp can't stored directly
+     * in the metadata JSON and as the RegExp used to match the keys/buffer
+     * need to be adapted.
+     */
+    _buildKeymappingRegex: function(keymapping) {
+        for (state in keymapping.states) {
+            this._buildBindingsRegex(keymapping.states[state]);
+        }
+        keymapping._convertedRegExp = true;
+    },
+
+    /**
+     * Loop through the commands in the canon, looking for something that
+     * matches according to #_commandMatches, and return that.
+     */
+    _findCommandExtension: function(symbolicName, sender, flags) {
+        // If the flags indicate that we handle the textView's input then take
+        // a look at keymappings as well.
+        if (flags.isTextView) {
+            var currentState = sender._keyState;
+
+            // Don't add the symbolic name to the key buffer if the alt_ key is
+            // part of the symbolic name. If it starts with alt_, this means
+            // that the user hit an alt keycombo and there will be a single,
+            // new character detected after this event, which then will be
+            // added to the buffer (e.g. alt_j will result in ∆).
+            if (!flags.isCommandKey || symbolicName.indexOf('alt_') === -1) {
+                sender._keyBuffer +=
+                    symbolicName.replace(/ctrl_meta|meta/,'ctrl');
+                sender._keyMetaBuffer += symbolicName;
+            }
+
+            // List of all the keymappings to look at.
+            var ak = [ this._customKeymappingCache ];
+
+            // Get keymapping extension points.
+            ak = ak.concat(catalog.getExtensions('keymapping'));
+
+            for (var i = 0; i < ak.length; i++) {
+                // Check if the keymapping has the current state.
+                if (util.none(ak[i].states[currentState])) {
+                    continue;
+                }
+
+                if (util.none(ak[i]._convertedRegExp)) {
+                    this._buildKeymappingRegex(ak[i]);
+                }
+
+                // Try to match the current mapping.
+                var result = this._bindingsMatch(
+                                    symbolicName,
+                                    flags,
+                                    sender,
+                                    ak[i]);
+
+                if (!util.none(result)) {
+                    return result;
+                }
+            }
+        }
+
+        var commandExts = catalog.getExtensions('command');
+        var reply = null;
+        var args = {};
+
+        symbolicName = symbolicName.replace(/ctrl_meta|meta/,'ctrl');
+
+        commandExts.some(function(commandExt) {
+            if (this._commandMatches(commandExt, symbolicName, flags)) {
+                reply = commandExt;
+                return true;
+            }
+            return false;
+        }.bind(this));
+
+        return util.none(reply) ? null : { commandExt: reply, args: args };
+    },
+
+
+    /**
+     * Checks if the given parameters fit to one binding in the given bindings.
+     * Returns the command and arguments if a command was matched.
+     */
+    _bindingsMatch: function(symbolicName, flags, sender, keymapping) {
+        var match;
+        var commandExt = null;
+        var args = {};
+        var bufferToUse;
+
+        if (!util.none(keymapping.hasMetaKey)) {
+            bufferToUse = sender._keyBuffer;
+        } else {
+            bufferToUse = sender._keyMetaBuffer;
+        }
+
+        // Add the alt_key to the buffer as we don't want it to be in the buffer
+        // that is saved but for matching, it needs to be there.
+        if (symbolicName.indexOf('alt_') === 0 && flags.isCommandKey) {
+            bufferToUse += symbolicName;
+        }
+
+        // Loop over all the bindings of the keymapp until a match is found.
+        keymapping.states[sender._keyState].some(function(binding) {
+            // Check if the key matches.
+            if (binding.key && !binding.key.test(symbolicName)) {
+                return false;
+            }
+
+            // Check if the regex matches.
+            if (binding.regex && !(match = binding.regex.exec(bufferToUse))) {
+                return false;
+            }
+
+            // Check for disallowed matches.
+            if (binding.disallowMatches) {
+                for (var i = 0; i < binding.disallowMatches.length; i++) {
+                    if (!!match[binding.disallowMatches[i]]) {
+                        return true;
+                    }
+                }
+            }
+
+            // Check predicates.
+            if (!exports.flagsMatch(binding.predicates, flags)) {
+                return false;
+            }
+
+            // If there is a command to execute, then figure out the
+            // comand and the arguments.
+            if (binding.exec) {
+                // Get the command.
+                commandExt = catalog.getExtensionByKey('command', binding.exec);
+                if (util.none(commandExt)) {
+                    throw new Error('Can\'t find command ' + binding.exec +
+                        ' in state=' + sender._keyState +
+                        ', symbolicName=' + symbolicName);
+                }
+
+                // Bulid the arguments.
+                if (binding.params) {
+                    var value;
+                    binding.params.forEach(function(param) {
+                        if (!util.none(param.match) && !util.none(match)) {
+                            value = match[param.match] || param.defaultValue;
+                        } else {
+                            value = param.defaultValue;
+                        }
+
+                        if (param.type === 'number') {
+                            value = parseInt(value);
+                        }
+
+                        args[param.name] = value;
+                    });
+                }
+                sender.resetKeyBuffers();
+            }
+
+            // Handle the 'then' property.
+            if (binding.then) {
+                sender._keyState = binding.then;
+                sender.resetKeyBuffers();
+            }
+
+            // If there is no command matched now, then return a 'false'
+            // command to stop matching.
+            if (util.none(commandExt)) {
+                commandExt = 'no command';
+            }
+
+            return true;
+        });
+
+        if (util.none(commandExt)) {
+            return null;
+        }
+
+        return { commandExt: commandExt, args: args };
+    },
+
+    /**
+     * Check that the given command fits the given key name and flags.
+     */
+    _commandMatches: function(commandExt, symbolicName, flags) {
+        var mappedKeys = commandExt.key;
+        if (!mappedKeys) {
+            return false;
+        }
+
+        // Check predicates
+        if (!exports.flagsMatch(commandExt.predicates, flags)) {
+            return false;
+        }
+
+        if (typeof(mappedKeys) === 'string') {
+            if (mappedKeys != symbolicName) {
+                return false;
+            }
+            return true;
+        }
+
+        if (!Array.isArray(mappedKeys)) {
+            mappedKeys = [mappedKeys];
+            commandExt.key = mappedKeys;
+        }
+
+        for (var i = 0; i < mappedKeys.length; i++) {
+            var keymap = mappedKeys[i];
+            if (typeof(keymap) === 'string') {
+                if (keymap == symbolicName) {
+                    return true;
+                }
+                continue;
+            }
+
+            if (keymap.key != symbolicName) {
+                continue;
+            }
+
+            return exports.flagsMatch(keymap.predicates, flags);
+        }
+        return false;
+    },
+
+    /**
+     * Build a cache of custom keymappings whenever the associated setting
+     * changes.
+     */
+    _customKeymappingChanged: function() {
+        var ckc = this._customKeymappingCache =
+                            JSON.parse(settings.get('customKeymapping'));
+
+        ckc.states = ckc.states || {};
+
+        for (state in ckc.states) {
+            this._buildBindingsRegex(ckc.states[state]);
+        }
+        ckc._convertedRegExp = true;
+    }
+});
+
+/**
+ *
+ */
+exports.flagsMatch = function(predicates, flags) {
+    if (util.none(predicates)) {
+        return true;
+    }
+
+    if (!flags) {
+        return false;
+    }
+
+    for (var flagName in predicates) {
+        if (flags[flagName] !== predicates[flagName]) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+/**
+ * The global exported KeyboardManager
+ */
+exports.keyboardManager = new KeyboardManager();
+
+catalog.registerExtension('settingChange', {
+    match: "customKeymapping",
+    pointer: exports.keyboardManager._customKeymappingChanged
+                                        .bind(exports.keyboardManager)
+});
+
+});
+
+bespin.tiki.module("keyboard:keyutil",function(require,exports,module) {
+/*! @license
+==========================================================================
+SproutCore -- JavaScript Application Framework
+copyright 2006-2009, Sprout Systems Inc., Apple Inc. and contributors.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+SproutCore and the SproutCore logo are trademarks of Sprout Systems, Inc.
+
+For more information about SproutCore, visit http://www.sproutcore.com
+
+
+==========================================================================
+@license */
+
+// Most of the following code is taken from SproutCore with a few changes.
+
+var util = require('bespin:util/util');
+
+/**
+ * Helper functions and hashes for key handling.
+ */
+exports.KeyHelper = function() {
+    var ret = {
+        MODIFIER_KEYS: {
+            16: 'shift', 17: 'ctrl', 18: 'alt', 224: 'meta'
+        },
+
+        FUNCTION_KEYS : {
+              8: 'backspace', 9: 'tab',         13: 'return',   19: 'pause',
+             27: 'escape',   33: 'pageup',      34: 'pagedown', 35: 'end',
+             36: 'home',     37: 'left',        38: 'up',       39: 'right',
+             40: 'down',     44: 'printscreen', 45: 'insert',   46: 'delete',
+            112: 'f1',      113: 'f2',         114: 'f3',      115: 'f4',
+            116: 'f5',      117: 'f7',         119: 'f8',      120: 'f9',
+            121: 'f10',     122: 'f11',        123: 'f12',     144: 'numlock',
+            145: 'scrolllock'
+        },
+
+        PRINTABLE_KEYS: {
+           32: ' ',  48: '0',  49: '1',  50: '2',  51: '3',  52: '4', 53:  '5',
+           54: '6',  55: '7',  56: '8',  57: '9',  59: ';',  61: '=', 65:  'a',
+           66: 'b',  67: 'c',  68: 'd',  69: 'e',  70: 'f',  71: 'g', 72:  'h',
+           73: 'i',  74: 'j',  75: 'k',  76: 'l',  77: 'm',  78: 'n', 79:  'o',
+           80: 'p',  81: 'q',  82: 'r',  83: 's',  84: 't',  85: 'u', 86:  'v',
+           87: 'w',  88: 'x',  89: 'y',  90: 'z', 107: '+', 109: '-', 110: '.',
+          188: ',', 190: '.', 191: '/', 192: '`', 219: '[', 220: '\\',
+          221: ']', 222: '\"'
+        },
+
+        /**
+         * Create the lookup table for Firefox to convert charCodes to keyCodes
+         * in the keyPress event.
+         */
+        PRINTABLE_KEYS_CHARCODE: {},
+
+        /**
+         * Allow us to lookup keyCodes by symbolic name rather than number
+         */
+        KEY: {}
+    };
+
+    // Create the PRINTABLE_KEYS_CHARCODE hash.
+    for (var i in ret.PRINTABLE_KEYS) {
+        var k = ret.PRINTABLE_KEYS[i];
+        ret.PRINTABLE_KEYS_CHARCODE[k.charCodeAt(0)] = i;
+        if (k.toUpperCase() != k) {
+            ret.PRINTABLE_KEYS_CHARCODE[k.toUpperCase().charCodeAt(0)] = i;
+        }
+    }
+
+    // A reverse map of FUNCTION_KEYS
+    for (i in ret.FUNCTION_KEYS) {
+        var name = ret.FUNCTION_KEYS[i].toUpperCase();
+        ret.KEY[name] = parseInt(i, 10);
+    }
+
+    return ret;
+}();
+
+/**
+ * Determines if the keyDown event is a non-printable or function key.
+ * These kinds of events are processed as keyboard shortcuts.
+ * If no shortcut handles the event, then it will be sent as a regular
+ * keyDown event.
+ * @private
+ */
+var isFunctionOrNonPrintableKey = function(evt) {
+    return !!(evt.altKey || evt.ctrlKey || evt.metaKey ||
+            ((evt.charCode !== evt.which) &&
+                    exports.KeyHelper.FUNCTION_KEYS[evt.which]));
+};
+
+/**
+ * Returns character codes for the event.
+ * The first value is the normalized code string, with any Shift or Ctrl
+ * characters added to the beginning.
+ * The second value is the char string by itself.
+ * @return {Array}
+ */
+exports.commandCodes = function(evt, dontIgnoreMeta) {
+    var code = evt._keyCode || evt.keyCode;
+    var charCode = (evt._charCode === undefined ? evt.charCode : evt._charCode);
+    var ret = null;
+    var key = null;
+    var modifiers = '';
+    var lowercase;
+    var allowShift = true;
+
+    // Absent a value for 'keyCode' or 'which', we can't compute the
+    // command codes. Bail out.
+    if (code === 0 && evt.which === 0) {
+        return false;
+    }
+
+    // If the charCode is not zero, then we do not handle a command key
+    // here. Bail out.
+    if (charCode !== 0) {
+        return false;
+    }
+
+    // Check for modifier keys.
+    if (exports.KeyHelper.MODIFIER_KEYS[charCode]) {
+        return [exports.KeyHelper.MODIFIER_KEYS[charCode], null];
+    }
+
+    // handle function keys.
+    if (code) {
+        ret = exports.KeyHelper.FUNCTION_KEYS[code];
+        if (!ret && (evt.altKey || evt.ctrlKey || evt.metaKey)) {
+            ret = exports.KeyHelper.PRINTABLE_KEYS[code];
+            // Don't handle the shift key if the combo is
+            //    (meta_|ctrl_)<number>
+            // This is necessary for the French keyboard. On that keyboard,
+            // you have to hold down the shift key to access the number
+            // characters.
+            if (code > 47 && code < 58) {
+                allowShift = evt.altKey;
+            }
+        }
+
+        if (ret) {
+           if (evt.altKey) {
+               modifiers += 'alt_';
+           }
+           if (evt.ctrlKey) {
+               modifiers += 'ctrl_';
+           }
+           if (evt.metaKey) {
+               modifiers += 'meta_';
+           }
+        } else if (evt.ctrlKey || evt.metaKey) {
+            return false;
+        }
+    }
+
+    // otherwise just go get the right key.
+    if (!ret) {
+        code = evt.which;
+        key = ret = String.fromCharCode(code);
+        lowercase = ret.toLowerCase();
+
+        if (evt.metaKey) {
+           modifiers = 'meta_';
+           ret = lowercase;
+
+        } else ret = null;
+    }
+
+    if (evt.shiftKey && ret && allowShift) {
+        modifiers += 'shift_';
+    }
+
+    if (ret) {
+        ret = modifiers + ret;
+    }
+
+    if (!dontIgnoreMeta && ret) {
+        ret = ret.replace(/ctrl_meta|meta/,'ctrl');
+    }
+
+    return [ret, key];
+};
+
+// Note: Most of the following code is taken from SproutCore with a few changes.
+
+/**
+ * Firefox sends a few key events twice: the first time to the keydown event
+ * and then later again to the keypress event. To handle them correct, they
+ * should be processed only once. Due to this, we will skip these events
+ * in keydown and handle them then in keypress.
+ */
+exports.addKeyDownListener = function(element, boundFunction) {
+
+    var handleBoundFunction = function(ev) {
+        var handled = boundFunction(ev);
+        // If the boundFunction returned true, then stop the event.
+        if (handled) {
+            util.stopEvent(ev);
+        }
+        return handled;
+    };
+
+    element.addEventListener('keydown', function(ev) {
+        if (util.isMozilla) {
+            // Check for function keys (like DELETE, TAB, LEFT, RIGHT...)
+            if (exports.KeyHelper.FUNCTION_KEYS[ev.keyCode]) {
+                return true;
+                // Check for command keys (like ctrl_c, ctrl_z...)
+            } else if ((ev.ctrlKey || ev.metaKey) &&
+                    exports.KeyHelper.PRINTABLE_KEYS[ev.keyCode]) {
+                return true;
+            }
+        }
+
+        if (isFunctionOrNonPrintableKey(ev)) {
+            return handleBoundFunction(ev);
+        }
+
+        return true;
+    }, false);
+
+    element.addEventListener('keypress', function(ev) {
+        if (util.isMozilla) {
+            // If this is a function key, we have to use the keyCode.
+            if (exports.KeyHelper.FUNCTION_KEYS[ev.keyCode]) {
+                return handleBoundFunction(ev);
+            } else if ((ev.ctrlKey || ev.metaKey) &&
+                    exports.KeyHelper.PRINTABLE_KEYS_CHARCODE[ev.charCode]){
+                // Check for command keys (like ctrl_c, ctrl_z...).
+                // For command keys have to convert the charCode to a keyCode
+                // as it has been sent from the keydown event to be in line
+                // with the other browsers implementations.
+
+                // FF does not allow let you change the keyCode or charCode
+                // property. Store to a custom keyCode/charCode variable.
+                // The getCommandCodes() function takes care of these
+                // special variables.
+                ev._keyCode = exports.KeyHelper.PRINTABLE_KEYS_CHARCODE[ev.charCode];
+                ev._charCode = 0;
+                return handleBoundFunction(ev);
+            }
+        }
+
+        // normal processing: send keyDown for printable keys.
+        if (ev.charCode !== undefined && ev.charCode === 0) {
+            return true;
+        }
+
+        return handleBoundFunction(ev);
+    }, false);
+};
+
+});
+
+bespin.tiki.module("keyboard:index",function(require,exports,module) {
+
+});
+;bespin.tiki.register("::worker_manager", {
+    name: "worker_manager",
+    dependencies: { "canon": "0.0.0", "events": "0.0.0", "underscore": "0.0.0" }
+});
+bespin.tiki.module("worker_manager:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+"define metadata";
+({
+    "description": "Manages a web worker on the browser side",
+    "dependencies": {
+        "canon": "0.0.0",
+        "events": "0.0.0",
+        "underscore": "0.0.0"
+    },
+    "provides": [
+        {
+            "ep": "command",
+            "name": "worker",
+            "description": "Low-level web worker control (for plugin development)"
+        },
+        {
+            "ep": "command",
+            "name": "worker restart",
+            "description": "Restarts all web workers (for plugin development)",
+            "pointer": "#workerRestartCommand"
+        }
+    ]
+});
+"end";
+
+if (window == null) {
+    throw new Error('The "worker_manager" plugin can only be loaded in the ' +
+        'browser, not a web worker. Use "worker" instead.');
+}
+
+var proxy = require('bespin:proxy');
+var plugins = require('bespin:plugins');
+var console = require('bespin:console').console;
+var _ = require('underscore')._;
+var Event = require('events').Event;
+var Promise = require('bespin:promise').Promise;
+var env = require('environment').env;
+
+var workerManager = {
+    _workers: [],
+
+    add: function(workerSupervisor) {
+        this._workers.push(workerSupervisor);
+    },
+
+    remove: function(workerSupervisor) {
+        this._workers = _(this._workers).without(workerSupervisor);
+    },
+
+    restartAll: function() {
+        var workers = this._workers;
+        _(workers).invoke('kill');
+        _(workers).invoke('start');
+    }
+};
+
+function WorkerSupervisor(pointer) {
+    var m = /^([^#:]+)(?::([^#:]+))?#([^#:]+)$/.exec(pointer);
+    if (m == null) {
+        throw new Error('WorkerSupervisor: invalid pointer specification: "' +
+            pointer + '"');
+    }
+
+    var packageId = m[1], target = m[3];
+    var moduleId = packageId + ":" + (m[2] != null ? m[2] : "index");
+    var base = bespin != null && bespin.base != null ? bespin.base : "";
+
+    this._packageId = packageId;
+    this._moduleId = moduleId;
+    this._base = base;
+    this._target = target;
+
+    this._worker = null;
+    this._currentId = 0;
+
+    this.started = new Event();
+}
+
+WorkerSupervisor.prototype = {
+    _onError: function(ev) {
+        this._worker = null;
+        workerManager.remove(this);
+
+        console.error("WorkerSupervisor: worker failed at file " +
+            ev.filename + ":" + ev.lineno + "; fix the worker and use " +
+            "'worker restart' to restart it");
+    },
+
+    _onMessage: function(ev) {
+        var msg = JSON.parse(ev.data);
+        switch (msg.op) {
+        case 'finish':
+            if (msg.id === this._currentId) {
+                var promise = this._promise;
+
+                // We have to set the promise to null first, in case the user's
+                // then() handler on the promise decides to send another
+                // message to the object.
+                this._promise = null;
+
+                promise.resolve(msg.result);
+            }
+            break;
+
+        case 'log':
+            console[msg.method].apply(console, msg.args);
+            break;
+        }
+    },
+
+    _promise: null,
+
+    /** An event that fires whenever the worker is started or restarted. */
+    started: null,
+
+    /**
+     * Terminates the worker. After this call, the worker can be restarted via
+     * a call to start().
+     */
+    kill: function() {
+        var oldPromise = this._promise;
+        if (oldPromise != null) {
+            oldPromise.reject("killed");
+            this._promise = null;
+        }
+
+        this._worker.terminate();
+        this._worker = null;
+        workerManager.remove(this);
+    },
+
+    /**
+     * Invokes a method on the target running in the worker and returns a
+     * promise that will resolve to the result of that method.
+     */
+    send: function(method, args) {
+        var oldPromise = this._promise;
+        if (oldPromise != null) {
+            oldPromise.reject("interrupted");
+            this._currentId++;
+        }
+
+        var id = this._currentId;
+        var promise = new Promise();
+        this._promise = promise;
+
+        var msg = { op: 'invoke', id: id, method: method, args: args };
+        this._worker.postMessage(JSON.stringify(msg));
+
+        return promise;
+    },
+
+    /**
+     * Starts the worker. Immediately after this method is called, the
+     * "started" event will fire.
+     */
+    start: function() {
+        if (this._worker != null) {
+            throw new Error("WorkerSupervisor: worker already started");
+        }
+
+        var base = this._base, target = this._target;
+        var packageId = this._packageId, moduleId = this._moduleId;
+
+        var worker = new proxy.Worker(base + "BespinEmbedded.js");
+
+        worker.onmessage = this._onMessage.bind(this);
+        worker.onerror = this._onError.bind(this);
+
+        var msg = {
+            op:     'load',
+            base:   base,
+            pkg:    packageId,
+            module: moduleId,
+            target: target
+        };
+        worker.postMessage(JSON.stringify(msg));
+
+        this._worker = worker;
+        this._currentId = 0;
+
+        workerManager.add(this);
+
+        this.started();
+    }
+};
+
+function workerRestartCommand(args, req) {
+    workerManager.restartAll();
+}
+
+exports.WorkerSupervisor = WorkerSupervisor;
+exports.workerManager = workerManager;
+exports.workerRestartCommand = workerRestartCommand;
+
+
+});
+;bespin.tiki.register("::edit_session", {
+    name: "edit_session",
+    dependencies: { "events": "0.0.0" }
+});
+bespin.tiki.module("edit_session:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var Promise = require('bespin:promise').Promise;
+var catalog = require('bespin:plugins').catalog;
+var util = require('bespin:util/util');
+
+var Event = require("events").Event;
+
+exports.EditSession = function() { };
+
+exports.EditSession.prototype = {
+    /**
+     * @property{TextView}
+     *
+     * The 'current' view is the editor component that most recently had
+     * the focus.
+     */
+    _currentView: null,
+
+
+    /**
+     * @type{string}
+     * The name of the user, or null if no user is logged in.
+     */
+    currentUser: null,
+
+    /**
+     * The history object to store file history in.
+     */
+    history: null,
+
+    /**
+     * figures out the full path, taking into account the current file
+     * being edited.
+     */
+    getCompletePath: function(path) {
+        if (path == null) {
+            path = '';
+        }
+
+        if (path == null || path.substring(0, 1) != '/') {
+            var buffer;
+            if (this._currentView && this._currentView.buffer) {
+                buffer = this._currentView.buffer;
+            }
+            var file;
+            if (buffer) {
+                file = buffer.file;
+            }
+            if (!file) {
+                path = '/' + path;
+            } else {
+                path = file.parentdir() + path;
+            }
+        }
+
+        return path;
+    }
+};
+
+Object.defineProperties(exports.EditSession.prototype, {
+    currentView: {
+        set: function(newView) {
+            var oldView = this._currentView;
+            if (newView !== oldView) {
+                this._currentView = newView;
+            }
+        },
+        
+        get: function() {
+            return this._currentView;
+        }
+    }
+});
+
+/*
+ * set up a session based on a view. This seems a bit convoluted and is
+ * likely to change.
+ */
+exports.createSession = function(view, user) {
+    var session = new exports.EditSession();
+    if (view) {
+        session.currentView = view.textView;
+    }
+    if (user) {
+        session.currentUser = user;
+    }
+    return session;
+};
+
+});
+;bespin.tiki.register("::syntax_manager", {
+    name: "syntax_manager",
+    dependencies: { "worker_manager": "0.0.0", "events": "0.0.0", "underscore": "0.0.0", "syntax_directory": "0.0.0" }
+});
+bespin.tiki.module("syntax_manager:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var _ = require('underscore')._;
+var Event = require('events').Event;
+var WorkerSupervisor = require('worker_manager').WorkerSupervisor;
+var console = require('bespin:console').console;
+var rangeutils = require('rangeutils:utils/range');
+var syntaxDirectory = require('syntax_directory').syntaxDirectory;
+
+// The number of lines to highlight at once.
+var GRANULARITY = 100;
+
+// Replaces elements at position i in dest with the elements of src. If i is
+// beyond the end of dest, expands dest with copies of fill.
+function replace(dest, i, src, fill) {
+    while (dest.length < i) {
+        dest.push(_(fill).clone());
+    }
+
+    var args = [ i, src.length ].concat(src);
+    Array.prototype.splice.apply(dest, args);
+    return dest;
+}
+
+// A simple key-value store in which each key is paired with a corresponding
+// line. When the syntax information is updated for a line, the symbols from
+// those lines are wiped out and replaced with the new symbols.
+function Symbols() {
+    this._lines = [];
+    this._syms = {};
+}
+
+Symbols.prototype = {
+    get: function(sym) {
+        return this._syms["-" + sym];
+    },
+
+    replaceLine: function(row, newSymbols) {
+        var lines = this._lines, syms = this._syms;
+        if (row < lines.length && _(lines[row]).isArray()) {
+            _(lines[row]).each(function(ident) { delete syms["-" + ident]; });
+        }
+
+        function stripLeadingDash(s) { return s.substring(1); }
+        lines[row] = _(newSymbols).keys().map(stripLeadingDash);
+
+        _(syms).extend(newSymbols);
+    }
+};
+
+function Context(syntaxInfo, syntaxManager) {
+    this._syntaxInfo = syntaxInfo;
+    this._syntaxManager = syntaxManager;
+
+    this._invalidRow = 0;
+    this._states = [];
+    this._active = false;
+
+    this.symbols = new Symbols;
+}
+
+Context.prototype = {
+    _annotate: function() {
+        if (this._invalidRow == null) {
+            throw new Error("syntax_manager.Context: attempt to annotate " +
+                "without any invalid row");
+        }
+        if (!this._active) {
+            throw new Error("syntax_manager.Context: attempt to annotate " +
+                "while inactive");
+        }
+
+        if (this._worker == null) {
+            this._createWorker();
+            return;
+        }
+
+        var lines = this._syntaxManager.getTextLines();
+        var row = this._invalidRow;
+        var state = row === 0 ? this.getName() + ':start' : this._states[row];
+        var lastRow = Math.min(lines.length, row + GRANULARITY);
+        lines = lines.slice(row, lastRow);
+
+        var runRange = {
+            start: { row: row, col: 0 },
+            end: { row: lastRow - 1, col: _(lines).last().length }
+        };
+
+        var pr = this._worker.send('annotate', [ state, lines, runRange ]);
+        pr.then(_(this._annotationFinished).bind(this, row, lastRow));
+    },
+
+    _annotationFinished: function(row, lastRow, result) {
+        if (!this._active) {
+            return;
+        }
+
+        var syntaxManager = this._syntaxManager;
+        syntaxManager.mergeAttrs(row, result.attrs);
+        syntaxManager.mergeSymbols(row, result.symbols);
+
+        replace(this._states, row, result.states);
+
+        if (lastRow >= this._getRowCount()) {
+            this._invalidRow = null;    // We're done!
+            this._active = false;
+            return;
+        }
+
+        this._invalidRow = lastRow;
+        this._annotate();
+    },
+
+    _createWorker: function() {
+        var syntaxInfo = this._syntaxInfo;
+        if (syntaxInfo == null) {
+            return false;
+        }
+
+        var worker = new WorkerSupervisor("syntax_worker#syntaxWorker");
+        this._worker = worker;
+
+        worker.started.add(this._workerStarted.bind(this));
+        worker.start();
+
+        return true;
+    },
+
+    _getRowCount: function() {
+        return this._syntaxManager.getTextLines().length;
+    },
+
+    _workerStarted: function() {
+        this._worker.send('loadSyntax', [ this._syntaxInfo.name ]);
+        if (this._active) {
+            this._annotate();
+        }
+    },
+
+    // Switches on this syntax context and begins annotation. It is the
+    // caller's responsibility to ensure that there exists an invalid row
+    // before calling this. (Typically the caller ensures this by calling cut()
+    // first.)
+    activateAndAnnotate: function() {
+        this._active = true;
+        this._annotate();
+    },
+
+    contextsAtPosition: function(pos) {
+        var syntaxInfo = this._syntaxInfo;
+        if (syntaxInfo == null) {
+            return [ 'plain' ];
+        }
+
+        return [ syntaxInfo.name ];             // FIXME
+    },
+
+    // Invalidates the syntax context at a row.
+    cut: function(row) {
+        var endRow = this._getRowCount();
+        if (row < 0 || row >= endRow) {
+            throw new Error("Attempt to cut the context at an invalid row");
+        }
+
+        if (this._invalidRow != null && this._invalidRow < row) {
+            return;
+        }
+        this._invalidRow = row;
+
+        // Mark ourselves as inactive, so that if the web worker was working on
+        // a series of rows we know to discard its results.
+        this._active = false;
+    },
+
+    getName: function() {
+        return this._syntaxInfo.name;
+    },
+
+    kill: function() {
+        var worker = this._worker;
+        if (worker == null) {
+            return;
+        }
+
+        worker.kill();
+        this._worker = null;
+    }
+};
+
+/**
+ * The syntax manager coordinates a series of syntax contexts, each run in a
+ * separate web worker. It receives text editing notifications, updates and
+ * stores the relevant syntax attributes, and provides marked-up text as the
+ * layout manager requests it.
+ *
+ * @constructor
+ * @exports SyntaxManager as syntax_manager:SyntaxManager
+ */
+function SyntaxManager(layoutManager) {
+    this.layoutManager = layoutManager;
+
+    /** Called whenever the attributes have been updated. */
+    this.attrsChanged = new Event;
+
+    /** Called whenever the syntax (file type) has been changed. */
+    this.syntaxChanged = new Event;
+
+    this._context = null;
+    this._invalidRows = null;
+    this._contextRanges = null;
+    this._attrs = [];
+    this._symbols = new Symbols;
+    this._syntax = 'plain';
+
+    this._reset();
+}
+
+SyntaxManager.prototype = {
+    /** @lends SyntaxManager */
+
+    _getTextStorage: function() {
+        return this.layoutManager.textStorage;
+    },
+
+    // Invalidates all the highlighting and recreates the workers.
+    _reset: function() {
+        var ctx = this._context;
+        if (ctx != null) {
+            ctx.kill();
+            this._context = null;
+        }
+
+        var syn = this._syntax;
+        var syntaxInfo = syn === 'plain' ? null : syntaxDirectory.get(syn);
+
+        ctx = new Context(syntaxInfo, this);
+        this._context = ctx;
+        ctx.activateAndAnnotate();
+    },
+
+    attrsChanged: null,
+    syntaxChanged: null,
+
+    /** Returns the contexts that are active at the position pos. */
+    contextsAtPosition: function(pos) {
+        return this._context.contextsAtPosition(pos);
+    },
+
+    /**
+     * Returns the attributes most recently delivered from the syntax engine.
+     * Does not instruct the engine to perform any work; use invalidateRow()
+     * for that.
+     */
+    getAttrsForRows: function(startRow, endRow) {
+        return this._attrs.slice(startRow, endRow);
+    },
+
+    /**
+     * Returns the metadata currently associated with the given symbol, or null
+     * if the symbol is unknown.
+     */
+    getSymbol: function(ident) {
+        return this._symbols.get(ident);
+    },
+
+    /** Returns the current syntax. */
+    getSyntax: function() {
+        return this._syntax;
+    },
+
+    /** A convenience function to return the lines from the text storage. */
+    getTextLines: function() {
+        return this._getTextStorage().lines;
+    },
+
+    /** Marks the text as needing an update starting at the given row. */
+    invalidateRow: function(row) {
+        var ctx = this._context;
+        ctx.cut(row);
+        ctx.activateAndAnnotate();
+    },
+
+    /**
+     * Merges the supplied attributes into the text, overwriting the attributes
+     * that were there previously.
+     */
+    mergeAttrs: function(startRow, newAttrs) {
+        replace(this._attrs, startRow, newAttrs, []);
+        this.attrsChanged(startRow, startRow + newAttrs.length);
+    },
+
+    /**
+     * Merges the supplied symbols into the symbol store, overwriting any
+     * symbols previously defined on those lines.
+     */
+    mergeSymbols: function(startRow, newSymbols) {
+        var symbols = this._symbols;
+        _(newSymbols).each(function(lineSyms, i) {
+            symbols.replaceLine(startRow + i, lineSyms);
+        });
+    },
+
+    /**
+     * Sets the syntax and invalidates all the highlighting. If no syntax
+     * plugin is available, sets the syntax to "plain".
+     */
+    setSyntax: function(syntax) {
+        this._syntax = syntaxDirectory.hasSyntax(syntax) ? syntax : 'plain';
+        this.syntaxChanged(syntax);
+        this._reset();
+    },
+
+    /** Sets the syntax appropriately for a file extension. */
+    setSyntaxFromFileExt: function(fileExt) {
+        return this.setSyntax(syntaxDirectory.syntaxForFileExt(fileExt));
+    }
+};
+
+exports.SyntaxManager = SyntaxManager;
+
+
+});
+;bespin.tiki.register("::completion", {
+    name: "completion",
+    dependencies: { "jquery": "0.0.0", "ctags": "0.0.0", "rangeutils": "0.0.0", "canon": "0.0.0", "underscore": "0.0.0" }
+});
+bespin.tiki.module("completion:controller",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var ctags = require('ctags');
+var range = require('rangeutils:utils/range');
+var CompletionUI = require('completion:ui').CompletionUI;
+var catalog = require('bespin:plugins').catalog;
+var env = require('environment').env;
+
+function CompletionController(editorView) {
+    this._editorView = editorView;
+    editorView.selectionChanged.add(this._selectionChanged.bind(this));
+    editorView.willChangeBuffer.add(this._willChangeBuffer.bind(this));
+
+    // Prebind _syntaxChanged so that we can attach and detach it.
+    this._syntaxChanged = this._syntaxChanged.bind(this);
+
+    this.tags = new ctags.Tags();
+    this.ui = new CompletionUI(editorView.element);
+}
+
+CompletionController.prototype = {
+    _buffer: null,
+    _completionEngine: null,
+    _completions: null,
+    _stem: null,
+
+    _hideCompletions: function() {
+        this.ui.hide();
+    },
+
+    _selectionChanged: function(newRange) {
+        var engine = this._completionEngine;
+        if (engine == null || !range.isZeroLength(newRange)) {
+            return;
+        }
+
+        var layoutManager = this._buffer.layoutManager;
+        var textStorage = layoutManager.textStorage;
+        var syntaxManager = layoutManager.syntaxManager;
+
+        var pos = newRange.start;
+        var row = pos.row, col = pos.col;
+        var line = textStorage.lines[row];
+        var prefix = line.substring(0, col), suffix = line.substring(col);
+
+        var completions = engine.getCompletions(prefix, suffix, syntaxManager);
+        if (completions == null) {
+            this._hideCompletions();
+            return;
+        }
+
+        var tags = completions.tags;
+        this._stem = completions.stem;
+        this._showCompletions(tags);
+    },
+
+    _showCompletions: function(completions) {
+        var editorView = this._editorView;
+        var cursorPt = editorView.textView.getInsertionPointPosition();
+        var pt = editorView.convertTextViewPoint(cursorPt);
+        var lineHeight = editorView.layoutManager.fontDimension.lineHeight;
+        this.ui.show(completions, pt, lineHeight);
+    },
+
+    _syntaxChanged: function(newSyntax) {
+        var ext = catalog.getExtensionByKey('completion', newSyntax);
+        if (ext == null) {
+            this._completionEngine = null;
+            return;
+        }
+
+        ext.load().then(function(engine) {
+            this._completionEngine = new engine(this.tags);
+        }.bind(this));
+    },
+
+    _willChangeBuffer: function(newBuffer) {
+        var oldBuffer = this._buffer;
+        if (oldBuffer != null) {
+            var oldSyntaxManager = oldBuffer.layoutManager.syntaxManager;
+            oldSyntaxManager.syntaxChanged.remove(this._syntaxChanged);
+        }
+
+        var newSyntaxManager = newBuffer.layoutManager.syntaxManager;
+        newSyntaxManager.syntaxChanged.add(this._syntaxChanged);
+
+        this._buffer = newBuffer;
+    },
+
+    cancel: function(env) {
+        this.ui.hide();
+    },
+
+    complete: function(env) {
+        var ui = this.ui;
+        var tag = ui.getCompletion();
+        var ident = tag.name;
+        env.view.insertText(ident.substring(this._stem.length));
+        ui.hide();
+    },
+
+    isCompleting: function() {
+        return this.ui.visible;
+    },
+
+    moveDown: function(env) {
+        this.ui.move('down');
+    },
+
+    moveUp: function(env) {
+        this.ui.move('up');
+    },
+
+    /** The current store of tags. */
+    tags: null
+};
+
+function makeCommand(name) {
+    return function(args, req) {
+        return env.editor.completionController[name](env);
+    };
+}
+
+exports.CompletionController = CompletionController;
+exports.completeCommand = makeCommand('complete');
+exports.completeCancelCommand = makeCommand('cancel');
+exports.completeDownCommand = makeCommand('moveDown');
+exports.completeUpCommand = makeCommand('moveUp');
+
+
+});
+
+bespin.tiki.module("completion:ui",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var $ = require('jquery').$;
+var _ = require('underscore')._;
+
+var ANIMATION_SPEED = 100;  // in ms
+
+var populate_container_template =
+    _.template('<span class="bespin-completion-container"> &mdash; ' +
+        '<%= container %></span>');
+var populate_second_row_template =
+    _.template('<div class="bespin-completion-second-row"><%= type %></div>');
+var populate_item_template =
+    _.template('<li><div class="bespin-completion-top-row">' +
+        '<span class="bespin-completion-kind bespin-completion-kind-' +
+            '<%= kind %>"><%= kind %></span>' +
+        '<span class="bespin-completion-ident"><%= ident %></span>' +
+            '<%= container %></div><%= second_row %></li>');
+
+function CompletionUI(parent) {
+    var id = _.uniqueId('bespin-completion-panel');
+
+    var panel = document.createElement("div");
+    panel.id = id;
+    panel.className = "bespin-completion-panel";
+    panel.style.display = 'none';
+    panel.innerHTML =
+        '<div class="bespin-completion-pointer"></div>' +
+        '<div class="bespin-completion-bubble-outer">' +
+            '<div class="bespin-completion-bubble-inner">' +
+                '<div class="bespin-completion-highlight"></div>' +
+                '<ul></ul>' +
+            '</div>' +
+        '</div>';
+
+    $(parent).append(panel);
+
+    this.panel = $(panel);
+    this.parent = $(parent);
+}
+
+CompletionUI.prototype = {
+    _fromBottom: false,
+    _index: 0,
+    _tags: null,
+
+    _getHighlightDimensions: function(elem) {
+        var pos = elem.position();
+        var height = elem.outerHeight() - 2;
+        var width = elem.outerWidth() - 2;
+        return { left: pos.left, top: pos.top, height: height, width: width };
+    },
+
+    _listItemForIndex: function(idx) {
+        return this.panel.find("li:eq(" + idx + ")");
+    },
+
+    _populate: function() {
+        var html = _(this._tags).map(function(tag) {
+            var klass = tag['class'], module = tag.module, ns = tag.namespace;
+
+            var container;
+            if (klass != null) {
+                container = klass;
+            } else if (ns != null) {
+                container = ns;
+            } else {
+                container = "";
+            }
+
+            if (module != null) {
+                container = module + (container != "" ? "#" + container : "");
+            }
+
+            var container_html = (container == "") ? "" :
+                populate_container_template({ container: container });
+
+            var type = tag.type;
+            var second_row_html = (type == null) ? "" :
+                populate_second_row_template({ type: type });
+
+            return populate_item_template({
+                kind:       tag.kind,
+                ident:      tag.name,
+                container:  container_html,
+                second_row: second_row_html
+            });
+        });
+
+        this.panel.find("ul").html(html.join("\n"));
+    },
+
+    panel: null,
+    visible: false,
+
+    getCompletion: function() {
+        return this.visible ? this._tags[this._index] : null;
+    },
+
+    hide: function() {
+        if (!this.visible) {
+            return;
+        }
+
+        this.panel.fadeOut(ANIMATION_SPEED);
+        this.visible = false;
+    },
+
+    move: function(dir) {
+        var index = this._index;
+
+        var sel = this._listItemForIndex(index);
+
+        var unsel = (dir === 'up') ? sel.prev() : sel.next();
+        if (unsel.length === 0) {
+            return;
+        }
+
+        index = (dir === 'up') ? index - 1 : index + 1;
+        this._index = index;
+
+        var selFirstRow = $(sel).find('.bespin-completion-top-row');
+        var selSecondRow = $(sel).find('.bespin-completion-second-row');
+        var unselFirstRow = $(unsel).find('.bespin-completion-top-row');
+        var unselSecondRow = $(unsel).find('.bespin-completion-second-row');
+
+        selSecondRow.hide();
+        unselSecondRow.show();
+
+        var highlight = this.panel.find(".bespin-completion-highlight");
+        highlight.stop(true, true);
+        var highlightDimensions = this._getHighlightDimensions(unsel);
+        highlight.animate(highlightDimensions, ANIMATION_SPEED);
+        unselSecondRow.hide();
+
+        if (dir === 'down') {
+            var height = selSecondRow.height();
+            unselFirstRow.css('top', height);
+            unselFirstRow.animate({ top: 0 }, ANIMATION_SPEED);
+        } else {
+            var height = unselSecondRow.height();
+            selFirstRow.css('top', -height);
+            selFirstRow.animate({ top: 0 }, ANIMATION_SPEED);
+        }
+
+        unselSecondRow.fadeIn();
+    },
+
+    show: function(tags, point, lineHeight) {
+        var tags = _(tags).clone();
+        this._tags = tags;
+
+        this._populate();
+
+        var visible = this.visible;
+        var panel = this.panel;
+        panel.stop(true, true);
+        if (!visible) {
+            panel.show();
+        }
+
+        var parentOffset = this.parent.offset();
+        var parentX = parentOffset.left, parentY = parentOffset.top;
+        var absX = parentX + point.x, absY = parentY + point.y;
+
+        var panelWidth = panel.outerWidth(), panelHeight = panel.outerHeight();
+        var windowWidth = $(window).width(), windowHeight = $(window).height();
+
+        var fromBottom = absY + panelHeight + lineHeight > windowHeight;
+        this._fromBottom = fromBottom;
+
+        if (this._index >= tags.length) {
+            this._index = tags.length - 1;
+        }
+
+        var pointer;
+        if (fromBottom) {
+            pointer = panel.find('.bespin-completion-pointer');
+            pointer.removeClass('bespin-completion-pointer-up');
+            pointer.addClass('bespin-completion-pointer-down');
+            panel.css({ bottom: -point.y, top: "" });
+
+            // Reverse the list.
+            this._tags.reverse();
+            this._populate();
+
+            if (!visible) {
+                this._index = tags.length - 1;
+            }
+        } else {
+            pointer = panel.find('.bespin-completion-pointer');
+            pointer.removeClass('bespin-completion-pointer-down');
+            pointer.addClass('bespin-completion-pointer-up');
+            panel.css({ top: point.y + lineHeight, bottom: "" });
+
+            if (!visible) {
+                this._index = 0;
+            }
+        }
+
+        if (!visible) {
+            var fromRight = absX + point.x + panelWidth > windowWidth;
+            if (fromRight) {
+                pointer.css({ left: "", right: 32 });
+                panel.css('left', Math.min(windowWidth - panelWidth - parentX,
+                    point.x - panelWidth + 43));
+            } else {
+                pointer.css({ left: 32, right: "" });
+                panel.css('left', Math.max(parentX, point.x - 43));
+            }
+
+            panel.hide().animate({ opacity: 'show' }, ANIMATION_SPEED);
+        }
+
+        var highlight = panel.find(".bespin-completion-highlight");
+        highlight.stop(true, true);
+        var sel = this._listItemForIndex(this._index);
+        sel.find(".bespin-completion-second-row").show();
+
+        var highlightDimensions = this._getHighlightDimensions(sel);
+        var highlightWidth = highlightDimensions.width;
+        var highlightHeight = highlightDimensions.height;
+        highlight.css(highlightDimensions);
+
+        this.visible = true;
+    }
+};
+
+exports.CompletionUI = CompletionUI;
+
+
+});
+
+bespin.tiki.module("completion:index",function(require,exports,module) {
+
+});
+;bespin.tiki.register("::rangeutils", {
+    name: "rangeutils",
+    dependencies: {  }
+});
+bespin.tiki.module("rangeutils:utils/range",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+
+/**
+ * Returns the result of adding the two positions.
+ */
+exports.addPositions = function(a, b) {
+    return { row: a.row + b.row, col: a.col + b.col };
+};
+
+/** Returns a copy of the given range. */
+exports.cloneRange = function(range) {
+    var oldStart = range.start, oldEnd = range.end;
+    var newStart = { row: oldStart.row, col: oldStart.col };
+    var newEnd = { row: oldEnd.row, col: oldEnd.col };
+    return { start: newStart, end: newEnd };
+};
+
+/**
+ * Given two positions a and b, returns a negative number if a < b, 0 if a = b,
+ * or a positive number if a > b.
+ */
+exports.comparePositions = function(positionA, positionB) {
+    var rowDiff = positionA.row - positionB.row;
+    return rowDiff === 0 ? positionA.col - positionB.col : rowDiff;
+};
+
+/**
+ * Returns true if the two ranges are equal and false otherwise.
+ */
+exports.equal = function(rangeA, rangeB) {
+    return (exports.comparePositions(rangeA.start, rangeB.start) === 0 &&
+                exports.comparePositions(rangeA.end, rangeB.end) === 0);
+};
+
+exports.extendRange = function(range, delta) {
+    var end = range.end;
+    return {
+        start: range.start,
+        end:   {
+            row: end.row + delta.row,
+            col: end.col + delta.col
+        }
+    };
+};
+
+/**
+ * Given two sets of ranges, returns the ranges of characters that exist in one
+ * of the sets but not both.
+ */
+exports.intersectRangeSets = function(setA, setB) {
+    var stackA = util.clone(setA), stackB = util.clone(setB);
+    var result = [];
+    while (stackA.length > 0 && stackB.length > 0) {
+        var rangeA = stackA.shift(), rangeB = stackB.shift();
+        var startDiff = exports.comparePositions(rangeA.start, rangeB.start);
+        var endDiff = exports.comparePositions(rangeA.end, rangeB.end);
+
+        if (exports.comparePositions(rangeA.end, rangeB.start) < 0) {
+            // A is completely before B
+            result.push(rangeA);
+            stackB.unshift(rangeB);
+        } else if (exports.comparePositions(rangeB.end, rangeA.start) < 0) {
+            // B is completely before A
+            result.push(rangeB);
+            stackA.unshift(rangeA);
+        } else if (startDiff < 0) {     // A starts before B
+            result.push({ start: rangeA.start, end: rangeB.start });
+            stackA.unshift({ start: rangeB.start, end: rangeA.end });
+            stackB.unshift(rangeB);
+        } else if (startDiff === 0) {   // A and B start at the same place
+            if (endDiff < 0) {          // A ends before B
+                stackB.unshift({ start: rangeA.end, end: rangeB.end });
+            } else if (endDiff > 0) {   // A ends after B
+                stackA.unshift({ start: rangeB.end, end: rangeA.end });
+            }
+        } else if (startDiff > 0) {     // A starts after B
+            result.push({ start: rangeB.start, end: rangeA.start });
+            stackA.unshift(rangeA);
+            stackB.unshift({ start: rangeA.start, end: rangeB.end });
+        }
+    }
+    return result.concat(stackA, stackB);
+};
+
+exports.isZeroLength = function(range) {
+    return range.start.row === range.end.row &&
+        range.start.col === range.end.col;
+};
+
+/**
+ * Returns the greater of the two positions.
+ */
+exports.maxPosition = function(a, b) {
+    return exports.comparePositions(a, b) > 0 ? a : b;
+};
+
+/**
+ * Converts a range with swapped 'end' and 'start' values into one with the
+ * values in the correct order.
+ *
+ * TODO: Unit test.
+ */
+exports.normalizeRange = function(range) {
+    return this.comparePositions(range.start, range.end) < 0 ? range :
+        { start: range.end, end: range.start };
+};
+
+/**
+ * Returns a single range that spans the entire given set of ranges.
+ */
+exports.rangeSetBoundaries = function(rangeSet) {
+    return {
+        start:  rangeSet[0].start,
+        end:    rangeSet[rangeSet.length - 1].end
+    };
+};
+
+exports.toString = function(range) {
+    var start = range.start, end = range.end;
+    return '[ ' + start.row + ', ' + start.col + ' ' + end.row + ',' + + end.col +' ]';
+};
+
+/**
+ * Returns the union of the two ranges.
+ */
+exports.unionRanges = function(a, b) {
+    return {
+        start:  a.start.row < b.start.row ||
+            (a.start.row === b.start.row && a.start.col < b.start.col) ?
+            a.start : b.start,
+        end:    a.end.row > b.end.row ||
+            (a.end.row === b.end.row && a.end.col > b.end.col) ?
+            a.end : b.end
+    };
+};
+
+exports.isPosition = function(pos) {
+    return !util.none(pos) && !util.none(pos.row) && !util.none(pos.col);
+};
+
+exports.isRange = function(range) {
+    return (!util.none(range) && exports.isPosition(range.start) &&
+                                                exports.isPosition(range.end));
+};
+
+});
+
+bespin.tiki.module("rangeutils:index",function(require,exports,module) {
+
+});
+;bespin.tiki.register("::undomanager", {
+    name: "undomanager",
+    dependencies: {  }
+});
+bespin.tiki.module("undomanager:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+var env = require('environment').env;
+
+/**
+ * This simple undo manager coordinates undo for the app that embeds Bespin.
+ * It's similar to SproutCore's UndoManager class, but it separates undo and
+ * redo and correctly flushes the redo stack when an action is performed.
+ */
+exports.UndoManager = function() {};
+
+util.mixin(exports.UndoManager.prototype, {
+    _redoStack: [],
+    _undoStack: [],
+
+    _undoOrRedo: function(method, stack, otherStack) {
+        if (stack.length === 0) {
+            return false;
+        }
+
+        var record = stack.pop();
+        if (!record.target[method](record.context)) {
+            this._redoStack = [];
+            this._undoStack = [];
+            return false;
+        }
+
+        otherStack.push(record);
+        return true;
+    },
+
+    /**
+     * Redo the last undone action.
+     * @return{boolean} True if the action was successfully redone, false
+     *     otherwise.
+     */
+    redo: function() {
+        return this._undoOrRedo('redo', this._redoStack, this._undoStack);
+    },
+
+    /**
+     * Notifies the undo manager that an action was performed. When the action
+     * is to be undone, the 'undo' message will be sent to the target with the
+     * given context. When the action is to be redone, the 'redo' message is
+     * sent in the same way.
+     */
+    registerUndo: function(target, context) {
+        this._redoStack = [];
+        this._undoStack.push({ target: target, context: context });
+    },
+
+    /**
+     * Undoes the last action.
+     *
+     * @return{boolean} True if the action was successfully undone, false
+     *     otherwise.
+     */
+    undo: function() {
+        return this._undoOrRedo('undo', this._undoStack, this._redoStack);
+    }
+});
+
+exports.global = new exports.UndoManager();
+
+/**
+ *
+ */
+exports.undoManagerCommand = function(args, request) {
+    exports.global[request.commandExt.name]();
+};
+
+});
+;bespin.tiki.register("::environment", {
+    name: "environment",
+    dependencies: { "settings": "0.0.0" }
+});
+bespin.tiki.module("environment:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+"define metadata";
+({
+    "dependencies": {
+        "settings": "0.0.0"
+    }
+});
+"end";
+
+var util = require('bespin:util/util');
+var console = require('bespin:console').console;
+var catalog = require("bespin:plugins").catalog;
+var settings = require('settings').settings;
+
+/**
+ * The environment plays a similar role to the environment under unix.
+ * Bespin does not currently have a concept of variables, (i.e. things the user
+ * directly changes, however it does have a number of pre-defined things that
+ * are changed by the system.
+ * <p>The role of the Environment is likely to be expanded over time.
+ */
+exports.Environment = function() {
+    // The current command line pushes this value into here
+    this.commandLine = null;
+
+    // Fire the sizeChanged event when the window is resized.
+    window.addEventListener('resize', this.dimensionsChanged.bind(this), false);
+};
+
+Object.defineProperties(exports.Environment.prototype, {
+
+    /**
+     * Provides a get() and set() function to set and get settings.
+     */
+    settings: {
+        value: {
+            set: function(key, value) {
+                if (util.none(key)) {
+                    throw new Error('setSetting(): key must be supplied');
+                }
+                if (util.none(value)) {
+                    throw new Error('setSetting(): value must be supplied');
+                }
+
+                settings.set(key, value);
+            },
+            
+            get: function(key) {
+                if (util.none(key)) {
+                    throw new Error('getSetting(): key must be supplied');
+                }
+                return settings.get(key);
+            }
+        }
+    },
+
+    dimensionsChanged: {
+        value: function() {
+            catalog.publish(this, 'dimensionsChanged');
+        }
+    },
+
+    /**
+     * Retrieves the EditSession
+     */
+    session: {
+        get: function() {
+            return catalog.getObject('session');
+        }
+    },
+
+    /**
+     * Gets the currentView from the session.
+     */
+    view: {
+        get: function() {
+            if (!this.session) {
+                // This can happen if the session is being reloaded.
+                return null;
+            }
+            return this.session.currentView;
+        }
+    },
+
+    /**
+     * Gets the currentEditor from the session.
+     */
+    editor: {
+        get: function() {
+            if (!this.session) {
+                // This can happen if the session is being reloaded.
+                return null;
+            }
+            return this.session.currentView.editor;
+        }
+    },
+
+    /**
+     * Returns the currently-active syntax contexts.
+     */
+    contexts: {
+        get: function() {
+            // when editorapp is being refreshed, the textView is not available.
+            if (!this.view) {
+                return [];
+            }
+
+            var syntaxManager = this.view.editor.layoutManager.syntaxManager;
+            var pos = this.view.getSelectedRange().start;
+            return syntaxManager.contextsAtPosition(pos);
+        }
+    },
+
+    /**
+     * The current Buffer from the session
+     */
+    buffer: {
+        get: function() {
+            if (!this.session) {
+                console.error("command attempted to get buffer but there's no session");
+                return undefined;
+            }
+            return this.view.editor.buffer;
+        }
+    },
+
+    /**
+     * The current editor model might not always be easy to find so you should
+     * use <code>instruction.model</code> to access the view where
+     * possible.
+     */
+    model: {
+        get: function() {
+            if (!this.buffer) {
+                console.error('Session has no current buffer');
+                return undefined;
+            }
+            return this.view.editor.layoutManager.textStorage;
+        }
+    },
+
+    /**
+     * gets the current file from the session
+     */
+    file: {
+        get: function() {
+            if (!this.buffer) {
+                console.error('Session has no current buffer');
+                return undefined;
+            }
+            return this.buffer.file;
+        }
+    },
+
+    /**
+     * If files are available, this will get them. Perhaps we need some other
+     * mechanism for populating these things from the catalog?
+     */
+    files: {
+        get: function() {
+            return catalog.getObject('files');
+        }
+    }
+});
+
+/**
+ * The global environment used throughout this Bespin instance.
+ */
+exports.env = new exports.Environment();
+
+});
+;bespin.tiki.register("::ctags", {
+    name: "ctags",
+    dependencies: { "traits": "0.0.0", "underscore": "0.0.0" }
+});
+bespin.tiki.module("ctags:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var _ = require('underscore')._;
+var TagReader = require('./reader').TagReader;
+var Trait = require('traits').Trait;
+
+exports.Tags = function() {
+    this.tags = [];
+};
+
+exports.Tags.prototype = Object.create(Object.prototype, Trait.compose(Trait({
+    _search: function(id, pred) {
+        var shadowTag = { name: id };
+        var tags = this.tags;
+        var index = _(tags).sortedIndex(shadowTag, function(tag) {
+            return tag.name;
+        });
+
+        var start = index, end = index;
+        while (start >= 0 && start < tags.length && pred(tags[start])) {
+            start--;
+        }
+        while (end >= 0 && end < tags.length && pred(tags[end])) {
+            end++;
+        }
+
+        return tags.slice(start + 1, end);
+    },
+
+    add: function(newTags) {
+        var tags = this.tags;
+        Array.prototype.push.apply(tags, newTags);
+
+        tags.sort(function(a, b) {
+            var nameA = a.name, nameB = b.name;
+            if (nameA < nameB) {
+                return -1;
+            }
+            if (nameA === nameB) {
+                return 0;
+            }
+            return 1;
+        });
+    },
+
+    /** Returns all the tags that match the given identifier. */
+    get: function(id) {
+        return this._search(id, function(tag) { return tag.name === id; });
+    },
+
+    /**
+     * Adds the tags from the supplied JavaScript file to the internal store of
+     * tags.
+     */
+    scan: function(src, file, opts) {
+        if (opts === null || opts === undefined) {
+            opts = {};
+        }
+
+        var lines = src.split("\n");
+        var ast = parse(src, file, 1);
+
+        var interp = new Interpreter(ast, file, lines, opts);
+        interp.interpret();
+        this.add(interp.tags);
+    },
+
+    /** Returns all the tags that begin with the given prefix. */
+    stem: function(prefix) {
+        var len = prefix.length;
+        return this._search(prefix, function(tag) {
+            return tag.name.substring(0, len) === prefix;
+        });
+    }
+}), TagReader));
+
+
+});
+
+bespin.tiki.module("ctags:reader",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var _ = require('underscore')._;
+var Trait = require('traits').Trait;
+
+exports.TagReader = Trait({
+    readLines: function(lines) {
+        var tags = [];
+
+        _(lines).each(function(line) {
+            var parts = line.split("\t");
+            if (parts.length < 3) {
+                return;
+            }
+
+            var name = parts[0];
+            if (/^!_TAG_/.test(name)) {
+                return;
+            }
+
+            // TODO: cope with tab characters in the addr
+            var tag = { name: name, tagfile: parts[1], addr: parts[2] };
+
+            var fieldIndex;
+            if (parts.length > 3 && parts[3].indexOf(":") === -1) {
+                tag.kind = parts[3];
+                fieldIndex = 4;
+            } else {
+                fieldIndex = 3;
+            }
+
+            var fields = {};
+            _(parts.slice(fieldIndex)).each(function(field) {
+                var match = /^([^:]+):(.*)/.exec(field);
+                fields[match[1]] = match[2];
+            });
+            tag.fields = fields;
+
+            tags.push(tag);
+        });
+
+        this.add(tags);
+    },
+
+    readString: function(str) {
+        this.readLines(str.split("\n"));
+    }
+});
+
+
+});
+;bespin.tiki.register("::syntax_directory", {
+    name: "syntax_directory",
+    dependencies: {  }
+});
+bespin.tiki.module("syntax_directory:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+"define metadata";
+({
+    "description": "Catalogs the available syntax engines",
+    "dependencies": {},
+    "environments": { "main": true, "worker": true },
+    "provides": [
+        {
+            "ep": "extensionhandler",
+            "name": "syntax",
+            "register": "#discoveredNewSyntax"
+        }
+    ]
+});
+"end";
+
+var plugins = require("bespin:plugins");
+
+function SyntaxInfo(ext) {
+    this.extension = ext;
+    this.name = ext.name;
+    this.fileExts = ext.hasOwnProperty('fileexts') ? ext.fileexts : [];
+}
+
+/**
+ * Stores metadata for all of the syntax plugins.
+ *
+ * @exports syntaxDirectory as syntax_directory:syntaxDirectory
+ */
+var syntaxDirectory = {
+    _fileExts: {},
+    _syntaxInfo: {},
+
+    get: function(syntaxName) {
+        return this._syntaxInfo[syntaxName];
+    },
+
+    hasSyntax: function(syntax) {
+        return this._syntaxInfo.hasOwnProperty(syntax);
+    },
+
+    register: function(extension) {
+        var syntaxInfo = new SyntaxInfo(extension);
+        this._syntaxInfo[syntaxInfo.name] = syntaxInfo;
+
+        var fileExts = this._fileExts;
+        syntaxInfo.fileExts.forEach(function(fileExt) {
+            fileExts[fileExt] = syntaxInfo.name;
+        });
+    },
+
+    syntaxForFileExt: function(fileExt) {
+        fileExt = fileExt.toLowerCase();
+        var fileExts = this._fileExts;
+        return fileExts.hasOwnProperty(fileExt) ? fileExts[fileExt] : 'plain';
+    }
+};
+
+function discoveredNewSyntax(syntaxExtension) {
+    syntaxDirectory.register(syntaxExtension);
+}
+
+exports.syntaxDirectory = syntaxDirectory;
+exports.discoveredNewSyntax = discoveredNewSyntax;
+
+
+});
+;bespin.tiki.register("::theme_manager", {
+    name: "theme_manager",
+    dependencies: { "theme_manager_base": "0.0.0", "settings": "0.0.0", "events": "0.0.0", "less": "0.0.0" }
+});
+bespin.tiki.module("theme_manager:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var Promise = require('bespin:promise').Promise;
+var catalog = require('bespin:plugins').catalog;
+var Event = require('events').Event;
+var themestyles = require('themestyles');
+var settings = require('settings').settings;
+
+// The current themeExt used on the page.
+var currentThemeExt = null;
+
+// Name of the themePlugin that is used as standard theme. This is not the
+// base theme.
+var standardThemeName = null;
+
+// Load promise for the basePlugin.
+var basePluginLoadPromise = null;
+
+// Export the themeStyles object. This is necessary, as in some cases you want
+// to access the themeStyles object when the `themeChange` event was fired.
+exports.themestyles = themestyles;
+
+exports.themeSettingChanged = function(source, settingName, themeName) {
+    // Get the themeExtensionPoint for 'themeName'
+    var themeExt = catalog.getExtensionByKey('theme', themeName);
+
+    // 'themeName' === standard : Remove the current set theme.
+    // !themeName || !themeExt  : The named theme couldn't get found
+    if (themeName === 'standard' || !themeName || !themeExt) {
+        themeExt = null;
+        // If a standardTheme is given, try to get it.
+        if (standardThemeName !== null) {
+            themeExt = catalog.getExtensionByKey('theme', standardThemeName);
+
+        }
+    }
+
+    // If no theme should get applied (including no standardTheme).
+    if (!themeExt) {
+        // If there is a currentTheme before switching to 'standard' which means
+        // removing the currentTheme as applied on the page.
+        if (currentThemeExt) {
+            // There might be a themeStyle file to remove.
+            themestyles.unregisterThemeStyles(currentThemeExt);
+
+            currentThemeExt = null;
+
+            // Reset the themeVariables applied by the theme.
+            themestyles.currentThemeVariables = null;
+
+            // Update the globalVariables.
+            themestyles.parseGlobalVariables();
+
+            // Reparse all the applied themeStyles.
+            themestyles.reparse();
+
+            // Publish the 'themeChange' event.
+            catalog.publish(this, 'themeChange');
+        }
+        return;
+    } else {
+        themeExt.load().then(function(theme) {
+            // Remove the former themeStyle file, if the former extension has
+            // one declaired.
+            if (currentThemeExt) {
+                themestyles.unregisterThemeStyles(currentThemeExt);
+            }
+
+            // The theme is a function. Execute it to get the themeData.
+            themestyles.currentThemeVariables = theme();
+
+            // Store the data for later use.
+            currentThemeExt = themeExt;
+
+            // Update the globalVariables.
+            themestyles.parseGlobalVariables();
+
+            // Reparse all the applied themeStyles.
+            themestyles.reparse();
+
+            // If the theme has a url that points to a themeStyles file, then
+            // register it.
+            if (themeExt.url) {
+                themestyles.registerThemeStyles(themeExt);
+            }
+
+            // Publish the 'themeChange' event.
+            catalog.publish(exports, 'themeChange');
+        });
+    }
+};
+
+catalog.registerExtension('settingChange', {
+    match: "theme",
+    pointer: exports.themeSettingChanged.bind(exports)
+});
+
+/**
+ * Sets the standard theme that is used when no other theme is specified or
+ * the specified theme is not around.
+ */
+exports.setStandardTheme = function(themeName) {
+    standardThemeName = themeName;
+
+    // If the current theme is equal to themeName, then the theme is already
+    // applied. Otherwise, call themeSttingChanged which handles the standard-
+    // theme change then.
+    if (themeName !== settings.get('theme')) {
+        exports.themeSettingChanged(this);
+    }
+};
+
+/**
+ * Sets the plugin that should get treated as 'basePlugin'. BasePlugins contains
+ * the generic theming for buttons, inputs, panes etc.
+ */
+exports.setBasePlugin = function(pluginName) {
+    // Set the basePlugin.
+    themestyles.basePluginName = pluginName;
+};
+
+/**
+ * This function has to be called to enable parsing. Before calling this
+ * function, parsing is prevented. This allows the developer to prevent parsing
+ * until certain basic theme plugins are loaded.
+ * Returns a promise that is resolved after all currently applied themeStyles
+ * are parsed.
+ */
+exports.startParsing = function() {
+    // Allow the parsing.
+    themestyles.preventParsing = false;
+
+    // Reparse all the applied themeStyles.
+    return themestyles.reparse();
+};
+
+exports.registerTheme = function(extension) {
+    var currentThemeName = settings.get('theme');
+    if (extension.name === currentThemeName) {
+        exports.themeSettingChanged(this, 'theme', extension.name);
+    }
+};
+
+exports.unregisterTheme = function(extension) {
+    if (extension.name === settings.get('theme')) {
+        exports.themeSettingChanged(this);
+    }
+};
+
+// Called when the app is launched.
+exports.appLaunched = function() {
+    // Fire the `themeChange` event as some plugins might haven't triggered it
+    // during the launch of the app.
+    catalog.publish(exports, 'themeChange');
+};
+
+});
+
+bespin.tiki.module("theme_manager:themestyles",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var util = require('bespin:util/util');
+var catalog = require('bespin:plugins').catalog;
+var console = require('bespin:console').console;
+var Promise = require('bespin:promise').Promise;
+var group = require('bespin:promise').group;
+
+var proxy = require('bespin:proxy');
+
+var less = require('less');
+
+// The less parser to use.
+var lessParser = new less.Parser({ optimization: 3 });
+
+// The incremented styleID number.
+var styleID = 1;
+
+// The theme variables as set by the current theme.
+exports.currentThemeVariables = null;
+
+// The plugin that should get applied before any other plugins get applied.
+exports.basePluginName = null;
+
+// If true, no less file is parsed.
+exports.preventParsing = true;
+
+// Stores the variableHeader used by every themeStyleFile for the global
+// ThemeVariables.
+var globalVariableHeader = '';
+
+// The globalThemeVariables as a combination of the build in once and variables
+// defined in a custom theme plugin.
+exports.globalThemeVariables = {};
+
+// Stores the internal styleID used with a extension.
+var extensionStyleID = {};
+
+// Stores the ThemeStyleFiles' content per plugin - somewhat like a par plugin
+// themeStyle cache.
+var extensionStyleData = {};
+
+// Takes an JS object that and makes it 'linear'. Every item gets prefixed with
+// 'global':
+//
+//      globalValues = {
+//          a: {
+//              b: 'test'
+//          }
+//      }
+//
+//      returns: { 'global_a_b': 'test' }
+var parseGlobalThemeVariables = function(globalValues) {
+    var ret = {};
+    var nameStack = [];
+
+    var parseSub = function(name, key) {
+        nameStack.push(name);
+        if (typeof key != 'object') {
+            ret[nameStack.join('_')] = key;
+        } else {
+            for (prop in key) {
+                parseSub(prop, key[prop]);
+            }
+        }
+        nameStack.pop();
+    };
+
+    parseSub('global', globalValues);
+    return ret;
+};
+
+//------------------------------------------------------------------------------
+// BEGIN: THIS PART IS OVERRIDDEN BY dryice
+
+// Stores the StyleFiles content per plugin during the build of Bespin.
+// The variable scheme looks like: { pluginName: { "fileName": data } };
+var extensionStyleBuildData = {};
+
+// Stores the default globalTheme ThemeVariables, that are available to every
+// ThemeStyleFile.
+var defaultGlobalTheme = {
+    // standard font.
+    font:           'arial, lucida, helvetica, sans-serif',
+    // standard font size.
+    font_size:      '14px',
+    // standard line_height.
+    line_height:    '1.8em',
+    // text color.
+    color:          '#DAD4BA',
+
+    text_shadow:    '1px 1px rgba(0, 0, 0, 0.4)',
+    // text error color.
+    error_color:    '#F99',
+    // the color for headers (<h1> etc).
+    header_color:   'white',
+    // the color for links.
+    link_color:     '#ACF',
+
+    // Basic colors for a controller: textInput, tree etc.
+    control: {
+        color:          '#E1B41F',
+        border:         '1px solid rgba(0, 0, 0, 0.2)',
+        border_radius:  '0.25em',
+        background:     'rgba(0, 0, 0, 0.2)',
+
+        active: {
+            color:          '#FF9600',
+            border:         '1px solid #E1B41F',
+            inset_color:    '#ff9600',
+            background:     'rgba(0, 0, 0, 0.2)'
+        }
+    },
+
+    pane: {
+        h1: {
+           font:        "'MuseoSans', Helvetica",
+           font_size:   '2.8em',
+           color:       "white"
+        },
+
+        color:          '#DAD4BA',
+        text_shadow:    '1px 1px rgba(0, 0, 0, 0.4)',
+
+        link_color:     'white',
+
+        background:     '#45443C',
+        border_radius:  '.5em'
+    },
+
+    form: {
+        color: 'white',
+        text_shadow: '1px 1px rgba(0, 0, 0, 0.4)',
+
+        font: "'Lucida Sans','Lucida Grande',Verdana,Arial,sans-serif",
+        font_size: '@global_font_size',
+        line_height: '@global_line_height'
+    },
+
+    button: {
+        color: 'white',
+        background: '#3E6CB9'
+    },
+
+    container: {
+        background:     '#1E1916',
+        border:         '1px solid black'
+    },
+
+    // The items in the command line menu or something else,
+    // that can get selected.
+    selectable: {
+        color:          'white',
+        border:         '0px solid transparent',
+        background:     'transparent',
+
+        active: {
+            color:          'black',
+            border:         '0px solid transparent',
+            background:     '#FF8E00'
+        },
+
+        hover: {
+            color:          'black',
+            border:         '0px solid transparent',
+            background:     '#FF8E00'
+        }
+    },
+
+    // A small hint text.
+    hint: {
+        color:          '#AAA',
+
+        active: {
+            color:      'black'
+        },
+
+        hover: {
+            color:      'black'
+        }
+    },
+
+    // E.g. in the command line menu, the 'ALT+2'.
+    accelerator: {
+        color:          '#996633',
+
+        active: {
+            color:      'black'
+        },
+
+        hover: {
+            color:      'black'
+        }
+    },
+
+    menu: {
+        border_color:           'black',
+        inset_color_right:      '#1E1916',
+        inset_color_top_left:   '#3E3936',
+        background:             'transparent'
+    }
+};
+
+defaultGlobalTheme = parseGlobalThemeVariables(defaultGlobalTheme);
+
+// END: THIS PART IS OVERRIDDEN BY dryice
+//------------------------------------------------------------------------------
+
+/**
+ * Returns an object with all the themeVariables value for a given plugin.
+ */
+exports.getPluginThemeVariables = function(pluginName) {
+    var plugin = catalog.plugins[pluginName];
+
+    if (!plugin) {
+        return null;
+    }
+
+    // Hash to look for custom theme variables.
+    var themeVariables = {};
+    if (exports.currentThemeVariables &&
+            exports.currentThemeVariables[pluginName]) {
+        themeVariables = exports.currentThemeVariables[pluginName];
+    }
+
+    // Set the value for all themeVariables in this plugin.
+    plugin.provides.forEach(function(ext) {
+        if (ext.ep === 'themevariable') {
+            var value = ext.name;
+            // The value is the customThemeVariable OR the defaultValue if the
+            // customThemeVariable is not given.
+            themeVariables[value] = themeVariables[value] || ext.defaultValue;
+        }
+    });
+
+    return themeVariables;
+};
+
+/**
+ * Update the globalThemeVariables. This is called whenever the theme changes.
+ */
+exports.parseGlobalVariables = function() {
+    var globalObj = {};
+    var globalHeader = '';
+    var currentThemeVariables = exports.currentThemeVariables;
+
+    util.mixin(globalObj, defaultGlobalTheme);
+
+    if (currentThemeVariables  && currentThemeVariables['global']) {
+        util.mixin(globalObj,
+                    parseGlobalThemeVariables(currentThemeVariables['global']));
+    }
+
+    exports.globalThemeVariables = globalObj;
+
+    for (prop in globalObj) {
+        globalHeader += '@' + prop + ':' + globalObj[prop] + ';';
+    }
+
+    globalVariableHeader = globalHeader;
+};
+
+// Parse the globalThemeVariables.
+exports.parseGlobalVariables();
+
+/**
+ * Parse one less files.
+ */
+var parseLess = function(pr, pluginName, variableHeader) {
+    // Use already existing DOM style element or create a new one on the page.
+    if (extensionStyleID[pluginName]) {
+        styleElem = document.getElementById('_bespin_theme_style_' +
+                                                extensionStyleID[pluginName]);
+    } else {
+        styleElem = document.createElement('style');
+        styleElem.setAttribute('id', '_bespin_theme_style_' + styleID);
+        extensionStyleID[pluginName] = styleID;
+        styleID ++;
+        document.body.appendChild(styleElem);
+    }
+
+    // DEBUG ONLY.
+    // var timer = new Date();
+
+    // Parse the data.
+    var dataToParse = globalVariableHeader + // global ThemeVariables
+                            variableHeader + // plugin specific ThemeVariables
+                            extensionStyleData[pluginName]; // and the data
+    lessParser.parse(dataToParse, function(e, tree) {
+        var errMsg;
+        if (e) {
+            errMsg = 'Error less parsing ' +  pluginName + ' ' +  e.message;
+            console.error(errMsg);
+            pr.reject(errMsg);
+            return;
+        }
+
+        try {
+            var css = tree.toCSS();
+
+            // DEBUG ONLY.
+            // console.log('  parsing took: ', (new Date()) - timer, 'ms');
+        } catch (e) {
+            errMsg = 'Error less parsing ' + pluginName + ' ' + e;
+            console.error(errMsg);
+            pr.reject(errMsg);
+            return;
+        }
+
+        // Add the parsed CSS content in the styleElement.
+        if (styleElem && styleElem.firstChild) {
+            styleElem.firstChild.textContent = css;
+        } else {
+            var cssContentNode = document.createTextNode(css);
+            styleElem.appendChild(cssContentNode);
+        }
+        pr.resolve();
+    });
+};
+
+// Queue with all the plugins waiting to get updated.
+var parseQueue = {};
+
+/**
+ * Parse the less files for a entire plugin. The plugin is not parsed directly,
+ * but with a small delay. Otherwise it could happen that the plugin is parsed
+ * although not all themeVariables are available.
+ * Returns a promise that is resolved after the plugin is successfully parsed.
+ * An error during parsing rejects the promise.
+ */
+exports.parsePlugin = function(pluginName) {
+    // Parse only if this is permitted.
+    if (exports.preventParsing) {
+        return (new Promise).resolve();
+    }
+
+    var plugin = catalog.plugins[pluginName];
+
+    if (!plugin) {
+        throw "reparsePlugin: plugin " + pluginName + " is not defined!";
+    }
+
+    // Start parsing only if it isn't started already.
+    if (!parseQueue[pluginName]) {
+        // Mark that the plugin is queued.
+        parseQueue[pluginName] = new Promise();
+
+        setTimeout(function() {
+            // DEBUG ONLY:
+            // console.log('=== Parse Plugin: ' + pluginName + ' ===');
+            // var time = new Date();
+
+            var themeVariables = exports.getPluginThemeVariables(pluginName);
+
+            // Store the StyleVariables for the StyleData to parse.
+            var variableHeader = '';
+
+            for (prop in themeVariables) {
+                variableHeader += '@' + prop + ':' + themeVariables[prop] + ';';
+            }
+
+            // DEBUG ONLY:
+            // console.log('  variables: ', variableHeader, globalVariableHeader);
+
+            var parsePr = new Promise;
+            parsePr.then(function(data) {
+                parseQueue[this.name].resolve(data);
+                parseQueue[this.name] = null;
+            }.bind(this), function() {
+                parseQueue[this.name].reject(data);
+                parseQueue[this.name] = null;
+            }.bind(this))
+
+            parseLess(parsePr, pluginName, variableHeader);
+
+            // DEBUG ONLY:
+            // console.log('everything took: ', (new Date()) - time, 'ms');
+        }.bind(plugin), 0);
+    }
+
+    return parseQueue[pluginName];
+};
+
+// Function that pocesses the loaded StyleFile content.
+var processStyleContent = function(resourceURL, pluginName, data, p) {
+    // Convert url(something) to url(resourceURL/something).
+    data = data.replace(/url\(['"]*([^'")]*)(['"]*)\)/g,
+                                      'url(' + resourceURL + '$1)');
+    extensionStyleData[pluginName] += data;
+
+    // Resolve the promise when given.
+    if (p) {
+        p.resolve();
+    }
+};
+
+var themeDataLoadPromise = null;
+
+exports.registerThemeStyles = function(extension) {
+    var pluginName = extension.getPluginName();
+    var resourceURL = catalog.getResourceURL(pluginName);
+
+    // Make the extension.url parameter an array if it isn't yet.
+    if (!(extension.url instanceof Array)) {
+        extension.url = [ extension.url ];
+    }
+
+    // (Re)set the loaded StyleData for the plugin.
+    extensionStyleData[pluginName] = '';
+
+    var loadPromises = [];
+
+    var preventParsing = exports.preventParsing;
+
+    // Load the StyleFiles.
+    extension.url.forEach(function(styleFile) {
+        if (extensionStyleBuildData[pluginName] &&
+                extensionStyleBuildData[pluginName][styleFile]) {
+            // Process the StyleContent.
+            processStyleContent(resourceURL, pluginName,
+                                extensionStyleBuildData[pluginName][styleFile]);
+        } else {
+            var p = new Promise();
+            loadPromises.push(p);
+
+            var url = resourceURL + styleFile + '?' + (new Date).getTime();
+            proxy.xhr('GET', url, true, function(xhr) {
+                xhr.overrideMimeType('text/plain');
+            }).then(function(response) {
+                  processStyleContent(resourceURL, pluginName, response, p);
+            }, function(err) {
+                console.error('registerLessFile: Could not load ' +
+                        resourceURL + styleFile);
+
+                // The file couldn't get loaded but to make the group
+                // work we have to mark this loadPromise as resolved so that
+                // at least the other sucessfully loaded files can get
+                // proceeded.
+                p.resolve();
+            });
+        }
+    });
+
+    if (loadPromises.length === 0) {
+        exports.parsePlugin(pluginName);
+    } else {
+        // If parsing is allowed, then wait until all the styleFiles are loaded
+        // and parse the plugin.
+        if (!preventParsing) {
+            group(loadPromises).then(function() {
+                exports.parsePlugin(pluginName);
+            });
+        }
+
+        if (themeDataLoadPromise !== null) {
+            loadPromises = loadPromises.concat(themeDataLoadPromise);
+        }
+        themeDataLoadPromise = group(loadPromises);
+    }
+};
+
+/**
+ * Call this function to reparse all the ThemeStyles files.
+ * Returns a promise. The promise is resolved after all themeStyles are reparsed.
+ */
+exports.reparse = function() {
+    var pr = new Promise();
+
+    // Reparse only if this is permitted.
+    if (exports.preventParsing) {
+        return pr.resolve();
+    }
+
+    // Reparsing makes only sense if there is a themeDataLoadPromise.
+    // If the value is null, then no styleFile was loaded and there is nothing
+    // to reparse.
+    if (themeDataLoadPromise) {
+        // When all the styleFiles are loaded.
+        themeDataLoadPromise.then(function() {
+            var parsePromises = [];
+
+            // Reparese all the themeStyles. Instead of loading the themeStyles
+            // again from the server, the cache extensionStyleData is used.
+            // Every plugin in this cache is reparsed.
+
+            // Check if a basePlugin is set and parse this one first.
+            var basePluginName = exports.basePluginName;
+            if (basePluginName !== null && extensionStyleData[basePluginName]) {
+                parsePromises.push(exports.parsePlugin(basePluginName));
+            }
+
+            // Parse the other plugins.
+            for (var pluginName in extensionStyleData) {
+                // Skip the basePlugin as this is already parsed.
+                if (pluginName === basePluginName) {
+                    continue;
+                }
+                parsePromises.push(exports.parsePlugin(pluginName));
+            }
+
+            // After all themeStyles are parsed, resolve the returned promise.
+            group(parsePromises).then(pr.resolve.bind(pr), pr.reject.bind(pr));
+        }, function(err) {
+            pr.reject(err);
+        });
+    } else {
+        pr.resolve();
+    }
+    return pr;
+};
+
+/**
+ * Unregister a themeStyle.
+ * @param The extension to unregister.
+ */
+exports.unregisterThemeStyles = function(extension) {
+    var pluginName = extension.getPluginName();
+    if (!extensionStyleID[pluginName]) {
+        return;
+    }
+
+    // Remove the style element from the page.
+    var styleID = '_bespin_theme_style_' + extensionStyleID[pluginName];
+    var styleElement = document.getElementById(styleID);
+    styleElement.parentNode.removeChild(styleElement);
+
+    // Remove the style reference.
+    delete extensionStyleID[pluginName];
+    // Remove the themeStyle cache.
+    delete extensionStyleData[pluginName];
+};
+
+});
+;bespin.tiki.register("::underscore", {
+    name: "underscore",
+    dependencies: {  }
+});
+bespin.tiki.module("underscore:index",function(require,exports,module) {
+// Underscore.js
+// (c) 2010 Jeremy Ashkenas, DocumentCloud Inc.
+// Underscore is freely distributable under the terms of the MIT license.
+// Portions of Underscore are inspired by or borrowed from Prototype.js,
+// Oliver Steele's Functional, and John Resig's Micro-Templating.
+// For all details and documentation:
+// http://documentcloud.github.com/underscore
+
+"define metadata";
+({
+    "description": "Functional Programming Aid for Javascript. Works well with jQuery."
+});
+"end";
+
+(function() {
+  // ------------------------- Baseline setup ---------------------------------
+
+  // Establish the root object, "window" in the browser, or "global" on the server.
+  var root = this;
+
+  // Save the previous value of the "_" variable.
+  var previousUnderscore = root._;
+
+  // Establish the object that gets thrown to break out of a loop iteration.
+  var breaker = typeof StopIteration !== 'undefined' ? StopIteration : '__break__';
+
+  // Quick regexp-escaping function, because JS doesn't have RegExp.escape().
+  var escapeRegExp = function(s) { return s.replace(/([.*+?^${}()|[\]\/\\])/g, '\\$1'); };
+
+  // Save bytes in the minified (but not gzipped) version:
+  var ArrayProto = Array.prototype, ObjProto = Object.prototype;
+
+  // Create quick reference variables for speed access to core prototypes.
+  var slice                 = ArrayProto.slice,
+      unshift               = ArrayProto.unshift,
+      toString              = ObjProto.toString,
+      hasOwnProperty        = ObjProto.hasOwnProperty,
+      propertyIsEnumerable  = ObjProto.propertyIsEnumerable;
+
+  // All ECMA5 native implementations we hope to use are declared here.
+  var
+    nativeForEach      = ArrayProto.forEach,
+    nativeMap          = ArrayProto.map,
+    nativeReduce       = ArrayProto.reduce,
+    nativeReduceRight  = ArrayProto.reduceRight,
+    nativeFilter       = ArrayProto.filter,
+    nativeEvery        = ArrayProto.every,
+    nativeSome         = ArrayProto.some,
+    nativeIndexOf      = ArrayProto.indexOf,
+    nativeLastIndexOf  = ArrayProto.lastIndexOf,
+    nativeIsArray      = Array.isArray,
+    nativeKeys         = Object.keys;
+
+  // Create a safe reference to the Underscore object for use below.
+  var _ = function(obj) { return new wrapper(obj); };
+
+  // Export the Underscore object for CommonJS.
+  if (typeof exports !== 'undefined') exports._ = _;
+
+  // Export underscore to global scope.
+  root._ = _;
+
+  // Current version.
+  _.VERSION = '1.0.2';
+
+  // ------------------------ Collection Functions: ---------------------------
+
+  // The cornerstone, an each implementation.
+  // Handles objects implementing forEach, arrays, and raw objects.
+  // Delegates to JavaScript 1.6's native forEach if available.
+  var each = _.forEach = function(obj, iterator, context) {
+    try {
+      if (nativeForEach && obj.forEach === nativeForEach) {
+        obj.forEach(iterator, context);
+      } else if (_.isNumber(obj.length)) {
+        for (var i = 0, l = obj.length; i < l; i++) iterator.call(context, obj[i], i, obj);
+      } else {
+        for (var key in obj) {
+          if (hasOwnProperty.call(obj, key)) iterator.call(context, obj[key], key, obj);
+        }
+      }
+    } catch(e) {
+      if (e != breaker) throw e;
+    }
+    return obj;
+  };
+
+  // Return the results of applying the iterator to each element.
+  // Delegates to JavaScript 1.6's native map if available.
+  _.map = function(obj, iterator, context) {
+    if (nativeMap && obj.map === nativeMap) return obj.map(iterator, context);
+    var results = [];
+    each(obj, function(value, index, list) {
+      results.push(iterator.call(context, value, index, list));
+    });
+    return results;
+  };
+
+  // Reduce builds up a single result from a list of values, aka inject, or foldl.
+  // Delegates to JavaScript 1.8's native reduce if available.
+  _.reduce = function(obj, memo, iterator, context) {
+    if (nativeReduce && obj.reduce === nativeReduce) return obj.reduce(_.bind(iterator, context), memo);
+    each(obj, function(value, index, list) {
+      memo = iterator.call(context, memo, value, index, list);
+    });
+    return memo;
+  };
+
+  // The right-associative version of reduce, also known as foldr. Uses
+  // Delegates to JavaScript 1.8's native reduceRight if available.
+  _.reduceRight = function(obj, memo, iterator, context) {
+    if (nativeReduceRight && obj.reduceRight === nativeReduceRight) return obj.reduceRight(_.bind(iterator, context), memo);
+    var reversed = _.clone(_.toArray(obj)).reverse();
+    return _.reduce(reversed, memo, iterator, context);
+  };
+
+  // Return the first value which passes a truth test.
+  _.detect = function(obj, iterator, context) {
+    var result;
+    each(obj, function(value, index, list) {
+      if (iterator.call(context, value, index, list)) {
+        result = value;
+        _.breakLoop();
+      }
+    });
+    return result;
+  };
+
+  // Return all the elements that pass a truth test.
+  // Delegates to JavaScript 1.6's native filter if available.
+  _.filter = function(obj, iterator, context) {
+    if (nativeFilter && obj.filter === nativeFilter) return obj.filter(iterator, context);
+    var results = [];
+    each(obj, function(value, index, list) {
+      iterator.call(context, value, index, list) && results.push(value);
+    });
+    return results;
+  };
+
+  // Return all the elements for which a truth test fails.
+  _.reject = function(obj, iterator, context) {
+    var results = [];
+    each(obj, function(value, index, list) {
+      !iterator.call(context, value, index, list) && results.push(value);
+    });
+    return results;
+  };
+
+  // Determine whether all of the elements match a truth test.
+  // Delegates to JavaScript 1.6's native every if available.
+  _.every = function(obj, iterator, context) {
+    iterator = iterator || _.identity;
+    if (nativeEvery && obj.every === nativeEvery) return obj.every(iterator, context);
+    var result = true;
+    each(obj, function(value, index, list) {
+      if (!(result = result && iterator.call(context, value, index, list))) _.breakLoop();
+    });
+    return result;
+  };
+
+  // Determine if at least one element in the object matches a truth test.
+  // Delegates to JavaScript 1.6's native some if available.
+  _.some = function(obj, iterator, context) {
+    iterator = iterator || _.identity;
+    if (nativeSome && obj.some === nativeSome) return obj.some(iterator, context);
+    var result = false;
+    each(obj, function(value, index, list) {
+      if (result = iterator.call(context, value, index, list)) _.breakLoop();
+    });
+    return result;
+  };
+
+  // Determine if a given value is included in the array or object using '==='.
+  _.include = function(obj, target) {
+    if (nativeIndexOf && obj.indexOf === nativeIndexOf) return obj.indexOf(target) != -1;
+    var found = false;
+    each(obj, function(value) {
+      if (found = value === target) _.breakLoop();
+    });
+    return found;
+  };
+
+  // Invoke a method with arguments on every item in a collection.
+  _.invoke = function(obj, method) {
+    var args = _.rest(arguments, 2);
+    return _.map(obj, function(value) {
+      return (method ? value[method] : value).apply(value, args);
+    });
+  };
+
+  // Convenience version of a common use case of map: fetching a property.
+  _.pluck = function(obj, key) {
+    return _.map(obj, function(value){ return value[key]; });
+  };
+
+  // Return the maximum item or (item-based computation).
+  _.max = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj)) return Math.max.apply(Math, obj);
+    var result = {computed : -Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed >= result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Return the minimum element (or element-based computation).
+  _.min = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj)) return Math.min.apply(Math, obj);
+    var result = {computed : Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed < result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Sort the object's values by a criterion produced by an iterator.
+  _.sortBy = function(obj, iterator, context) {
+    return _.pluck(_.map(obj, function(value, index, list) {
+      return {
+        value : value,
+        criteria : iterator.call(context, value, index, list)
+      };
+    }).sort(function(left, right) {
+      var a = left.criteria, b = right.criteria;
+      return a < b ? -1 : a > b ? 1 : 0;
+    }), 'value');
+  };
+
+  // Use a comparator function to figure out at what index an object should
+  // be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iterator) {
+    iterator = iterator || _.identity;
+    var low = 0, high = array.length;
+    while (low < high) {
+      var mid = (low + high) >> 1;
+      iterator(array[mid]) < iterator(obj) ? low = mid + 1 : high = mid;
+    }
+    return low;
+  };
+
+  // Convert anything iterable into a real, live array.
+  _.toArray = function(iterable) {
+    if (!iterable)                return [];
+    if (iterable.toArray)         return iterable.toArray();
+    if (_.isArray(iterable))      return iterable;
+    if (_.isArguments(iterable))  return slice.call(iterable);
+    return _.values(iterable);
+  };
+
+  // Return the number of elements in an object.
+  _.size = function(obj) {
+    return _.toArray(obj).length;
+  };
+
+  // -------------------------- Array Functions: ------------------------------
+
+  // Get the first element of an array. Passing "n" will return the first N
+  // values in the array. Aliased as "head". The "guard" check allows it to work
+  // with _.map.
+  _.first = function(array, n, guard) {
+    return n && !guard ? slice.call(array, 0, n) : array[0];
+  };
+
+  // Returns everything but the first entry of the array. Aliased as "tail".
+  // Especially useful on the arguments object. Passing an "index" will return
+  // the rest of the values in the array from that index onward. The "guard"
+   //check allows it to work with _.map.
+  _.rest = function(array, index, guard) {
+    return slice.call(array, _.isUndefined(index) || guard ? 1 : index);
+  };
+
+  // Get the last element of an array.
+  _.last = function(array) {
+    return array[array.length - 1];
+  };
+
+  // Trim out all falsy values from an array.
+  _.compact = function(array) {
+    return _.filter(array, function(value){ return !!value; });
+  };
+
+  // Return a completely flattened version of an array.
+  _.flatten = function(array) {
+    return _.reduce(array, [], function(memo, value) {
+      if (_.isArray(value)) return memo.concat(_.flatten(value));
+      memo.push(value);
+      return memo;
+    });
+  };
+
+  // Return a version of the array that does not contain the specified value(s).
+  _.without = function(array) {
+    var values = _.rest(arguments);
+    return _.filter(array, function(value){ return !_.include(values, value); });
+  };
+
+  // Produce a duplicate-free version of the array. If the array has already
+  // been sorted, you have the option of using a faster algorithm.
+  _.uniq = function(array, isSorted) {
+    return _.reduce(array, [], function(memo, el, i) {
+      if (0 == i || (isSorted === true ? _.last(memo) != el : !_.include(memo, el))) memo.push(el);
+      return memo;
+    });
+  };
+
+  // Produce an array that contains every item shared between all the
+  // passed-in arrays.
+  _.intersect = function(array) {
+    var rest = _.rest(arguments);
+    return _.filter(_.uniq(array), function(item) {
+      return _.every(rest, function(other) {
+        return _.indexOf(other, item) >= 0;
+      });
+    });
+  };
+
+  // Zip together multiple lists into a single array -- elements that share
+  // an index go together.
+  _.zip = function() {
+    var args = _.toArray(arguments);
+    var length = _.max(_.pluck(args, 'length'));
+    var results = new Array(length);
+    for (var i = 0; i < length; i++) results[i] = _.pluck(args, String(i));
+    return results;
+  };
+
+  // If the browser doesn't supply us with indexOf (I'm looking at you, MSIE),
+  // we need this function. Return the position of the first occurence of an
+  // item in an array, or -1 if the item is not included in the array.
+  // Delegates to JavaScript 1.8's native indexOf if available.
+  _.indexOf = function(array, item) {
+    if (nativeIndexOf && array.indexOf === nativeIndexOf) return array.indexOf(item);
+    for (var i = 0, l = array.length; i < l; i++) if (array[i] === item) return i;
+    return -1;
+  };
+
+
+  // Delegates to JavaScript 1.6's native lastIndexOf if available.
+  _.lastIndexOf = function(array, item) {
+    if (nativeLastIndexOf && array.lastIndexOf === nativeLastIndexOf) return array.lastIndexOf(item);
+    var i = array.length;
+    while (i--) if (array[i] === item) return i;
+    return -1;
+  };
+
+  // Generate an integer Array containing an arithmetic progression. A port of
+  // the native Python range() function. See:
+  // http://docs.python.org/library/functions.html#range
+  _.range = function(start, stop, step) {
+    var a     = _.toArray(arguments);
+    var solo  = a.length <= 1;
+    var start = solo ? 0 : a[0], stop = solo ? a[0] : a[1], step = a[2] || 1;
+    var len   = Math.ceil((stop - start) / step);
+    if (len <= 0) return [];
+    var range = new Array(len);
+    for (var i = start, idx = 0; true; i += step) {
+      if ((step > 0 ? i - stop : stop - i) >= 0) return range;
+      range[idx++] = i;
+    }
+  };
+
+  // ----------------------- Function Functions: ------------------------------
+
+  // Create a function bound to a given object (assigning 'this', and arguments,
+  // optionally). Binding with arguments is also known as 'curry'.
+  _.bind = function(func, obj) {
+    var args = _.rest(arguments, 2);
+    return function() {
+      return func.apply(obj || {}, args.concat(_.toArray(arguments)));
+    };
+  };
+
+  // Bind all of an object's methods to that object. Useful for ensuring that
+  // all callbacks defined on an object belong to it.
+  _.bindAll = function(obj) {
+    var funcs = _.rest(arguments);
+    if (funcs.length == 0) funcs = _.functions(obj);
+    each(funcs, function(f) { obj[f] = _.bind(obj[f], obj); });
+    return obj;
+  };
+
+  // Delays a function for the given number of milliseconds, and then calls
+  // it with the arguments supplied.
+  _.delay = function(func, wait) {
+    var args = _.rest(arguments, 2);
+    return setTimeout(function(){ return func.apply(func, args); }, wait);
+  };
+
+  // Defers a function, scheduling it to run after the current call stack has
+  // cleared.
+  _.defer = function(func) {
+    return _.delay.apply(_, [func, 1].concat(_.rest(arguments)));
+  };
+
+  // Returns the first function passed as an argument to the second,
+  // allowing you to adjust arguments, run code before and after, and
+  // conditionally execute the original function.
+  _.wrap = function(func, wrapper) {
+    return function() {
+      var args = [func].concat(_.toArray(arguments));
+      return wrapper.apply(wrapper, args);
+    };
+  };
+
+  // Returns a function that is the composition of a list of functions, each
+  // consuming the return value of the function that follows.
+  _.compose = function() {
+    var funcs = _.toArray(arguments);
+    return function() {
+      var args = _.toArray(arguments);
+      for (var i=funcs.length-1; i >= 0; i--) {
+        args = [funcs[i].apply(this, args)];
+      }
+      return args[0];
+    };
+  };
+
+  // ------------------------- Object Functions: ------------------------------
+
+  // Retrieve the names of an object's properties.
+  // Delegates to ECMA5's native Object.keys
+  _.keys = nativeKeys || function(obj) {
+    if (_.isArray(obj)) return _.range(0, obj.length);
+    var keys = [];
+    for (var key in obj) if (hasOwnProperty.call(obj, key)) keys.push(key);
+    return keys;
+  };
+
+  // Retrieve the values of an object's properties.
+  _.values = function(obj) {
+    return _.map(obj, _.identity);
+  };
+
+  // Return a sorted list of the function names available on the object.
+  _.functions = function(obj) {
+    return _.filter(_.keys(obj), function(key){ return _.isFunction(obj[key]); }).sort();
+  };
+
+  // Extend a given object with all the properties in passed-in object(s).
+  _.extend = function(obj) {
+    each(_.rest(arguments), function(source) {
+      for (var prop in source) obj[prop] = source[prop];
+    });
+    return obj;
+  };
+
+  // Create a (shallow-cloned) duplicate of an object.
+  _.clone = function(obj) {
+    if (_.isArray(obj)) return obj.slice(0);
+    return _.extend({}, obj);
+  };
+
+  // Invokes interceptor with the obj, and then returns obj.
+  // The primary purpose of this method is to "tap into" a method chain, in order to perform operations on intermediate results within the chain.
+  _.tap = function(obj, interceptor) {
+    interceptor(obj);
+    return obj;
+  };
+
+  // Perform a deep comparison to check if two objects are equal.
+  _.isEqual = function(a, b) {
+    // Check object identity.
+    if (a === b) return true;
+    // Different types?
+    var atype = typeof(a), btype = typeof(b);
+    if (atype != btype) return false;
+    // Basic equality test (watch out for coercions).
+    if (a == b) return true;
+    // One is falsy and the other truthy.
+    if ((!a && b) || (a && !b)) return false;
+    // One of them implements an isEqual()?
+    if (a.isEqual) return a.isEqual(b);
+    // Check dates' integer values.
+    if (_.isDate(a) && _.isDate(b)) return a.getTime() === b.getTime();
+    // Both are NaN?
+    if (_.isNaN(a) && _.isNaN(b)) return true;
+    // Compare regular expressions.
+    if (_.isRegExp(a) && _.isRegExp(b))
+      return a.source     === b.source &&
+             a.global     === b.global &&
+             a.ignoreCase === b.ignoreCase &&
+             a.multiline  === b.multiline;
+    // If a is not an object by this point, we can't handle it.
+    if (atype !== 'object') return false;
+    // Check for different array lengths before comparing contents.
+    if (a.length && (a.length !== b.length)) return false;
+    // Nothing else worked, deep compare the contents.
+    var aKeys = _.keys(a), bKeys = _.keys(b);
+    // Different object sizes?
+    if (aKeys.length != bKeys.length) return false;
+    // Recursive comparison of contents.
+    for (var key in a) if (!(key in b) || !_.isEqual(a[key], b[key])) return false;
+    return true;
+  };
+
+  // Is a given array or object empty?
+  _.isEmpty = function(obj) {
+    if (_.isArray(obj) || _.isString(obj)) return obj.length === 0;
+    for (var key in obj) if (hasOwnProperty.call(obj, key)) return false;
+    return true;
+  };
+
+  // Is a given value a DOM element?
+  _.isElement = function(obj) {
+    return !!(obj && obj.nodeType == 1);
+  };
+
+  // Is a given value an array?
+  // Delegates to ECMA5's native Array.isArray
+  _.isArray = nativeIsArray || function(obj) {
+    return !!(obj && obj.concat && obj.unshift && !obj.callee);
+  };
+
+  // Is a given variable an arguments object?
+  _.isArguments = function(obj) {
+    return obj && obj.callee;
+  };
+
+  // Is a given value a function?
+  _.isFunction = function(obj) {
+    return !!(obj && obj.constructor && obj.call && obj.apply);
+  };
+
+  // Is a given value a string?
+  _.isString = function(obj) {
+    return !!(obj === '' || (obj && obj.charCodeAt && obj.substr));
+  };
+
+  // Is a given value a number?
+  _.isNumber = function(obj) {
+    return (obj === +obj) || (toString.call(obj) === '[object Number]');
+  };
+
+  // Is a given value a boolean?
+  _.isBoolean = function(obj) {
+    return obj === true || obj === false;
+  };
+
+  // Is a given value a date?
+  _.isDate = function(obj) {
+    return !!(obj && obj.getTimezoneOffset && obj.setUTCFullYear);
+  };
+
+  // Is the given value a regular expression?
+  _.isRegExp = function(obj) {
+    return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
+  };
+
+  // Is the given value NaN -- this one is interesting. NaN != NaN, and
+  // isNaN(undefined) == true, so we make sure it's a number first.
+  _.isNaN = function(obj) {
+    return _.isNumber(obj) && isNaN(obj);
+  };
+
+  // Is a given value equal to null?
+  _.isNull = function(obj) {
+    return obj === null;
+  };
+
+  // Is a given variable undefined?
+  _.isUndefined = function(obj) {
+    return typeof obj == 'undefined';
+  };
+
+  // -------------------------- Utility Functions: ----------------------------
+
+  // Run Underscore.js in noConflict mode, returning the '_' variable to its
+  // previous owner. Returns a reference to the Underscore object.
+  _.noConflict = function() {
+    root._ = previousUnderscore;
+    return this;
+  };
+
+  // Keep the identity function around for default iterators.
+  _.identity = function(value) {
+    return value;
+  };
+
+  // Run a function n times.
+  _.times = function (n, iterator, context) {
+    for (var i = 0; i < n; i++) iterator.call(context, i);
+  };
+
+  // Break out of the middle of an iteration.
+  _.breakLoop = function() {
+    throw breaker;
+  };
+
+  // Add your own custom functions to the Underscore object, ensuring that
+  // they're correctly added to the OOP wrapper as well.
+  _.mixin = function(obj) {
+    each(_.functions(obj), function(name){
+      addToWrapper(name, _[name] = obj[name]);
+    });
+  };
+
+  // Generate a unique integer id (unique within the entire client session).
+  // Useful for temporary DOM ids.
+  var idCounter = 0;
+  _.uniqueId = function(prefix) {
+    var id = idCounter++;
+    return prefix ? prefix + id : id;
+  };
+
+  // By default, Underscore uses ERB-style template delimiters, change the
+  // following template settings to use alternative delimiters.
+  _.templateSettings = {
+    start       : '<%',
+    end         : '%>',
+    interpolate : /<%=(.+?)%>/g
+  };
+
+  // JavaScript templating a-la ERB, pilfered from John Resig's
+  // "Secrets of the JavaScript Ninja", page 83.
+  // Single-quote fix from Rick Strahl's version.
+  // With alterations for arbitrary delimiters.
+  _.template = function(str, data) {
+    var c  = _.templateSettings;
+    var endMatch = new RegExp("'(?=[^"+c.end.substr(0, 1)+"]*"+escapeRegExp(c.end)+")","g");
+    var fn = new Function('obj',
+      'var p=[],print=function(){p.push.apply(p,arguments);};' +
+      'with(obj){p.push(\'' +
+      str.replace(/[\r\t\n]/g, " ")
+         .replace(endMatch,"\t")
+         .split("'").join("\\'")
+         .split("\t").join("'")
+         .replace(c.interpolate, "',$1,'")
+         .split(c.start).join("');")
+         .split(c.end).join("p.push('")
+         + "');}return p.join('');");
+    return data ? fn(data) : fn;
+  };
+
+  // ------------------------------- Aliases ----------------------------------
+
+  _.each     = _.forEach;
+  _.foldl    = _.inject       = _.reduce;
+  _.foldr    = _.reduceRight;
+  _.select   = _.filter;
+  _.all      = _.every;
+  _.any      = _.some;
+  _.head     = _.first;
+  _.tail     = _.rest;
+  _.methods  = _.functions;
+
+  // ------------------------ Setup the OOP Wrapper: --------------------------
+
+  // If Underscore is called as a function, it returns a wrapped object that
+  // can be used OO-style. This wrapper holds altered versions of all the
+  // underscore functions. Wrapped objects may be chained.
+  var wrapper = function(obj) { this._wrapped = obj; };
+
+  // Helper function to continue chaining intermediate results.
+  var result = function(obj, chain) {
+    return chain ? _(obj).chain() : obj;
+  };
+
+  // A method to easily add functions to the OOP wrapper.
+  var addToWrapper = function(name, func) {
+    wrapper.prototype[name] = function() {
+      var args = _.toArray(arguments);
+      unshift.call(args, this._wrapped);
+      return result(func.apply(_, args), this._chain);
+    };
+  };
+
+  // Add all of the Underscore functions to the wrapper object.
+  _.mixin(_);
+
+  // Add all mutator Array functions to the wrapper.
+  each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+    var method = ArrayProto[name];
+    wrapper.prototype[name] = function() {
+      method.apply(this._wrapped, arguments);
+      return result(this._wrapped, this._chain);
+    };
+  });
+
+  // Add all accessor Array functions to the wrapper.
+  each(['concat', 'join', 'slice'], function(name) {
+    var method = ArrayProto[name];
+    wrapper.prototype[name] = function() {
+      return result(method.apply(this._wrapped, arguments), this._chain);
+    };
+  });
+
+  // Start chaining a wrapped Underscore object.
+  wrapper.prototype.chain = function() {
+    this._chain = true;
+    return this;
+  };
+
+  // Extracts the result from a wrapped and chained object.
+  wrapper.prototype.value = function() {
+    return this._wrapped;
+  };
+
+})();
+
+exports._.noConflict();
+});
+;bespin.tiki.register("::whitetheme", {
+    name: "whitetheme",
+    dependencies: { "theme_manager": "0.0.0" }
+});
+bespin.tiki.module("whitetheme:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+exports.whiteTheme = function() {
+    return {
+        global: {
+            // Standard font.
+            font:           'arial, lucida, helvetica, sans-serif',
+            // Standard font size.
+            font_size:      '14px',
+            // Standard line_height.
+            line_height:    '1.8em',
+            // Text color.
+            color:          '#2E2E3D',
+            // Text shadow css attribute.
+            text_shadow:    '1px 1px white',
+            // Text error color.
+            error_color:    '#C03A38',
+            // The color for headers (<h1> etc).
+            header_color:   '#222222',
+            // The color for links.
+            link_color:     '#597BAC',
+
+            // Variables for a pane - e.g. the login pane.
+            pane: {
+                h1: {
+                   font:        "'MuseoSans', Helvetica",
+                   font_size:   '2.8em',
+                   color:       "#2C3480"
+                },
+
+                link_color:     '@global_link_color',
+
+                background:     '#DFDFDF',
+                border_radius:  '.5em',
+
+                color:          '#2E2E3D',
+                text_shadow:    '1px 1px #DDD'
+            },
+
+            // Variables for a html form.
+            form: {
+                font: "@global_font",
+                font_size: '@global_font_size',
+                line_height: '@global_line_height',
+
+                color: 'black',
+                text_shadow: '0px 0px transparent'
+            },
+
+            // Variables for a controller: textInput, tree etc.
+            control: {
+                color:          '#222',
+                border:         '1px solid rgba(0, 0, 0, 0.2)',
+                border_radius:  '0.25em',
+                background:     'rgba(0, 0, 0, 0.1)',
+
+                active: {
+                    color:          '#000',
+                    border:         '1px solid #597BAC',
+                    inset_color:    '#597BAC',
+                    background:     'rgba(0, 0, 0, 0.1)'
+                }
+            },
+
+            // Variables for html buttons.
+            button: {
+                color: 'white',
+                background: '#3E6CB9'
+            },
+
+            // Variables for the containers.
+            container: {
+                background:     '#F8F8F8',
+                border:         '1px solid black'
+            },
+
+            // Variables for a menu - e.g. the command line menu.
+            menu: {
+                border_color:   'black',
+                inset_color:    '#999',
+                background:     'transparent'
+            },
+
+            // Variables for elements that can get selected - e.g. the items
+            // in the command line menu.
+            selectable: {
+                color:          'black',
+                border:         '0px solid transparent',
+                background:     'transparent',
+
+                active: {
+                    color:          'white',
+                    border:         '0px solid transparent',
+                    background:     '#6780E4'
+                },
+
+                hover: {
+                    color:          'white',
+                    border:         '0px solid transparent',
+                    background:     '#6780E4'
+                }
+            },
+
+            // Variables for hint text.
+            hint: {
+                color:          '#78788D',
+
+                active: {
+                    color:      'white'
+                },
+
+                hover: {
+                    color:      'white'
+                }
+            },
+
+            // Variables for accelerator (the text that holds the key short cuts
+            // like ALT+2).
+            accelerator: {
+                color:          '#344DB1',
+
+                active: {
+                    color:      'white'
+                },
+
+                hover: {
+                    color:      'white'
+                }
+            }
+        },
+
+        text_editor: {
+            // Variables for the gutter.
+            gutter: {
+                color: '#888888',
+                backgroundColor: '#d2d2d2'
+            },
+
+            // Variables for the editor.
+            editor: {
+                color: '#3D3D3D',
+                backgroundColor: '#ffffff',
+
+                cursorColor: '#000000',
+                selectedTextBackgroundColor: '#BDD9FC',
+
+                unfocusedCursorColor: '#57A1FF',
+                unfocusedCursorBackgroundColor: '#D9E9FC'
+            },
+
+            // Variables for the syntax highlighter.
+            highlighter: {
+                plain:     '#030303',
+                comment:   '#919191',
+                directive: '#999999',
+                error:      '#ff0000',
+                identifier: '#A7379F',
+                keyword:    '#1414EF',
+                operator:   '#477ABE',
+                string:     '#017F19'
+            },
+
+            // Variables for the scrollers.
+            scroller: {
+                padding: 5,
+                thickness: 17,
+
+                backgroundStyle: "#2A211C",
+
+                fullAlpha: 1.0,
+                particalAlpha: 0.3,
+
+                nibStyle: "rgb(150, 150, 150)",
+                nibArrowStyle: "rgb(255, 255, 255)",
+                nibStrokeStyle: "white",
+
+                trackFillStyle: "rgba(50, 50, 50, 0.2)",
+                trackStrokeStyle: "rgb(150, 150, 150)",
+
+                barFillStyle: "rgb(60, 60, 60)",
+                barFillGradientTopStart: "rgb(150, 150, 150)",
+                barFillGradientTopStop: "rgb(100, 100, 100)",
+                barFillGradientBottomStart: "rgb(82, 82, 82)",
+                barFillGradientBottomStop: "rgb(104, 104, 104)"
+            }
+        }
+    };
+};
+
+});
+;bespin.tiki.register("::types", {
+    name: "types",
+    dependencies: {  }
+});
+bespin.tiki.module("types:basic",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var catalog = require('bespin:plugins').catalog;
+var console = require('bespin:console').console;
+var Promise = require('bespin:promise').Promise;
+
+var r = require;
+
+/**
+ * These are the basic types that we accept. They are vaguely based on the
+ * Jetpack settings system (https://wiki.mozilla.org/Labs/Jetpack/JEP/24)
+ * although clearly more restricted.
+ * <p>In addition to these types, Jetpack also accepts range, member, password
+ * that we are thinking of adding in the short term.
+ */
+
+/**
+ * 'text' is the default if no type is given.
+ */
+exports.text = {
+    isValid: function(value, typeExt) {
+        return typeof value == 'string';
+    },
+
+    toString: function(value, typeExt) {
+        return value;
+    },
+
+    fromString: function(value, typeExt) {
+        return value;
+    }
+};
+
+/**
+ * We don't currently plan to distinguish between integers and floats
+ */
+exports.number = {
+    isValid: function(value, typeExt) {
+        if (isNaN(value)) {
+            return false;
+        }
+        if (value === null) {
+            return false;
+        }
+        if (value === undefined) {
+            return false;
+        }
+        if (value === Infinity) {
+            return false;
+        }
+        return typeof value == 'number';// && !isNaN(value);
+    },
+
+    toString: function(value, typeExt) {
+        if (!value) {
+            return null;
+        }
+        return '' + value;
+    },
+
+    fromString: function(value, typeExt) {
+        if (!value) {
+            return null;
+        }
+        var reply = parseInt(value, 10);
+        if (isNaN(reply)) {
+            throw new Error('Can\'t convert "' + value + '" to a number.');
+        }
+        return reply;
+    }
+};
+
+/**
+ * true/false values
+ */
+exports.bool = {
+    isValid: function(value, typeExt) {
+        return typeof value == 'boolean';
+    },
+
+    toString: function(value, typeExt) {
+        return '' + value;
+    },
+
+    fromString: function(value, typeExt) {
+        if (value === null) {
+            return null;
+        }
+
+        if (!value.toLowerCase) {
+            return !!value;
+        }
+
+        var lower = value.toLowerCase();
+        if (lower == 'true') {
+            return true;
+        } else if (lower == 'false') {
+            return false;
+        }
+
+        return !!value;
+    }
+};
+
+/**
+ * A JSON object
+ * TODO: Check to see how this works out.
+ */
+exports.object = {
+    isValid: function(value, typeExt) {
+        return typeof value == 'object';
+    },
+
+    toString: function(value, typeExt) {
+        return JSON.stringify(value);
+    },
+
+    fromString: function(value, typeExt) {
+        return JSON.parse(value);
+    }
+};
+
+/**
+ * One of a known set of options
+ */
+exports.selection = {
+    isValid: function(value, typeExt) {
+        if (typeof value != 'string') {
+            return false;
+        }
+
+        if (!typeExt.data) {
+            console.error('Missing data on selection type extension. Skipping');
+            return true;
+        }
+
+        var match = false;
+        typeExt.data.forEach(function(option) {
+            if (value == option) {
+                match = true;
+            }
+        });
+
+        return match;
+    },
+
+    toString: function(value, typeExt) {
+        return value;
+    },
+
+    fromString: function(value, typeExt) {
+        // TODO: should we validate and return null if invalid?
+        return value;
+    },
+
+    resolveTypeSpec: function(extension, typeSpec) {
+        var promise = new Promise();
+
+        if (typeSpec.data) {
+            // If we've got the data already - just use it
+            extension.data = typeSpec.data;
+            promise.resolve();
+        } else if (typeSpec.pointer) {
+            catalog.loadObjectForPropertyPath(typeSpec.pointer).then(function(obj) {
+                var reply = obj(typeSpec);
+                if (typeof reply.then === 'function') {
+                    reply.then(function(data) {
+                        extension.data = data;
+                        promise.resolve();
+                    });
+                } else {
+                    extension.data = reply;
+                    promise.resolve();
+                }
+            }, function(ex) {
+                promise.reject(ex);
+            });
+        } else {
+            // No extra data available
+            console.warn('Missing data/pointer for selection', typeSpec);
+            promise.resolve();
+        }
+
+        return promise;
+    }
+};
+
+});
+
+bespin.tiki.module("types:types",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var catalog = require('bespin:plugins').catalog;
+var console = require('bespin:console').console;
+var Promise = require('bespin:promise').Promise;
+
+/**
+ * Get the simple text-only, no-param version of a typeSpec.
+ */
+exports.getSimpleName = function(typeSpec) {
+    if (!typeSpec) {
+        throw new Error('null|undefined is not a valid typeSpec');
+    }
+
+    if (typeof typeSpec == 'string') {
+        return typeSpec;
+    }
+
+    if (typeof typeSpec == 'object') {
+        if (!typeSpec.name) {
+            throw new Error('Missing name member to typeSpec');
+        }
+
+        return typeSpec.name;
+    }
+
+    throw new Error('Not a typeSpec: ' + typeSpec);
+};
+
+/**
+ * 2 typeSpecs are considered equal if their simple names are the same.
+ */
+exports.equals = function(typeSpec1, typeSpec2) {
+    return exports.getSimpleName(typeSpec1) == exports.getSimpleName(typeSpec2);
+};
+
+/**
+ * A deferred type is one where we hope to find out what the type is just
+ * in time to use it. For example the 'set' command where the type of the 2nd
+ * param is defined by the 1st param.
+ * @param typeSpec An object type spec with name = 'deferred' and a pointer
+ * which to call through catalog.loadObjectForPropertyPath (passing in the
+ * original typeSpec as a parameter). This function is expected to return either
+ * a new typeSpec, or a promise of a typeSpec.
+ * @returns A promise which resolves to the new type spec from the pointer.
+ */
+exports.undeferTypeSpec = function(typeSpec) {
+    // Deferred types are specified by the return from the pointer
+    // function.
+    var promise = new Promise();
+    if (!typeSpec.pointer) {
+        promise.reject(new Error('Missing deferred pointer'));
+        return promise;
+    }
+
+    catalog.loadObjectForPropertyPath(typeSpec.pointer).then(function(obj) {
+        var reply = obj(typeSpec);
+        if (typeof reply.then === 'function') {
+            reply.then(function(newTypeSpec) {
+                promise.resolve(newTypeSpec);
+            }, function(ex) {
+                promise.reject(ex);
+            });
+        } else {
+            promise.resolve(reply);
+        }
+    }, function(ex) {
+        promise.reject(ex);
+    });
+
+    return promise;
+};
+
+// Warning: These next 2 functions are virtually cut and paste from
+// command_line:typehint.js
+// If you change this, there are probably parallel changes to be made there
+// There are 2 differences between the functions:
+// - We lookup type|typehint in the catalog
+// - There is a concept of a default typehint, where there is no similar
+//   thing for types. This is sensible, because hints are optional nice
+//   to have things. Not so for types.
+// Whilst we could abstract out the changes, I'm not sure this simplifies
+// already complex code
+
+/**
+ * Given a string, look up the type extension in the catalog
+ * @param name The type name. Object type specs are not allowed
+ * @returns A promise that resolves to a type extension
+ */
+function resolveObjectType(typeSpec) {
+    var promise = new Promise();
+    var ext = catalog.getExtensionByKey('type', typeSpec.name);
+    if (ext) {
+        promise.resolve({ ext: ext, typeSpec: typeSpec });
+    } else {
+        promise.reject(new Error('Unknown type: ' + typeSpec.name));
+    }
+    return promise;
+};
+
+/**
+ * Look-up a typeSpec and find a corresponding type extension. This function
+ * does not attempt to load the type or go through the resolution process,
+ * for that you probably want #resolveType()
+ * @param typeSpec A string containing the type name or an object with a name
+ * and other type parameters e.g. { name: 'selection', data: [ 'one', 'two' ] }
+ * @return a promise that resolves to an object containing the resolved type
+ * extension and the typeSpec used to resolve the type (which could be different
+ * from the passed typeSpec if this was deferred). The object will be in the
+ * form { ext:... typeSpec:... }
+ */
+function resolveTypeExt(typeSpec) {
+    if (typeof typeSpec === 'string') {
+        return resolveObjectType({ name: typeSpec });
+    }
+
+    if (typeof typeSpec === 'object') {
+        if (typeSpec.name === 'deferred') {
+            var promise = new Promise();
+            exports.undeferTypeSpec(typeSpec).then(function(newTypeSpec) {
+                resolveTypeExt(newTypeSpec).then(function(reply) {
+                    promise.resolve(reply);
+                }, function(ex) {
+                    promise.reject(ex);
+                });
+            });
+            return promise;
+        } else {
+            return resolveObjectType(typeSpec);
+        }
+    }
+
+    throw new Error('Unknown typeSpec type: ' + typeof typeSpec);
+};
+
+/**
+ * Do all the nastiness of: converting the typeSpec to an extension, then
+ * asynchronously loading the extension to a type and then calling
+ * resolveTypeSpec if the loaded type defines it.
+ * @param typeSpec a string or object defining the type to resolve
+ * @returns a promise which resolves to an object containing the type and type
+ * extension as follows: { type:... ext:... }
+ * @see #resolveTypeExt
+ */
+exports.resolveType = function(typeSpec) {
+    var promise = new Promise();
+
+    resolveTypeExt(typeSpec).then(function(data) {
+        data.ext.load(function(type) {
+            // We might need to resolve the typeSpec in a custom way
+            if (typeof type.resolveTypeSpec === 'function') {
+                type.resolveTypeSpec(data.ext, data.typeSpec).then(function() {
+                    promise.resolve({ type: type, ext: data.ext });
+                }, function(ex) {
+                    promise.reject(ex);
+                });
+            } else {
+                // Nothing to resolve - just go
+                promise.resolve({ type: type, ext: data.ext });
+            }
+        });
+    }, function(ex) {
+        promise.reject(ex);
+    });
+
+    return promise;
+};
+
+/**
+ * Convert some data from a string to another type as specified by
+ * <tt>typeSpec</tt>.
+ */
+exports.fromString = function(stringVersion, typeSpec) {
+    var promise = new Promise();
+    exports.resolveType(typeSpec).then(function(typeData) {
+        promise.resolve(typeData.type.fromString(stringVersion, typeData.ext));
+    });
+    return promise;
+};
+
+/**
+ * Convert some data from an original type to a string as specified by
+ * <tt>typeSpec</tt>.
+ */
+exports.toString = function(objectVersion, typeSpec) {
+    var promise = new Promise();
+    exports.resolveType(typeSpec).then(function(typeData) {
+        promise.resolve(typeData.type.toString(objectVersion, typeData.ext));
+    });
+    return promise;
+};
+
+/**
+ * Convert some data from an original type to a string as specified by
+ * <tt>typeSpec</tt>.
+ */
+exports.isValid = function(originalVersion, typeSpec) {
+    var promise = new Promise();
+    exports.resolveType(typeSpec).then(function(typeData) {
+        promise.resolve(typeData.type.isValid(originalVersion, typeData.ext));
+    });
+    return promise;
+};
+
+});
+
+bespin.tiki.module("types:index",function(require,exports,module) {
+
+});
+;bespin.tiki.register("::jquery", {
+    name: "jquery",
+    dependencies: {  }
+});
+bespin.tiki.module("jquery:index",function(require,exports,module) {
+// This module exports the global jQuery.
+
+"define metadata";
+({});
+"end";
+
+exports.$ = window.$;
+
+});
+;bespin.tiki.register("::embedded", {
+    name: "embedded",
+    dependencies: { "theme_manager": "0.0.0", "text_editor": "0.0.0", "appconfig": "0.0.0", "edit_session": "0.0.0", "screen_theme": "0.0.0" }
+});
+bespin.tiki.module("embedded:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+"define metadata";
+({
+    "dependencies": {
+        "appconfig": "0.0.0",
+        "edit_session": "0.0.0",
+        "theme_manager": "0.0.0",
+        "screen_theme": "0.0.0",
+        "text_editor": "0.0.0"
+    }
+});
+"end";
+
+// This plugin is artificial as a convenience. It's just here to collect up
+// the common dependencies for embedded use
+
+});
+;bespin.tiki.register("::settings", {
+    name: "settings",
+    dependencies: { "types": "0.0.0" }
+});
+bespin.tiki.module("settings:commands",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var catalog = require('bespin:plugins').catalog;
+var env = require('environment').env;
+
+var settings = require('settings').settings;
+
+/**
+ * 'set' command
+ */
+exports.setCommand = function(args, request) {
+    var html;
+
+    if (!args.setting) {
+        var settingsList = settings._list();
+        html = '';
+        // first sort the settingsList based on the key
+        settingsList.sort(function(a, b) {
+            if (a.key < b.key) {
+                return -1;
+            } else if (a.key == b.key) {
+                return 0;
+            } else {
+                return 1;
+            }
+        });
+
+        settingsList.forEach(function(setting) {
+            html += '<a class="setting" href="https://wiki.mozilla.org/Labs/Bespin/Settings#' +
+                    setting.key +
+                    '" title="View external documentation on setting: ' +
+                    setting.key +
+                    '" target="_blank">' +
+                    setting.key +
+                    '</a> = ' +
+                    setting.value +
+                    '<br/>';
+        });
+    } else {
+        if (args.value === undefined) {
+            html = '<strong>' + args.setting + '</strong> = ' + settings.get(args.setting);
+        } else {
+            html = 'Setting: <strong>' + args.setting + '</strong> = ' + args.value;
+            settings.set(args.setting, args.value);
+        }
+    }
+
+    request.done(html);
+};
+
+/**
+ * 'unset' command
+ */
+exports.unsetCommand = function(args, request) {
+    settings.resetValue(args.setting);
+    request.done('Reset ' + args.setting + ' to default: ' + settings.get(args.setting));
+};
+
+});
+
+bespin.tiki.module("settings:cookie",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var cookie = require('bespin:util/cookie');
+
+/**
+ * Save the settings in a cookie
+ * This code has not been tested since reboot
+ * @constructor
+ */
+exports.CookiePersister = function() {
+};
+
+exports.CookiePersister.prototype = {
+    loadInitialValues: function(settings) {
+        settings._loadDefaultValues().then(function() {
+            var data = cookie.get('settings');
+            settings._loadFromObject(JSON.parse(data));
+        }.bind(this));
+    },
+
+    persistValue: function(settings, key, value) {
+        try {
+            // Aggregate the settings into a file
+            var data = {};
+            settings._getSettingNames().forEach(function(key) {
+                data[key] = settings.get(key);
+            });
+
+            var stringData = JSON.stringify(data);
+            cookie.set('settings', stringData);
+        } catch (ex) {
+            console.error('Unable to JSONify the settings! ' + ex);
+            return;
+        }
+    }
+};
+
+});
+
+bespin.tiki.module("settings:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+/**
+ * This plug-in manages settings.
+ *
+ * <p>Some quick terminology: A _Choice_, is something that the application
+ * offers as a way to customize how it works. For each _Choice_ there will be
+ * a number of _Options_ but ultimately the user will have a _Setting_ for each
+ * _Choice_. This _Setting_ maybe the default for that _Choice_.
+ *
+ * <p>It provides an API for controlling the known settings. This allows us to
+ * provide better GUI/CLI support. See setting.js
+ * <p>It provides 3 implementations of a setting store:<ul>
+ * <li>MemorySettings: i.e. temporary, non-persistent. Useful in textarea
+ * replacement type scenarios. See memory.js
+ * <li>CookieSettings: Stores the data in a cookie. Generally not practical as
+ * it slows client server communication (if any). See cookie.js
+ * <li>ServerSettings: Stores data on a server using the <tt>server</tt> API.
+ * See server.js
+ * </ul>
+ * <p>It is expected that an HTML5 storage option will be developed soon. This
+ * plug-in did contain a prototype Gears implementation, however this was never
+ * maintained, and has been deleted due to bit-rot.
+ * <p>This plug-in also provides commands to manipulate the settings from the
+ * command_line and canon plug-ins.
+ *
+ * <p>TODO:<ul>
+ * <li>Check what happens when we alter settings from the UI
+ * <li>Ensure that values can be bound in a SC sense
+ * <li>Convert all subscriptions to bindings.
+ * <li>Implement HTML5 storage option
+ * <li>Make all settings have a 'description' member and use that in set|unset
+ * commands.
+ * <li>When the command system is re-worked to include more GUI interaction,
+ * expose data in settings to that system.
+ * </ul>
+ *
+ * <p>For future versions of the API it might be better to decrease the
+ * dependency on settings, and increase it on the system with a setting.
+ * e.g. Now:
+ * <pre>
+ * setting.addSetting({ name:'foo', ... });
+ * settings.set('foo', 'bar');
+ * </pre>
+ * <p>Vs the potentially better:
+ * <pre>
+ * var foo = setting.addSetting({ name:'foo', ... });
+ * foo.value = 'bar';
+ * </pre>
+ * <p>Comparison:
+ * <ul>
+ * <li>The latter version gains by forcing access to the setting to be through
+ * the plug-in providing it, so there wouldn't be any hidden dependencies.
+ * <li>It's also more compact.
+ * <li>It could provide access to to other methods e.g. <tt>foo.reset()</tt>
+ * and <tt>foo.onChange(function(val) {...});</tt> (but see SC binding)
+ * <li>On the other hand dependencies are so spread out right now that it's
+ * probably hard to do this easily. We should move to this in the future.
+ * </ul>
+ */
+
+var catalog = require('bespin:plugins').catalog;
+var console = require('bespin:console').console;
+var Promise = require('bespin:promise').Promise;
+var groupPromises = require('bespin:promise').group;
+
+var types = require('types:types');
+
+/**
+ * Find and configure the settings object.
+ * @see MemorySettings.addSetting()
+ */
+exports.addSetting = function(settingExt) {
+    require('settings').settings.addSetting(settingExt);
+};
+
+/**
+ * Fetch an array of the currently known settings
+ */
+exports.getSettings = function() {
+    return catalog.getExtensions('setting');
+};
+
+/**
+ * Something of a hack to allow the set command to give a clearer definition
+ * of the type to the command line.
+ */
+exports.getTypeSpecFromAssignment = function(typeSpec) {
+    var assignments = typeSpec.assignments;
+    var replacement = 'text';
+
+    if (assignments) {
+        // Find the assignment for 'setting' so we can get it's value
+        var settingAssignment = null;
+        assignments.forEach(function(assignment) {
+            if (assignment.param.name === 'setting') {
+                settingAssignment = assignment;
+            }
+        });
+
+        if (settingAssignment) {
+            var settingName = settingAssignment.value;
+            if (settingName && settingName !== '') {
+                var settingExt = catalog.getExtensionByKey('setting', settingName);
+                if (settingExt) {
+                    replacement = settingExt.type;
+                }
+            }
+        }
+    }
+
+    return replacement;
+};
+
+/**
+ * A base class for all the various methods of storing settings.
+ * <p>Usage:
+ * <pre>
+ * // Create manually, or require 'settings' from the container.
+ * // This is the manual version:
+ * var settings = require('bespin:plugins').catalog.getObject('settings');
+ * // Add a new setting
+ * settings.addSetting({ name:'foo', ... });
+ * // Display the default value
+ * alert(settings.get('foo'));
+ * // Alter the value, which also publishes the change etc.
+ * settings.set('foo', 'bar');
+ * // Reset the value to the default
+ * settings.resetValue('foo');
+ * </pre>
+ * @class
+ */
+exports.MemorySettings = function() {
+};
+
+exports.MemorySettings.prototype = {
+    /**
+     * Storage for the setting values
+     */
+    _values: {},
+
+    /**
+     * Storage for deactivated values
+     */
+    _deactivated: {},
+
+    /**
+     * A Persister is able to store settings. It is an object that defines
+     * two functions:
+     * loadInitialValues(settings) and persistValue(settings, key, value).
+     */
+    setPersister: function(persister) {
+        this._persister = persister;
+        if (persister) {
+            persister.loadInitialValues(this);
+        }
+    },
+
+    /**
+     * Read accessor
+     */
+    get: function(key) {
+        return this._values[key];
+    },
+
+    /**
+     * Override observable.set(key, value) to provide type conversion and
+     * validation.
+     */
+    set: function(key, value) {
+        var settingExt = catalog.getExtensionByKey('setting', key);
+        if (!settingExt) {
+            // If there is no definition for this setting, then warn the user
+            // and store the setting in raw format. If the setting gets defined,
+            // the addSetting() function is called which then takes up the
+            // here stored setting and calls set() to convert the setting.
+            console.warn('Setting not defined: ', key, value);
+            this._deactivated[key] = value;
+        }
+        else if (typeof value == 'string' && settingExt.type == 'string') {
+            // no conversion needed
+            this._values[key] = value;
+        }
+        else {
+            var inline = false;
+
+            types.fromString(value, settingExt.type).then(function(converted) {
+                inline = true;
+                this._values[key] = converted;
+
+                // Inform subscriptions of the change
+                catalog.publish(this, 'settingChange', key, converted);
+            }.bind(this), function(ex) {
+                console.error('Error setting', key, ': ', ex);
+            });
+
+            if (!inline) {
+                console.warn('About to set string version of ', key, 'delaying typed set.');
+                this._values[key] = value;
+            }
+        }
+
+        this._persistValue(key, value);
+        return this;
+    },
+
+    /**
+     * Function to add to the list of available settings.
+     * <p>Example usage:
+     * <pre>
+     * var settings = require('bespin:plugins').catalog.getObject('settings');
+     * settings.addSetting({
+     *     name: 'tabsize', // For use in settings.get('X')
+     *     type: 'number',  // To allow value checking.
+     *     defaultValue: 4  // Default value for use when none is directly set
+     * });
+     * </pre>
+     * @param {object} settingExt Object containing name/type/defaultValue members.
+     */
+    addSetting: function(settingExt) {
+        if (!settingExt.name) {
+            console.error('Setting.name == undefined. Ignoring.', settingExt);
+            return;
+        }
+
+        if (!settingExt.defaultValue === undefined) {
+            console.error('Setting.defaultValue == undefined', settingExt);
+        }
+
+        types.isValid(settingExt.defaultValue, settingExt.type).then(function(valid) {
+            if (!valid) {
+                console.warn('!Setting.isValid(Setting.defaultValue)', settingExt);
+            }
+
+            // The value can be
+            // 1) the value of a setting that is not activated at the moment
+            //       OR
+            // 2) the defaultValue of the setting.
+            var value = this._deactivated[settingExt.name] ||
+                    settingExt.defaultValue;
+
+            // Set the default value up.
+            this.set(settingExt.name, value);
+        }.bind(this), function(ex) {
+            console.error('Type error ', ex, ' ignoring setting ', settingExt);
+        });
+    },
+
+    /**
+     * Reset the value of the <code>key</code> setting to it's default
+     */
+    resetValue: function(key) {
+        var settingExt = catalog.getExtensionByKey('setting', key);
+        if (settingExt) {
+            this.set(key, settingExt.defaultValue);
+        } else {
+            console.log('ignore resetValue on ', key);
+        }
+    },
+
+    resetAll: function() {
+        this._getSettingNames().forEach(function(key) {
+            this.resetValue(key);
+        }.bind(this));
+    },
+
+    /**
+     * Make a list of the valid type names
+     */
+    _getSettingNames: function() {
+        var typeNames = [];
+        catalog.getExtensions('setting').forEach(function(settingExt) {
+            typeNames.push(settingExt.name);
+        });
+        return typeNames;
+    },
+
+    /**
+     * Retrieve a list of the known settings and their values
+     */
+    _list: function() {
+        var reply = [];
+        this._getSettingNames().forEach(function(setting) {
+            reply.push({
+                'key': setting,
+                'value': this.get(setting)
+            });
+        }.bind(this));
+        return reply;
+    },
+
+    /**
+     * delegates to the persister. no-op if there's no persister.
+     */
+    _persistValue: function(key, value) {
+        var persister = this._persister;
+        if (persister) {
+            persister.persistValue(this, key, value);
+        }
+    },
+
+    /**
+     * Delegates to the persister, otherwise sets up the defaults if no
+     * persister is available.
+     */
+    _loadInitialValues: function() {
+        var persister = this._persister;
+        if (persister) {
+            persister.loadInitialValues(this);
+        } else {
+            this._loadDefaultValues();
+        }
+    },
+
+    /**
+     * Prime the local cache with the defaults.
+     */
+    _loadDefaultValues: function() {
+        return this._loadFromObject(this._defaultValues());
+    },
+
+    /**
+     * Utility to load settings from an object
+     */
+    _loadFromObject: function(data) {
+        var promises = [];
+        // take the promise action out of the loop to avoid closure problems
+        var setterFactory = function(keyName) {
+            return function(value) {
+                this.set(keyName, value);
+            };
+        };
+
+        for (var key in data) {
+            if (data.hasOwnProperty(key)) {
+                var valueStr = data[key];
+                var settingExt = catalog.getExtensionByKey('setting', key);
+                if (settingExt) {
+                    // TODO: We shouldn't just ignore values without a setting
+                    var promise = types.fromString(valueStr, settingExt.type);
+                    var setter = setterFactory(key);
+                    promise.then(setter);
+                    promises.push(promise);
+                }
+            }
+        }
+
+        // Promise.group (a.k.a groupPromises) gives you a list of all the data
+        // in the grouped promises. We don't want that in case we change how
+        // this works with ignored settings (see above).
+        // So we do this to hide the list of promise resolutions.
+        var replyPromise = new Promise();
+        groupPromises(promises).then(function() {
+            replyPromise.resolve();
+        });
+        return replyPromise;
+    },
+
+    /**
+     * Utility to grab all the settings and export them into an object
+     */
+    _saveToObject: function() {
+        var promises = [];
+        var reply = {};
+
+        this._getSettingNames().forEach(function(key) {
+            var value = this.get(key);
+            var settingExt = catalog.getExtensionByKey('setting', key);
+            if (settingExt) {
+                // TODO: We shouldn't just ignore values without a setting
+                var promise = types.toString(value, settingExt.type);
+                promise.then(function(value) {
+                    reply[key] = value;
+                });
+                promises.push(promise);
+            }
+        }.bind(this));
+
+        var replyPromise = new Promise();
+        groupPromises(promises).then(function() {
+            replyPromise.resolve(reply);
+        });
+        return replyPromise;
+    },
+
+    /**
+     * The default initial settings
+     */
+    _defaultValues: function() {
+        var defaultValues = {};
+        catalog.getExtensions('setting').forEach(function(settingExt) {
+            defaultValues[settingExt.name] = settingExt.defaultValue;
+        });
+        return defaultValues;
+    }
+};
+
+exports.settings = new exports.MemorySettings();
+
+});
+;bespin.tiki.register("::appconfig", {
+    name: "appconfig",
+    dependencies: { "jquery": "0.0.0", "canon": "0.0.0", "settings": "0.0.0" }
+});
+bespin.tiki.module("appconfig:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+var $ = require('jquery').$;
+var settings = require('settings').settings;
+var group = require("bespin:promise").group;
+var Promise = require("bespin:promise").Promise;
+var console = require("bespin:console").console;
+var Trace = require("bespin:util/stacktrace").Trace;
+var util = require('bespin:util/util');
+
+var firstBespin = true;
+
+/*
+ * launch Bespin with the configuration provided. The configuration is
+ * an object with the following properties:
+ * - theme: an object with the basePlugin as string and the standardTheme as
+ *          string. Both are optional. If no basePlugin is given, screen_theme
+ *          is used if this exists.
+ * - objects: an object with a collection of named objects that will be
+ *            registered with the plugin catalog (see PluginCatalog.registerObject)
+ *            This will automatically be augmented with sane defaults (for
+ *            example, most Bespin users want a text editor!)
+ * - gui: instructions on how to build a GUI. Specifically, the current border
+ *        layout positions will be filled in. Again this provides sane defaults.
+ * - container: node to attach to (optional). If not provided a node will be
+ *              created. and added to the body.
+ * - settings: settings to preconfigure
+ */
+exports.launch = function(config) {
+    var launchPromise = new Promise();
+
+    // Remove the "Loading..." hint.
+    $('#_bespin_loading').remove();
+
+    // This will hold the require function to get the catalog.
+    var require;
+
+    // Is this the fist Bespin?
+    if (firstBespin) {
+        // Use the global require.
+        require = bespin.tiki.require;
+        firstBespin = false;
+    } else {
+        // Otherwise create a new tiki-bespin sandbox and a new require function.
+        var sandbox = new (bespin.tiki.require('bespin:sandbox').Sandbox);
+        require = sandbox.createRequire({
+            id: 'index',
+            ownerPackage: bespin.tiki.loader.anonymousPackage
+        });
+    }
+
+    // Here we go: Require the catalog that is used for this Bespin instance.
+    var catalog = require('bespin:plugins').catalog;
+
+    // Launch Bespin!
+    config = config || {};
+    exports.normalizeConfig(catalog, config);
+    var objects = config.objects;
+    for (var key in objects) {
+        catalog.registerObject(key, objects[key]);
+    }
+
+    for (var setting in config.settings) {
+        settings.set(setting, config.settings[setting]);
+    }
+
+    // Resolve the launchPromise and pass the env variable along.
+    var resolveLaunchPromise = function() {
+        var env = require("environment").env;
+
+        var editor = env.editor;
+        if (editor) {
+            if (config.lineNumber) {
+                editor.setLineNumber(config.lineNumber);
+            }
+            if (config.stealFocus) {
+                editor.focus = true;
+            }
+            if (config.readOnly) {
+                editor.readOnly = config.readOnly;
+            }
+            if (config.syntax) {
+                editor.syntax = config.syntax;
+            }
+        }
+        var commandLine = catalog.getObject('commandLine');
+        if (commandLine) {
+            env.commandLine = commandLine;
+        }
+
+        catalog.publish(this, 'appLaunched');
+
+        launchPromise.resolve(env);
+    }.bind(this);
+
+    var themeLoadingPromise = new Promise();
+
+    themeLoadingPromise.then(function() {
+        if (objects.loginController) {
+            catalog.createObject("loginController").then(
+                function(loginController) {
+                    var pr = loginController.showLogin();
+                    pr.then(function(username) {
+                        // Add the username as constructor argument.
+                        config.objects.session.arguments.push(username);
+
+                        exports.launchEditor(catalog, config).then(resolveLaunchPromise,
+                                        launchPromise.reject.bind(launchPromise));
+                    });
+                });
+        } else {
+            exports.launchEditor(catalog, config).then(resolveLaunchPromise,
+                                        launchPromise.reject.bind(launchPromise));
+        }
+    }, function(error) {
+        launchPromise.reject(error);
+    });
+
+    // If the themeManager plugin is there, then check for theme configuration.
+    if (catalog.plugins.theme_manager) {
+        bespin.tiki.require.ensurePackage('::theme_manager', function() {
+            var themeManager = require('theme_manager');
+            if (config.theme.basePlugin) {
+                themeManager.setBasePlugin(config.theme.basePlugin);
+            }
+            if (config.theme.standard) {
+                themeManager.setStandardTheme(config.theme.standard);
+            }
+            themeManager.startParsing().then(function() {
+                themeLoadingPromise.resolve();
+            }, function(error) {
+                themeLoadingPromise.reject(error);
+            });
+        });
+    } else {
+        themeLoadingPromise.resolve();
+    }
+
+    return launchPromise;
+};
+
+exports.normalizeConfig = function(catalog, config) {
+    if (config.objects === undefined) {
+        config.objects = {};
+    }
+    if (config.autoload === undefined) {
+        config.autoload = [];
+    }
+    if (config.theme === undefined) {
+        config.theme = {};
+    }
+    if (!config.theme.basePlugin && catalog.plugins.screen_theme) {
+        config.theme.basePlugin = 'screen_theme';
+    }
+    if (!config.initialContent) {
+        config.initialContent = '';
+    }
+    if (!config.settings) {
+        config.settings = {};
+    }
+
+    if (!config.objects.notifier && catalog.plugins.notifier) {
+        config.objects.notifier = {
+        };
+    }
+
+    if (!config.objects.loginController && catalog.plugins.userident) {
+        config.objects.loginController = {
+        };
+    }
+    if (!config.objects.fileHistory && catalog.plugins.file_history) {
+        config.objects.fileHistory = {
+            factory: 'file_history',
+            arguments: [
+                "session"
+            ],
+            objects: {
+                "0": "session"
+            }
+        };
+    }
+    if (!config.objects.server && catalog.plugins.bespin_server) {
+        config.objects.server = {
+            factory: "bespin_server"
+        };
+        config.objects.filesource = {
+            factory: "bespin_filesource",
+            arguments: [
+                "server"
+            ],
+            objects: {
+                "0": "server"
+            }
+        };
+    }
+    if (!config.objects.files && catalog.plugins.filesystem &&
+        config.objects.filesource) {
+        config.objects.files = {
+            arguments: [
+                "filesource"
+            ],
+            "objects": {
+                "0": "filesource"
+            }
+        };
+    }
+    if (!config.objects.editor) {
+        config.objects.editor = {
+            factory: "text_editor",
+            arguments: [
+                config.initialContent
+            ]
+        };
+    }
+    if (!config.objects.session) {
+        config.objects.session = {
+            arguments: [
+                "editor"
+            ],
+            "objects": {
+                "0": "editor"
+            }
+        };
+    }
+    if (!config.objects.commandLine && catalog.plugins.command_line) {
+        config.objects.commandLine = {
+        };
+    }
+
+    if (config.gui === undefined) {
+        config.gui = {};
+    }
+
+    var alreadyRegistered = {};
+    for (var key in config.gui) {
+        var desc = config.gui[key];
+        if (desc.component) {
+            alreadyRegistered[desc.component] = true;
+        }
+    }
+
+    if (!config.gui.center && config.objects.editor
+        && !alreadyRegistered.editor) {
+        config.gui.center = { component: "editor" };
+    }
+    if (!config.gui.south && config.objects.commandLine
+        && !alreadyRegistered.commandLine) {
+        config.gui.south = { component: "commandLine" };
+    }
+};
+
+exports.launchEditor = function(catalog, config) {
+    var retPr = new Promise();
+
+    if (config === null) {
+        var message = 'Cannot start editor without a configuration!';
+        console.error(message);
+        retPr.reject(message);
+        return retPr;
+    }
+
+    var pr = createAllObjects(catalog, config);
+    pr.then(function() {
+        generateGUI(catalog, config, retPr);
+    }, function(error) {
+        console.error('Error while creating objects');
+        new Trace(error).log();
+        retPr.reject(error);
+    });
+
+    return retPr;
+};
+
+var createAllObjects = function(catalog, config) {
+    var promises = [];
+    for (var objectName in config.objects) {
+        promises.push(catalog.createObject(objectName));
+    }
+    return group(promises);
+};
+
+var generateGUI = function(catalog, config, pr) {
+    var error;
+
+    var container = document.createElement('div');
+    container.setAttribute('class', 'container');
+
+    var centerContainer = document.createElement('div');
+    centerContainer.setAttribute('class', 'center-container');
+    container.appendChild(centerContainer);
+
+    var element = config.element || document.body;
+    // Add the 'bespin' class to the element in case it doesn't have this already.
+    util.addClass(element, 'bespin');
+    element.appendChild(container);
+
+    for (var place in config.gui) {
+        var descriptor = config.gui[place];
+
+        var component = catalog.getObject(descriptor.component);
+        if (!component) {
+            error = 'Cannot find object ' + descriptor.component +
+                            ' to attach to the Bespin UI';
+            console.error(error);
+            pr.reject(error);
+            return;
+        }
+
+        element = component.element;
+        if (!element) {
+            error = 'Component ' + descriptor.component + ' does not have' +
+                          ' an "element" attribute to attach to the Bespin UI';
+            console.error(error);
+            pr.reject(error);
+            return;
+        }
+
+        $(element).addClass(place);
+
+        if (place == 'west' || place == 'east' || place == 'center') {
+            centerContainer.appendChild(element);
+        } else {
+            container.appendChild(element);
+        }
+
+        // Call the elementAppended event if there is one.
+        if (component.elementAppended) {
+            component.elementAppended();
+        }
+    }
+
+    pr.resolve();
+};
+
+});
+;bespin.tiki.register("::events", {
+    name: "events",
+    dependencies: { "traits": "0.0.0" }
+});
+bespin.tiki.module("events:index",function(require,exports,module) {
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+exports.Event = function() {
+    var handlers = [];
+    var evt = function() {
+        var args = arguments;
+        handlers.forEach(function(handler) { handler.func.apply(null, args); });
+    };
+
+    /**
+     * Adds a new handler via
+     *  a) evt.add(handlerFunc)
+     *  b) evt.add(reference, handlerFunc)
+     */
+    evt.add = function() {
+        if (arguments.length == 1) {
+            handlers.push({
+                ref: arguments[0],
+                func: arguments[0]
+            });
+        } else {
+            handlers.push({
+                ref: arguments[0],
+                func: arguments[1]
+            });
+        }
+    };
+
+    evt.remove = function(ref) {
+        var notEqual = function(other) { return ref !== other.ref; };
+        handlers = handlers.filter(notEqual);
+    };
+
+    evt.removeAll = function() {
+        handlers = [];
+    };
+
+    return evt;
+};
+
+
+});
+;bespin.tiki.register("::screen_theme", {
+    name: "screen_theme",
+    dependencies: { "theme_manager": "0.0.0" }
+});
+bespin.tiki.module("screen_theme:index",function(require,exports,module) {
+
+});
+
+(function() {
+var $ = bespin.tiki.require("jquery").$;
+$(document).ready(function() {
+    bespin.tiki.require("bespin:plugins").catalog.registerMetadata({"text_editor": {"resourceURL": "resources/text_editor/", "description": "Canvas-based text editor component and many common editing commands", "dependencies": {"completion": "0.0.0", "undomanager": "0.0.0", "settings": "0.0.0", "canon": "0.0.0", "rangeutils": "0.0.0", "traits": "0.0.0", "theme_manager": "0.0.0", "keyboard": "0.0.0", "edit_session": "0.0.0", "syntax_manager": "0.0.0"}, "testmodules": ["tests/controllers/testLayoutmanager", "tests/models/testTextstorage", "tests/testScratchcanvas", "tests/utils/testRect"], "provides": [{"action": "new", "pointer": "views/editor#EditorView", "ep": "factory", "name": "text_editor"}, {"pointer": "views/editor#EditorView", "ep": "appcomponent", "name": "editor_view"}, {"predicates": {"isTextView": true}, "pointer": "commands/editing#backspace", "ep": "command", "key": "backspace", "name": "backspace"}, {"predicates": {"isTextView": true}, "pointer": "commands/editing#deleteCommand", "ep": "command", "key": "delete", "name": "delete"}, {"description": "Delete all lines currently selected", "key": "ctrl_d", "predicates": {"isTextView": true}, "pointer": "commands/editing#deleteLines", "ep": "command", "name": "deletelines"}, {"description": "Create a new, empty line below the current one", "key": "ctrl_return", "predicates": {"isTextView": true}, "pointer": "commands/editing#openLine", "ep": "command", "name": "openline"}, {"description": "Join the current line with the following", "key": "ctrl_shift_j", "predicates": {"isTextView": true}, "pointer": "commands/editing#joinLines", "ep": "command", "name": "joinline"}, {"params": [{"defaultValue": "", "type": "text", "name": "text", "description": "The text to insert"}], "pointer": "commands/editing#insertText", "ep": "command", "name": "insertText"}, {"predicates": {"completing": false, "isTextView": true}, "pointer": "commands/editing#newline", "ep": "command", "key": "return", "name": "newline"}, {"predicates": {"completing": false, "isTextView": true}, "pointer": "commands/editing#tab", "ep": "command", "key": "tab", "name": "tab"}, {"predicates": {"isTextView": true}, "pointer": "commands/editing#untab", "ep": "command", "key": "shift_tab", "name": "untab"}, {"predicates": {"isTextView": true}, "ep": "command", "name": "move"}, {"description": "Repeat the last search (forward)", "pointer": "commands/editor#findNextCommand", "ep": "command", "key": "ctrl_g", "name": "findnext"}, {"description": "Repeat the last search (backward)", "pointer": "commands/editor#findPrevCommand", "ep": "command", "key": "ctrl_shift_g", "name": "findprev"}, {"predicates": {"completing": false, "isTextView": true}, "pointer": "commands/movement#moveDown", "ep": "command", "key": "down", "name": "move down"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#moveLeft", "ep": "command", "key": "left", "name": "move left"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#moveRight", "ep": "command", "key": "right", "name": "move right"}, {"predicates": {"completing": false, "isTextView": true}, "pointer": "commands/movement#moveUp", "ep": "command", "key": "up", "name": "move up"}, {"predicates": {"isTextView": true}, "ep": "command", "name": "select"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectDown", "ep": "command", "key": "shift_down", "name": "select down"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectLeft", "ep": "command", "key": "shift_left", "name": "select left"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectRight", "ep": "command", "key": "shift_right", "name": "select right"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectUp", "ep": "command", "key": "shift_up", "name": "select up"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#moveLineEnd", "ep": "command", "key": ["end", "ctrl_right"], "name": "move lineend"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectLineEnd", "ep": "command", "key": ["shift_end", "ctrl_shift_right"], "name": "select lineend"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#moveDocEnd", "ep": "command", "key": "ctrl_down", "name": "move docend"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectDocEnd", "ep": "command", "key": "ctrl_shift_down", "name": "select docend"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#moveLineStart", "ep": "command", "key": ["home", "ctrl_left"], "name": "move linestart"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectLineStart", "ep": "command", "key": ["shift_home", "ctrl_shift_left"], "name": "select linestart"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#moveDocStart", "ep": "command", "key": "ctrl_up", "name": "move docstart"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectDocStart", "ep": "command", "key": "ctrl_shift_up", "name": "select docstart"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#moveNextWord", "ep": "command", "key": ["alt_right"], "name": "move nextword"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectNextWord", "ep": "command", "key": ["alt_shift_right"], "name": "select nextword"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#movePreviousWord", "ep": "command", "key": ["alt_left"], "name": "move prevword"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectPreviousWord", "ep": "command", "key": ["alt_shift_left"], "name": "select prevword"}, {"predicates": {"isTextView": true}, "pointer": "commands/movement#selectAll", "ep": "command", "key": ["ctrl_a", "meta_a"], "name": "select all"}, {"predicates": {"isTextView": true}, "ep": "command", "name": "scroll"}, {"predicates": {"isTextView": true}, "pointer": "commands/scrolling#scrollDocStart", "ep": "command", "key": "ctrl_home", "name": "scroll start"}, {"predicates": {"isTextView": true}, "pointer": "commands/scrolling#scrollDocEnd", "ep": "command", "key": "ctrl_end", "name": "scroll end"}, {"predicates": {"isTextView": true}, "pointer": "commands/scrolling#scrollPageDown", "ep": "command", "key": "pagedown", "name": "scroll down"}, {"predicates": {"isTextView": true}, "pointer": "commands/scrolling#scrollPageUp", "ep": "command", "key": "pageup", "name": "scroll up"}, {"pointer": "commands/editor#lcCommand", "description": "Change all selected text to lowercase", "withKey": "CMD SHIFT L", "ep": "command", "name": "lc"}, {"pointer": "commands/editor#detabCommand", "description": "Convert tabs to spaces.", "params": [{"defaultValue": null, "type": "text", "name": "tabsize", "description": "Optionally, specify a tab size. (Defaults to setting.)"}], "ep": "command", "name": "detab"}, {"pointer": "commands/editor#entabCommand", "description": "Convert spaces to tabs.", "params": [{"defaultValue": null, "type": "text", "name": "tabsize", "description": "Optionally, specify a tab size. (Defaults to setting.)"}], "ep": "command", "name": "entab"}, {"pointer": "commands/editor#trimCommand", "description": "trim trailing or leading whitespace from each line in selection", "params": [{"defaultValue": "both", "type": {"data": [{"name": "left"}, {"name": "right"}, {"name": "both"}], "name": "selection"}, "name": "side", "description": "Do we trim from the left, right or both"}], "ep": "command", "name": "trim"}, {"pointer": "commands/editor#ucCommand", "description": "Change all selected text to uppercase", "withKey": "CMD SHIFT U", "ep": "command", "name": "uc"}, {"predicates": {"isTextView": true}, "pointer": "controllers/undo#undoManagerCommand", "ep": "command", "key": ["ctrl_shift_z"], "name": "redo"}, {"predicates": {"isTextView": true}, "pointer": "controllers/undo#undoManagerCommand", "ep": "command", "key": ["ctrl_z"], "name": "undo"}, {"description": "The distance in characters between each tab", "defaultValue": 8, "type": "number", "ep": "setting", "name": "tabstop"}, {"description": "Customize the keymapping", "defaultValue": "{}", "type": "text", "ep": "setting", "name": "customKeymapping"}, {"description": "The keymapping to use", "defaultValue": "standard", "type": "text", "ep": "setting", "name": "keymapping"}, {"description": "The editor font size in pixels", "defaultValue": 14, "type": "number", "ep": "setting", "name": "fontsize"}, {"description": "The editor font face", "defaultValue": "Monaco, Lucida Console, monospace", "type": "text", "ep": "setting", "name": "fontface"}, {"defaultValue": {"color": "#e5c138", "paddingLeft": 5, "backgroundColor": "#4c4a41", "paddingRight": 10}, "ep": "themevariable", "name": "gutter"}, {"defaultValue": {"color": "#e6e6e6", "selectedTextBackgroundColor": "#526da5", "backgroundColor": "#2a211c", "cursorColor": "#879aff", "unfocusedCursorBackgroundColor": "#73171e", "unfocusedCursorColor": "#ff0033"}, "ep": "themevariable", "name": "editor"}, {"defaultValue": {"comment": "#666666", "directive": "#999999", "keyword": "#42A8ED", "plain": "#e6e6e6", "error": "#ff0000", "operator": "#88BBFF", "identifier": "#D841FF", "string": "#039A0A"}, "ep": "themevariable", "name": "highlighter"}, {"defaultValue": {"nibStrokeStyle": "rgb(150, 150, 150)", "fullAlpha": 1.0, "barFillStyle": "rgb(0, 0, 0)", "particalAlpha": 0.29999999999999999, "barFillGradientBottomStop": "rgb(44, 44, 44)", "backgroundStyle": "#2A211C", "thickness": 17, "padding": 5, "trackStrokeStyle": "rgb(150, 150, 150)", "nibArrowStyle": "rgb(255, 255, 255)", "barFillGradientBottomStart": "rgb(22, 22, 22)", "barFillGradientTopStop": "rgb(40, 40, 40)", "barFillGradientTopStart": "rgb(90, 90, 90)", "nibStyle": "rgb(100, 100, 100)", "trackFillStyle": "rgba(50, 50, 50, 0.8)"}, "ep": "themevariable", "name": "scroller"}, {"description": "Event: Notify when something within the editor changed.", "params": [{"required": true, "name": "pointer", "description": "Function that is called whenever a change happened."}], "ep": "extensionpoint", "name": "editorChange"}], "type": "plugins/supported", "name": "text_editor"}, "less": {"resourceURL": "resources/less/", "description": "Leaner CSS", "contributors": [], "author": "Alexis Sellier <self@cloudhead.net>", "url": "http://lesscss.org", "version": "1.0.11", "dependencies": {}, "testmodules": [], "provides": [], "keywords": ["css", "parser", "lesscss", "browser"], "type": "plugins/thirdparty", "name": "less"}, "theme_manager_base": {"resourceURL": "resources/theme_manager_base/", "name": "theme_manager_base", "share": true, "environments": {"main": true}, "dependencies": {}, "testmodules": [], "provides": [{"description": "(Less)files holding the CSS style information for the UI.", "params": [{"required": true, "name": "url", "description": "Name of the ThemeStylesFile - can also be an array of files."}], "ep": "extensionpoint", "name": "themestyles"}, {"description": "Event: Notify when the theme(styles) changed.", "params": [{"required": true, "name": "pointer", "description": "Function that is called whenever the theme is changed."}], "ep": "extensionpoint", "name": "themeChange"}, {"indexOn": "name", "description": "A theme is a way change the look of the application.", "params": [{"required": false, "name": "url", "description": "Name of a ThemeStylesFile that holds theme specific CSS rules - can also be an array of files."}, {"required": true, "name": "pointer", "description": "Function that returns the ThemeData"}], "ep": "extensionpoint", "name": "theme"}], "type": "plugins/supported", "description": "Defines extension points required for theming"}, "canon": {"resourceURL": "resources/canon/", "name": "canon", "environments": {"main": true, "worker": false}, "dependencies": {"environment": "0.0.0", "events": "0.0.0", "settings": "0.0.0"}, "testmodules": [], "provides": [{"indexOn": "name", "description": "A command is a bit of functionality with optional typed arguments which can do something small like moving the cursor around the screen, or large like cloning a project from VCS.", "ep": "extensionpoint", "name": "command"}, {"description": "An extension point to be called whenever a new command begins output.", "ep": "extensionpoint", "name": "addedRequestOutput"}, {"description": "A dimensionsChanged is a way to be notified of changes to the dimension of Bespin", "ep": "extensionpoint", "name": "dimensionsChanged"}, {"description": "How many typed commands do we recall for reference?", "defaultValue": 50, "type": "number", "ep": "setting", "name": "historyLength"}, {"action": "create", "pointer": "history#InMemoryHistory", "ep": "factory", "name": "history"}], "type": "plugins/supported", "description": "Manages commands"}, "traits": {"resourceURL": "resources/traits/", "description": "Traits library, traitsjs.org", "dependencies": {}, "testmodules": [], "provides": [], "type": "plugins/thirdparty", "name": "traits"}, "keyboard": {"resourceURL": "resources/keyboard/", "description": "Keyboard shortcuts", "dependencies": {"canon": "0.0", "settings": "0.0"}, "testmodules": ["tests/testKeyboard"], "provides": [{"description": "A keymapping defines how keystrokes are interpreted.", "params": [{"required": true, "name": "states", "description": "Holds the states and all the informations about the keymapping. See docs: pluginguide/keymapping"}], "ep": "extensionpoint", "name": "keymapping"}], "type": "plugins/supported", "name": "keyboard"}, "worker_manager": {"resourceURL": "resources/worker_manager/", "description": "Manages a web worker on the browser side", "dependencies": {"canon": "0.0.0", "events": "0.0.0", "underscore": "0.0.0"}, "testmodules": [], "provides": [{"description": "Low-level web worker control (for plugin development)", "ep": "command", "name": "worker"}, {"description": "Restarts all web workers (for plugin development)", "pointer": "#workerRestartCommand", "ep": "command", "name": "worker restart"}], "type": "plugins/supported", "name": "worker_manager"}, "edit_session": {"resourceURL": "resources/edit_session/", "description": "Ties together the files being edited with the views on screen", "dependencies": {"events": "0.0.0"}, "testmodules": ["tests/testSession"], "provides": [{"action": "call", "pointer": "#createSession", "ep": "factory", "name": "session"}], "type": "plugins/supported", "name": "edit_session"}, "syntax_manager": {"resourceURL": "resources/syntax_manager/", "name": "syntax_manager", "environments": {"main": true, "worker": false}, "dependencies": {"worker_manager": "0.0.0", "events": "0.0.0", "underscore": "0.0.0", "syntax_directory": "0.0.0"}, "testmodules": [], "provides": [], "type": "plugins/supported", "description": "Provides syntax highlighting services for the editor"}, "completion": {"resourceURL": "resources/completion/", "description": "Code completion support", "dependencies": {"jquery": "0.0.0", "ctags": "0.0.0", "rangeutils": "0.0.0", "canon": "0.0.0", "underscore": "0.0.0"}, "testmodules": [], "provides": [{"indexOn": "name", "description": "Code completion support for specific languages", "ep": "extensionpoint", "name": "completion"}, {"description": "Accept the chosen completion", "key": ["return", "tab"], "predicates": {"completing": true}, "pointer": "controller#completeCommand", "ep": "command", "name": "complete"}, {"description": "Abandon the completion", "key": "escape", "predicates": {"completing": true}, "pointer": "controller#completeCancelCommand", "ep": "command", "name": "complete cancel"}, {"description": "Choose the completion below", "key": "down", "predicates": {"completing": true}, "pointer": "controller#completeDownCommand", "ep": "command", "name": "complete down"}, {"description": "Choose the completion above", "key": "up", "predicates": {"completing": true}, "pointer": "controller#completeUpCommand", "ep": "command", "name": "complete up"}], "type": "plugins/supported", "name": "completion"}, "environment": {"testmodules": [], "dependencies": {"settings": "0.0.0"}, "resourceURL": "resources/environment/", "name": "environment", "type": "plugins/supported"}, "undomanager": {"resourceURL": "resources/undomanager/", "description": "Manages undoable events", "testmodules": ["tests/testUndomanager"], "provides": [{"pointer": "#undoManagerCommand", "ep": "command", "key": ["ctrl_shift_z"], "name": "redo"}, {"pointer": "#undoManagerCommand", "ep": "command", "key": ["ctrl_z"], "name": "undo"}], "type": "plugins/supported", "name": "undomanager"}, "rangeutils": {"testmodules": ["tests/test"], "type": "plugins/supported", "resourceURL": "resources/rangeutils/", "description": "Utility functions for dealing with ranges of text", "name": "rangeutils"}, "ctags": {"resourceURL": "resources/ctags/", "description": "Reads and writes tag files", "dependencies": {"traits": "0.0.0", "underscore": "0.0.0"}, "testmodules": [], "type": "plugins/supported", "name": "ctags"}, "syntax_directory": {"resourceURL": "resources/syntax_directory/", "name": "syntax_directory", "environments": {"main": true, "worker": true}, "dependencies": {}, "testmodules": [], "provides": [{"register": "#discoveredNewSyntax", "ep": "extensionhandler", "name": "syntax"}], "type": "plugins/supported", "description": "Catalogs the available syntax engines"}, "theme_manager": {"resourceURL": "resources/theme_manager/", "name": "theme_manager", "share": true, "environments": {"main": true, "worker": false}, "dependencies": {"theme_manager_base": "0.0.0", "settings": "0.0.0", "events": "0.0.0", "less": "0.0.0"}, "testmodules": [], "provides": [{"unregister": "themestyles#unregisterThemeStyles", "register": "themestyles#registerThemeStyles", "ep": "extensionhandler", "name": "themestyles"}, {"unregister": "index#unregisterTheme", "register": "index#registerTheme", "ep": "extensionhandler", "name": "theme"}, {"defaultValue": "standard", "description": "The theme plugin's name to use. If set to 'standard' no theme will be used", "type": "text", "ep": "setting", "name": "theme"}, {"pointer": "#appLaunched", "ep": "appLaunched"}], "type": "plugins/supported", "description": "Handles colors in Bespin"}, "underscore": {"testmodules": [], "type": "plugins/thirdparty", "resourceURL": "resources/underscore/", "description": "Functional Programming Aid for Javascript. Works well with jQuery.", "name": "underscore"}, "whitetheme": {"resourceURL": "resources/whitetheme/", "description": "Provides a white theme for Bespin", "dependencies": {"theme_manager": "0.0.0"}, "testmodules": [], "provides": [{"url": ["theme.less"], "description": "A basic white theme", "pointer": "index#whiteTheme", "ep": "theme", "name": "white"}], "type": "plugins/supported", "name": "whitetheme"}, "types": {"resourceURL": "resources/types/", "description": "Defines parameter types for commands", "testmodules": ["tests/testBasic", "tests/testTypes"], "provides": [{"indexOn": "name", "description": "Commands can accept various arguments that the user enters or that are automatically supplied by the environment. Those arguments have types that define how they are supplied or completed. The pointer points to an object with methods convert(str value) and getDefault(). Both functions have `this` set to the command's `takes` parameter. If getDefault is not defined, the default on the command's `takes` is used, if there is one. The object can have a noInput property that is set to true to reflect that this type is provided directly by the system. getDefault must be defined in that case.", "ep": "extensionpoint", "name": "type"}, {"description": "Text that the user needs to enter.", "pointer": "basic#text", "ep": "type", "name": "text"}, {"description": "A JavaScript number", "pointer": "basic#number", "ep": "type", "name": "number"}, {"description": "A true/false value", "pointer": "basic#bool", "ep": "type", "name": "boolean"}, {"description": "An object that converts via JavaScript", "pointer": "basic#object", "ep": "type", "name": "object"}, {"description": "A string that is constrained to be one of a number of pre-defined values", "pointer": "basic#selection", "ep": "type", "name": "selection"}, {"description": "A type which we don't understand from the outset, but which we hope context can help us with", "ep": "type", "name": "deferred"}], "type": "plugins/supported", "name": "types"}, "jquery": {"testmodules": [], "resourceURL": "resources/jquery/", "name": "globaljquery", "type": "thirdparty"}, "embedded": {"testmodules": [], "dependencies": {"theme_manager": "0.0.0", "text_editor": "0.0.0", "appconfig": "0.0.0", "edit_session": "0.0.0", "screen_theme": "0.0.0"}, "resourceURL": "resources/embedded/", "name": "embedded", "type": "plugins/supported"}, "settings": {"resourceURL": "resources/settings/", "description": "Infrastructure and commands for managing user preferences", "share": true, "dependencies": {"types": "0.0"}, "testmodules": [], "provides": [{"description": "Storage for the customizable Bespin settings", "pointer": "index#settings", "ep": "appcomponent", "name": "settings"}, {"indexOn": "name", "description": "A setting is something that the application offers as a way to customize how it works", "register": "index#addSetting", "ep": "extensionpoint", "name": "setting"}, {"description": "A settingChange is a way to be notified of changes to a setting", "ep": "extensionpoint", "name": "settingChange"}, {"pointer": "commands#setCommand", "description": "define and show settings", "params": [{"defaultValue": null, "type": {"pointer": "settings:index#getSettings", "name": "selection"}, "name": "setting", "description": "The name of the setting to display or alter"}, {"defaultValue": null, "type": {"pointer": "settings:index#getTypeSpecFromAssignment", "name": "deferred"}, "name": "value", "description": "The new value for the chosen setting"}], "ep": "command", "name": "set"}, {"pointer": "commands#unsetCommand", "description": "unset a setting entirely", "params": [{"type": {"pointer": "settings:index#getSettings", "name": "selection"}, "name": "setting", "description": "The name of the setting to return to defaults"}], "ep": "command", "name": "unset"}], "type": "plugins/supported", "name": "settings"}, "appconfig": {"resourceURL": "resources/appconfig/", "description": "Instantiates components and displays the GUI based on configuration.", "dependencies": {"jquery": "0.0.0", "canon": "0.0.0", "settings": "0.0.0"}, "testmodules": [], "provides": [{"description": "Event: Fired when the app is completely launched.", "ep": "extensionpoint", "name": "appLaunched"}], "type": "plugins/supported", "name": "appconfig"}, "events": {"resourceURL": "resources/events/", "description": "Dead simple event implementation", "dependencies": {"traits": "0.0"}, "testmodules": ["tests/test"], "provides": [], "type": "plugins/supported", "name": "events"}, "screen_theme": {"resourceURL": "resources/screen_theme/", "description": "Bespins standard theme basePlugin", "dependencies": {"theme_manager": "0.0.0"}, "testmodules": [], "provides": [{"url": ["theme.less"], "ep": "themestyles"}, {"defaultValue": "@global_font", "ep": "themevariable", "name": "container_font"}, {"defaultValue": "@global_font_size", "ep": "themevariable", "name": "container_font_size"}, {"defaultValue": "@global_container_background", "ep": "themevariable", "name": "container_bg"}, {"defaultValue": "@global_color", "ep": "themevariable", "name": "container_color"}, {"defaultValue": "@global_line_height", "ep": "themevariable", "name": "container_line_height"}, {"defaultValue": "@global_pane_background", "ep": "themevariable", "name": "pane_bg"}, {"defaultValue": "@global_pane_border_radius", "ep": "themevariable", "name": "pane_border_radius"}, {"defaultValue": "@global_form_font", "ep": "themevariable", "name": "form_font"}, {"defaultValue": "@global_form_font_size", "ep": "themevariable", "name": "form_font_size"}, {"defaultValue": "@global_form_line_height", "ep": "themevariable", "name": "form_line_height"}, {"defaultValue": "@global_form_color", "ep": "themevariable", "name": "form_color"}, {"defaultValue": "@global_form_text_shadow", "ep": "themevariable", "name": "form_text_shadow"}, {"defaultValue": "@global_pane_link_color", "ep": "themevariable", "name": "pane_a_color"}, {"defaultValue": "@global_font", "ep": "themevariable", "name": "pane_font"}, {"defaultValue": "@global_font_size", "ep": "themevariable", "name": "pane_font_size"}, {"defaultValue": "@global_pane_text_shadow", "ep": "themevariable", "name": "pane_text_shadow"}, {"defaultValue": "@global_pane_h1_font", "ep": "themevariable", "name": "pane_h1_font"}, {"defaultValue": "@global_pane_h1_font_size", "ep": "themevariable", "name": "pane_h1_font_size"}, {"defaultValue": "@global_pane_h1_color", "ep": "themevariable", "name": "pane_h1_color"}, {"defaultValue": "@global_font_size * 1.8", "ep": "themevariable", "name": "pane_line_height"}, {"defaultValue": "@global_pane_color", "ep": "themevariable", "name": "pane_color"}, {"defaultValue": "@global_text_shadow", "ep": "themevariable", "name": "pane_text_shadow"}, {"defaultValue": "@global_font", "ep": "themevariable", "name": "button_font"}, {"defaultValue": "@global_font_size", "ep": "themevariable", "name": "button_font_size"}, {"defaultValue": "@global_button_color", "ep": "themevariable", "name": "button_color"}, {"defaultValue": "@global_button_background", "ep": "themevariable", "name": "button_bg"}, {"defaultValue": "@button_bg - #063A27", "ep": "themevariable", "name": "button_bg2"}, {"defaultValue": "@button_bg - #194A5E", "ep": "themevariable", "name": "button_border"}, {"defaultValue": "@global_control_background", "ep": "themevariable", "name": "control_bg"}, {"defaultValue": "@global_control_color", "ep": "themevariable", "name": "control_color"}, {"defaultValue": "@global_control_border", "ep": "themevariable", "name": "control_border"}, {"defaultValue": "@global_control_border_radius", "ep": "themevariable", "name": "control_border_radius"}, {"defaultValue": "@global_control_active_background", "ep": "themevariable", "name": "control_active_bg"}, {"defaultValue": "@global_control_active_border", "ep": "themevariable", "name": "control_active_border"}, {"defaultValue": "@global_control_active_color", "ep": "themevariable", "name": "control_active_color"}, {"defaultValue": "@global_control_active_inset_color", "ep": "themevariable", "name": "control_active_inset_color"}], "type": "plugins/supported", "name": "screen_theme"}});;
+});
+})();
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Bespin.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Bespin Team (bespin@mozilla.com)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+// This script appears at the end of BespinEmbeddedMain and is responsible
+// for firing up Bespin on the page.
+// This module depends only on Tiki.
+
+
+(function() {
+
+var $ = bespin.tiki.require("jquery").$;
+/**
+ * Returns the CSS property of element.
+ *   1) If the CSS property is on the style object of the element, use it, OR
+ *   2) Compute the CSS property
+ *
+ * If the property can't get computed, is 'auto' or 'intrinsic', the former
+ * calculated property is uesd (this can happen in cases where the textarea
+ * is hidden and has no dimension styles).
+ */
+var getCSSProperty = function(element, container, property) {
+    var ret = element.style[property]
+                || document.defaultView.getComputedStyle(element, '').
+                                        getPropertyValue(property);
+
+    if (!ret || ret == 'auto' || ret == 'intrinsic') {
+        ret = container.style[property];
+    }
+    return ret;
+};
+
+/**
+ * Returns the sum of all passed property values. Calls internal getCSSProperty
+ * to get the value of the individual peroperties.
+  */
+// var sumCSSProperties = function(element, container, props) {
+//     var ret = document.defaultView.getComputedStyle(element, '').
+//                                         getPropertyValue(props[0]);
+//
+//     if (!ret || ret == 'auto' || ret == 'intrinsic') {
+//         return container.style[props[0]];
+//     }
+//
+//     var sum = props.map(function(item) {
+//         var cssProp = getCSSProperty(element, container, item);
+//         // Remove the 'px; and parse the property to a floating point.
+//         return parseFloat(cssProp.replace('px', ''));
+//     }).reduce(function(a, b) {
+//         return a + b;
+//     });
+//
+//     return sum;
+// };
+
+bespin.useBespin = function(element, options) {
+    var util = bespin.tiki.require('bespin:util/util');
+
+    var baseConfig = {};
+    var baseSettings = baseConfig.settings;
+    options = options || {};
+    for (var key in options) {
+        baseConfig[key] = options[key];
+    }
+
+    // we need to separately merge the configured settings
+    var configSettings = baseConfig.settings;
+    if (baseSettings !== undefined) {
+        for (key in baseSettings) {
+            if (configSettings[key] === undefined) {
+                baseConfig.settings[key] = baseSettings[key];
+            }
+        }
+    }
+
+    var Promise = bespin.tiki.require('bespin:promise').Promise;
+    var prEnv = null;
+    var pr = new Promise();
+
+    bespin.tiki.require.ensurePackage("::appconfig", function() {
+        var appconfig = bespin.tiki.require("appconfig");
+        if (util.isString(element)) {
+            element = document.getElementById(element);
+        }
+
+        if (util.none(baseConfig.initialContent)) {
+            baseConfig.initialContent = element.value || element.innerHTML;
+        }
+
+        element.innerHTML = '';
+
+        if (element.type == 'textarea') {
+            var parentNode = element.parentNode;
+            // This will hold the Bespin editor.
+            var container = document.createElement('div');
+
+            // To put Bespin in the place of the textarea, we have to copy a
+            // few of the textarea's style attributes to the div container.
+            //
+            // The problem is, that the properties have to get computed (they
+            // might be defined by a CSS file on the page - you can't access
+            // such rules that apply to an element via elm.style). Computed
+            // properties are converted to pixels although the dimension might
+            // be given as percentage. When the window resizes, the dimensions
+            // defined by percentages changes, so the properties have to get
+            // recomputed to get the new/true pixels.
+            var resizeEvent = function() {
+                var style = 'position:relative;';
+                [
+                    'margin-top', 'margin-left', 'margin-right', 'margin-bottom'
+                ].forEach(function(item) {
+                    style += item + ':' +
+                                getCSSProperty(element, container, item) + ';';
+                });
+
+                // Calculating the width/height of the textarea is somewhat
+                // tricky. To do it right, you have to include the paddings
+                // to the sides as well (eg. width = width + padding-left, -right).
+                // This works well, as long as the width of the element is not
+                // set or given in pixels. In this case and after the textarea
+                // is hidden, getCSSProperty(element, container, 'width') will
+                // still return pixel value. If the element has realtiv dimensions
+                // (e.g. width='95<percent>') getCSSProperty(...) will return pixel values
+                // only as long as the textarea is visible. After it is hidden
+                // getCSSProperty will return the relativ dimensions as they
+                // are set on the element (in the case of width, 95<percent>).
+                // Making the sum of pixel vaules (e.g. padding) and realtive
+                // values (e.g. <percent>) is not possible. As such the padding styles
+                // are ignored.
+
+                // The complete width is the width of the textarea + the padding
+                // to the left and right.
+                // var width = sumCSSProperties(element, container, [
+                //     'width', 'padding-left', 'padding-right'
+                // ]) + 'px';
+                // var height = sumCSSProperties(element, container, [
+                //     'height', 'padding-top', 'padding-bottom'
+                // ]) + 'px';
+                var width = getCSSProperty(element, container, 'width');
+                var height = getCSSProperty(element, container, 'height');
+                style += 'height:' + height + ';width:' + width + ';';
+
+                // Set the display property to 'inline-block'.
+                style += 'display:inline-block;';
+                container.setAttribute('style', style);
+            };
+            window.addEventListener('resize', resizeEvent, false);
+
+            // Call the resizeEvent once, so that the size of the container is
+            // calculated.
+            resizeEvent();
+
+            // Insert the div container after the element.
+            if (element.nextSibling) {
+                parentNode.insertBefore(container, element.nextSibling);
+            } else {
+                parentNode.appendChild(container);
+            }
+
+            // Override the forms onsubmit function. Set the innerHTML and value
+            // of the textarea before submitting.
+            while (parentNode !== document) {
+                if (parentNode.tagName.toUpperCase() === 'FORM') {
+                    var oldSumit = parentNode.onsubmit;
+                    // Override the onsubmit function of the form.
+                    parentNode.onsubmit = function(evt) {
+                        element.value = prEnv.editor.value;
+                        element.innerHTML = prEnv.editor.value;
+                        // If there is a onsubmit function already, then call
+                        // it with the current context and pass the event.
+                        if (oldSumit) {
+                            oldSumit.call(this, evt);
+                        }
+                    }
+                    break;
+                }
+                parentNode = parentNode.parentNode;
+            }
+
+            // Hide the element.
+            element.style.display = 'none';
+
+            // The div container is the new element that is passed to appconfig.
+            baseConfig.element = container;
+
+            // Check if the textarea has the 'readonly' flag and set it
+            // on the config object so that the editor is readonly.
+            if (!util.none(element.getAttribute('readonly'))) {
+                baseConfig.readOnly = true;
+            }
+        } else {
+            baseConfig.element = element;
+        }
+
+        appconfig.launch(baseConfig).then(function(env) {
+            prEnv = env;
+            pr.resolve(env);
+        });
+    });
+
+    return pr;
+};
+
+$(document).ready(function() {
+    // Holds the lauch promises of all launched Bespins.
+    var launchBespinPromises = [];
+
+    var nodes = document.querySelectorAll(".bespin");
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        var options = node.getAttribute('data-bespinoptions') || '{}';
+        var pr = bespin.useBespin(node, JSON.parse(options));
+        pr.then(function(env) {
+            node.bespin = env;
+        }, function(error) {
+            throw new Error('Launch failed: ' + error);
+        });
+        launchBespinPromises.push(pr);
+    }
+
+    // If users want a custom startup
+    if (window.onBespinLoad) {
+        // group-promise function.
+        var group = bespin.tiki.require("bespin:promise").group;
+
+        // Call the window.onBespinLoad() function after all launched Bespins
+        // are ready or throw an error otherwise.
+        group(launchBespinPromises).then(function() {
+            window.onBespinLoad();
+        }, function() {
+            throw new Error('At least one Bespin failed to launch!');
+        });
+    }
+});
+
+})();

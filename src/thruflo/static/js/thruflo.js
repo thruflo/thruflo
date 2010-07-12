@@ -191,13 +191,15 @@
           var has_id = !!(data && data.hasOwnProperty('_id'));
           var exists = !!(has_id && this._editors.hasOwnProperty(data['_id']));
           if (exists) {
-            this.select(data['_id']);
+            var editor_id = data['_id'];
+            var editor = this._editors[editor_id];
+            this.trigger_select(editor_id);
+            editor.update(data);
           }
           else {
             var editor = new Editor(data);
-            if (has_id) {
-              this.register(data['_id'], editor);
-            } 
+            this.register(editor.id, editor);
+            this.set_current(editor);
           }
         },
         'get_current': function () {
@@ -206,56 +208,273 @@
         'set_current': function (editor) {
           this._current_editor = editor;
         },
-        'register': function (_id, editor) {
-          this._editors[_id] = editor;
+        'register': function (editor_id, editor) {
+          this._editors[editor_id] = editor;
         },
-        'unregister': function (_id) {
-          delete this._editors[_id];
+        'unregister': function (editor_id) {
+          delete this._editors[editor_id];
         },
-        'select': function (_id) {
-          var editor = this._editors[_id];
-          log(editor);
-          var i = editor._get_tabs_index();
-          $('#editor .tabs').tabs('select', i);
+        'reregister': function (previous_id, new_id, editor) {
+          this.register(new_id, editor);
+          this.unregister(previous_id, editor);
+        },
+        'add_new': function (event) {
+          if (event) { event.stopPropagation(); }
+          
+          // create markup
+          
+          var editor = new Editor();
+          this.register(editor.id, editor);
+          this.set_current(editor);
+        },
+        'save_current': function (event) {
+          if (event) { event.stopPropagation(); }
+          var target = this.get_current();
+          if (target) {
+            target.save();
+          }
+        },
+        'delete_current': function (event) {
+          if (event) { event.stopPropagation(); }
+          var target = this.get_current();
+          if (target) {
+            target.delete_();
+          }
+        },
+        'trigger_select': function (editor_id) {
+          var editor = this._editors[editor_id];
+          $(editor.tab).click();
+        },
+        'select': function (editor_id) {
+          log('EditorManager.select(' + editor_id + ')');
+          var editor = this._editors[editor_id];
+          editor.focus();
+          this.set_current(editor);
         },
         'init': function (context_id) {
           this._super(context_id);
-          $('.add-new-document-link', this.context).click(
+          $('.add-new-document', this.context).click($.proxy(this, 'add_new'));
+          $('.save-document', this.context).click($.proxy(this, 'save_current'));
+          $('.delete-document', this.context).click($.proxy(this, 'delete_current'));
+          // don't think just type ;)
+          this.add_new();
+        }
+      }
+    );
+    var Editor = Class.extend({
+        '_handle': 'editor',
+        'UNTITLED': 'Untitled',
+        '_generate_tabs_id': function () {
+          var id = intid;
+          intid += 1;
+          return id;
+        },
+        '_get_title': function (content) { /*
+            
+            Extracts document title from the opening H1
+            in the markdown content.
+            
+            If the first non-whitespace in the document 
+            content isn't a valid setext or atx H1 then
+            returns null.
+            
+            
+          */
+          var title = thruflo.markdown.get_first_title(content);
+          return title;
+        },
+        '_trim_title': function (title) {
+          if (title.length > 20) {
+            title = title.slice(0, 16) + ' ...';
+          }
+          return title;
+        },
+        'init': function (doc) {
+          var id_no = this._generate_tabs_id();
+          var tab_id = '#tabs-' + id_no;
+          var t = $('#editor .tabs');
+          if (doc) {
+            this.id = doc._id;
+            this.rev = doc._rev;
+            this.path = doc.path;
+            this.initial_content = doc.content;
+            t.tabs('add', tab_id, this._trim_title(doc.title));
+          }
+          else {
+            this.id = Math.uuid();
+            this.rev = null;
+            this.path = '/';
+            this.initial_content = '\n# ' + this.UNTITLED + ' ' + id_no + '\n\n\n';
+            t.tabs('add', tab_id, this.UNTITLED + ' ' + id_no);
+          }
+          this.tab = $('li', t).last().get(0);
+          $('.tab-button', this.tab).click($.proxy(this, 'close'));
+          log('about to init bespin');
+          var textarea = $(tab_id).find('.bespin-container').get(0);
+          log(textarea);
+          bespin.useBespin(textarea, {'theme': 'whitetheme'}).then(
             $.proxy(
-              function (event) { 
-                this.open(null); 
-                return false;
+              function (env) {
+                log('handling bespin "then"');
+                this.bespin_editor = env.editor;
+                // default the content to something friendly
+                this.bespin_editor.value = this.initial_content;
+                this.bespin_editor.setLineNumber(4);
+                this.focus();
+                // handle events
+                // this.bespin_editor.textChanged.add(this.handle_text_change);
+                // this.bespin_editor.selectionChanged.add(this.handle_selection_change);
               },
               this
-            )
+            ),
+            function (error) {
+              throw new Error("Launch failed: " + error);
+            }
           );
-          $('.save-document', this.context).click(
-            $.proxy(
-              function (event) { 
-                this.get_current().save();
-                return false;
-              },
-              this
-            )
-          );
-          $('.delete-document', this.context).click(
-            $.proxy(
-              function (event) { 
-                this.get_current().delete_();
-                return false;
-              },
-              this
-            )
-          );
+          // provide a dom handle
+          this.tab.editor = this;
+          log('done initialising bespin');
+        },
+        'focus': function () {
+          if (this.bespin_editor) {
+            this.bespin_editor.focus = true;
+          }
+        },
+        'save': function () {
+          if (this.bespin_editor) {
+            var content = this.bespin_editor.value;
+            var title = this._get_title(content);
+            if (!title) {
+              alert('please add a heading (@@ make nice prompt)');
+            }
+            else {
+              var self = this;
+              if (this._id && this._rev) {
+                var url = current_path + '/overwrite';
+                var params = {
+                  '_id': this._id,
+                  '_rev': this._rev,
+                  'title': title,
+                  'content': content,
+                  'path': this.path
+                };
+              }
+              else {
+                var url = current_path + '/create';
+                var params = {
+                  'title': title,
+                  'content': content,
+                  'path': this.path
+                };
+              }
+              $.ajax({
+                  'url': url,
+                  'type': 'POST',
+                  'dataType': 'json',
+                  'data': params,
+                  'success': function (data) {
+                    // store the new doc data
+                    var prev_id = self.id;
+                    self.id = data['_id'];
+                    self.rev = data['_rev'];
+                    // update the tab label
+                    var label = self._trim_title(title);
+                    self.tab.find('span').text(label);
+                    // register with the EditorManager
+                    var editor_manager = $('#editor').get(0).editor_manager;
+                    if (self.id != prev_id) {
+                      editor_manager.reregister(prev_id, self.id, self);
+                    }
+                    else {
+                      editor_manager.register(self.id, self);
+                    }
+                  },
+                  'error': function (transport, text_status) {
+                    log('@@ save failed');
+                    log(transport.responseText);
+                  },
+                  'complete': function () {
+                    self.focus();
+                  }
+                }
+              );
+            }
+          }
+        },
+        'move': function () {},
+        'delete_': function () {
+          if (!this.rev) {
+            this.close();
+          }
+          else {
+            var self = this;
+            var url = current_path + '/delete';
+            var params = {'_id': this._id, '_rev': this._rev};
+            $.ajax({
+                'url': url,
+                'type': 'POST',
+                'dataType': 'json',
+                'data': params,
+                'success': $.proxy(this, 'close'),
+                'error': function (transport) {
+                  log('@@ delete failed');
+                  log(transport.status);
+                  log(transport.responseText);
+                }
+              }
+            );
+          }
+        },
+        'insert': function () {},
+        'unpin': function () {},
+        'preview': function () {},
+        'validate': function () {},
+        'expand': function () {},
+        'collapse': function () {},
+        'close': function () {
+          log('@@ check not changed on close');
+          var editor_manager = $('#editor').get(0).editor_manager;
+          editor_manager.unregister(this.id);
+          var tab_button = $('.tab-button', this.tab);
+          tab_button.unbind('click');
+          var i = $('li', $('#editor .tabs')).index(this.tab);
+          $('#editor .tabs').tabs('remove', i);
+        },
+        'update': function (doc) {
+          if (doc._id == this.id) {
+            if (this.bespin_editor.value != doc.content) {
+              if (
+                confirm(
+                  this._get_title(this.bespin_editor.value) + 
+                  " has changed." + 
+                  " Are you sure you want to revert to the saved version?"
+                )
+              ) {
+                this.id = doc._id;
+                this.rev = doc._rev;
+                this.bespin_editor.value = doc.content;
+              }
+            }
+          }
+        },
+        'handle_text_change': function (oldRange, newRange, newText) {
           /*
-          $(document).keyup(
-            $.proxy(
-              function (event) {
-                log(event.keyCode);
-              },
-              this
-            )
-          );
+            
+            log('text changed');
+            log(oldRange);
+            log(newRange);
+            log(newText);
+            
+            
+          */
+        },
+        'handle_selection_change': function (newSelection) {
+          /*
+            
+            log('selection changed');
+            log(newSelection);
+            
+            
           */
         }
       }
@@ -327,214 +546,6 @@
               self.insert(this, _id, title);
             }
           );
-        }
-      }
-    );
-    var Editor = Class.extend({
-        '_handle': 'editor',
-        'UNTITLED': 'Untitled',
-        '_generate_tabs_id': function () {
-          var id = intid;
-          intid += 1;
-          return id;
-        },
-        '_get_tabs_index': function () {
-          return $('li', $('#editor .tabs')).index(this.tab);
-        },
-        '_get_title': function (content) { /*
-            
-            Extracts document title from the opening H1
-            in the markdown content.
-            
-            If the first non-whitespace in the document 
-            content isn't a valid setext or atx H1 then
-            returns null.
-            
-            
-          */
-          var title = thruflo.markdown.get_first_title(content);
-          return title;
-        },
-        '_trim_title': function (title) {
-          if (title.length > 20) {
-            title = title.slice(0, 16) + ' ...';
-          }
-          return title;
-        },
-        '_handle_bespin_load': function () {
-          log('bespin loaded');
-          // get a handle on the editor
-          var doc = this.frame.contentWindow.document;
-          this.bespin = $('#editor', doc).get(0).bespin;
-          this.editor = this.bespin.editor;
-          // default the content to something friendly
-          this.editor.value = this.initial_content;
-          this.editor.setLineNumber(4);
-          this.editor.focus = true;
-          // handle events
-          this.editor.textChanged.add(this.handle_text_change);
-          this.editor.selectionChanged.add(this.handle_selection_change);
-        },
-        '_handle_tab_selected': function (event, index) {
-          log('thruflo:tab:selected: ' + index);
-          if (index == this._get_tabs_index()) {
-            if (typeof(this.editor) != 'undefined') {
-              this.editor.focus = true;
-            }
-            $('#editor').get(0).editor_manager.set_current(this);
-          }
-        },
-        'init': function (doc) {
-          var id_no = this._generate_tabs_id();
-          var tab_id = '#tabs-' + id_no;
-          var t = $('#editor .tabs');
-          if (doc) {
-            this._id = doc._id;
-            this._rev = doc._rev;
-            this.path = doc.path;
-            this.initial_content = doc.content;
-            t.tabs('add', tab_id, this._trim_title(doc.title));
-          }
-          else {
-            this._id = null;
-            this._rev = null;
-            this.path = '/';
-            this.initial_content = '\n# ' + this.UNTITLED + ' ' + id_no + '\n\n\n';
-            t.tabs('add', tab_id, this.UNTITLED + ' ' + id_no);
-          }
-          this.tab = $('li', t).last();
-          this.panel = $(tab_id);
-          this.frame = $('iframe', this.panel).get(0);
-          // apply event handling
-          this.frame.contentWindow.onBespinLoad = $.proxy(this, '_handle_bespin_load');
-          $('.tab-button', this.tab).click(
-            $.proxy(this, 'close')
-          );
-          $(document).bind(
-            'thruflo:tab:selected', 
-            $.proxy(this, '_handle_tab_selected')
-          );
-          // ensure we're now the current document
-          $(document).trigger(
-            'thruflo:tab:selected', [
-              this._get_tabs_index()
-            ]
-          );
-          // provide dom handles
-          this.tab.editor = this;
-          this.panel.editor = this;
-        },
-        'open': function () {},
-        'save': function () {
-          log('save: ' + this._get_tabs_index());
-          var content = this.editor.value;
-          var title = this._get_title(content);
-          if (!title) {
-            alert('please add a heading (@@ make nice prompt)');
-          }
-          else {
-            var self = this;
-            if (this._id && this._rev) {
-              var url = current_path + '/overwrite';
-              var params = {
-                '_id': this._id,
-                '_rev': this._rev,
-                'title': title,
-                'content': content,
-                'path': this.path
-              };
-            }
-            else {
-              var url = current_path + '/create';
-              var params = {
-                'title': title,
-                'content': content,
-                'path': this.path
-              };
-            }
-            $.ajax({
-                'url': url,
-                'type': 'POST',
-                'dataType': 'json',
-                'data': params,
-                'success': function (data) {
-                  // store the new doc data
-                  self._id = data['_id'];
-                  self._rev = data['_rev'];
-                  // update the tab label
-                  var label = self._trim_title(title);
-                  self.tab.find('span').text(label);
-                  // register with the EditorManager
-                  $('#editor').get(0).editor_manager.register(self._id, this);
-                },
-                'error': function (transport, text_status) {
-                  log('@@ save failed');
-                  log(transport.responseText);
-                },
-                'complete': function () {
-                  self.editor.focus = true;
-                }
-              }
-            );
-          }
-        },
-        'move': function () {},
-        'delete_': function () {
-          if (!this._id && !this._rev) {
-            this.close();
-          }
-          else {
-            var self = this;
-            var url = current_path + '/delete';
-            var params = {'_id': this._id, '_rev': this._rev};
-            $.ajax({
-                'url': url,
-                'type': 'POST',
-                'dataType': 'json',
-                'data': params,
-                'success': $.proxy(this, 'close'),
-                'error': function (transport) {
-                  log('@@ delete failed');
-                  log(transport.status);
-                  log(transport.responseText);
-                }
-              }
-            );
-          }
-        },
-        'insert': function () {},
-        'unpin': function () {},
-        'preview': function () {},
-        'validate': function () {},
-        'expand': function () {},
-        'collapse': function () {},
-        'close': function () {
-          log('@@ check not changed on close');
-          if (this._id) {
-            $('#editor').get(0).editor_manager.unregister(this._id);
-          } 
-          var i = $('li', $('#editor .tabs')).index(this.tab);
-          $('#editor .tabs').tabs('remove', i);
-        },
-        'handle_text_change': function (oldRange, newRange, newText) {
-          /*
-            
-            log('text changed');
-            log(oldRange);
-            log(newRange);
-            log(newText);
-            
-            
-          */
-        },
-        'handle_selection_change': function (newSelection) {
-          /*
-            
-            log('selection changed');
-            log(newSelection);
-            
-            
-          */
         }
       }
     );
@@ -795,6 +806,14 @@
         
         /*
           
+          patch bespin
+          
+        */
+        
+        bespin.base = '/static/bespin';
+        
+        /*
+          
           we use a tab view for the document editors
           
         */
@@ -810,16 +829,18 @@
               </div>\
             </li>',
             'panelTemplate': '<div>\
-              <iframe src="/bespin" width="572px" height="353px">\
-              </iframe>\
+              <textarea class="bespin-container"></textarea>\
             </div>',
             'add': function(event, ui) {
               $('#editor .tabs').tabs('select', '#' + ui.panel.id);
             },
             'select': function (event, ui) {
-              var tab = $(ui.tab).parent();
-              var i = $('li', $('#editor .tabs')).index(tab);
-              $(document).trigger('thruflo:tab:selected', [i]);
+              var editor_manager = $('#editor').get(0).editor_manager;
+              var target_editor = ui.tab.editor;
+              if (target_editor) {
+                var editor_id = target_editor.id;
+                editor_manager.select(editor_id);
+              }
             }
           }
         );
@@ -869,9 +890,6 @@
         */
         
         var em = new EditorManager('#editor');
-        
-        // don't think just type ;)
-        em.open(null);
         
       }
     );

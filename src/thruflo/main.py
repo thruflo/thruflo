@@ -15,7 +15,6 @@ def app_factory(global_config, **local_conf):
     settings.update(local_conf)
     settings['tmpl_dirs'] = [settings['template_path']]
     
-    
     ### setup logging
     
     import logging
@@ -29,15 +28,16 @@ def app_factory(global_config, **local_conf):
         logging.getLogger('beaker').setLevel(logging.WARNING)
         logging.getLogger('restkit').setLevel(logging.WARNING)
     
-    
     ### create model.couch instance
     
     import model
     
     model.couch = model.couch_factory(settings)
     
+    ### return webapp 
     
-    ### return webapp
+    # (n.b.: ``urls`` import ``view`` which imports ``model`` so 
+    # this step must be done *after* creating ``model.couch``)
     
     from thruflo.webapp import web
     from urls import mapping
