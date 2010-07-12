@@ -1,48 +1,111 @@
 
-* delete needs to clear the preview area
-* save => makes new listing => click on it and and it dissapears
-* can the listing state not be preserved through an update?
-* the doubleclick show / hide flash is a bit village: maybe use fixclick for *just* the listing sections?
-* editor._get_tabs_index is not a function
-* double click on a listing isn't reliable: opens the wrong one
+# 0.3.2
 
-* bespin now supports multiple editors: strip out the iframe fandango
+## Minimally debug listings
 
-* `insert`:
-  * insert markup for document / document section / image / video
-  * insert into the right place
-  * *use bespin syntax highlighting* to visually demarkate `<!-- section:... -->` comment blocks
-    * write syntax highlighter plugin
-    * `dryrun` rake / bundle a custom embedded bespin
-  * apply styles and behaviour to bespin canvas elements added by syntax highlighting
+* remove event handlers on deleted listing
+* rerender sections if showing (render sections and click click down the tree)
+* ensure bugs fixed:
+  * editor._get_tabs_index is not a function
+  * save => makes new listing => click on it and and it dissapears
+  * double click on a listing isn't reliable: opens the wrong one
+* clear the preview area on delete
+* the doubleclick show / hide flash is a bit village: try fixclick just for the listing sections
+
+## Bespin now supports multiple editors
+
+* strip out the iframe fandango and init editors within the main page
+
+
+# 0.4
+
+## Drag to insert
+
+* insert markup for:
+  * document
+  * document section
+* insert into the right place
+
+## Syntax highlighted UI
+
+* use bespin syntax highlighting to visually demarkate `<!-- section:... -->` comment blocks
+  * write syntax highlighter plugin
+  * `dryrun` rake / bundle a custom embedded bespin
+  * apply styles and behaviour to bespin canvas elements
 * `unpin`: 
-  * lose the `<!-- section -->` comments and thus auto lose the behaviour added
-* `close`:
-  * prompt for save?
+  * click to lose the `<!-- section -->` comments and ensure the behaviour is removed
 
-* right hand side UI
-  * accordion
-  * list / tree / search
-  * select
-  * dblclick open
-  * drag insert
-  * upload / images / videos
-* extend the markdown editor
-  * if save without a heading, prompt for a heading and *write into the markdown*
-  * https://bespin.mozillalabs.com/docs/pluginguide/keymapping.html
-  * saveas and move dialog with folders
-  * live document preview
-  * validate
-  * expand / collapse
-* copy and paste and insert from open document to open document
+## Preview
+
+* live document preview
+
+
+# 0.5
+
+## Save & close
+
+* if save without a heading, prompt for a heading and *write into the markdown*
+* saveas and move dialog with folders
+* prompt for save on `close`
 * handle conflicting saves
-* template (i.e.: stylesheet) management
+
+## Listing options
+
+* images & videos
+* search
+* browse by folder
+* sort
+
+
+# 0.6
+
+## Generation
+
+* generate template (i.e.: stylesheet) management
 * views / selecting & publishing through stylesheets
-* refactor user / access / subscription / pricing:
-  * sharing a repo requires paid subscription
-  * pricing plans based on no. of owned repos and no. users shared with
-  * invite users to repos & manage who has access
-* versioning / undo as per ([#][]) 
+
+
+# 0.7
+
+## refactor user / access / subscription / pricing
+
+* invite users to repos & manage who has access
+
+## Deployment
+
+* deploy supervised
+* v. minimal optimisation of db calls every request
 * thruflo.webapp etags
 
-[#]: http://blog.couch.io/post/632718824/simple-document-versioning-with-couchdb
+
+# 0.8
+
+## Versioning
+
+* versioning / undo as per ([#][couchversioning]) 
+
+## Editing
+
+* https://bespin.mozillalabs.com/docs/pluginguide/keymapping.html
+* copy and paste and insert from open document to open document
+
+
+# 1.n
+
+## Payment / subscription
+
+* sharing a repo requires paid subscription
+* pricing plans based on no. of owned repos and no. users shared with
+
+## Backwards compatibility
+
+* pdf import
+* word & powerpoint import
+
+## Document export
+
+* dump folders into zip
+
+
+[couchversioning]: http://blog.couch.io/post/632718824/simple-document-versioning-with-couchdb
+
