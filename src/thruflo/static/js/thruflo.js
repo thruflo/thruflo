@@ -295,6 +295,40 @@
           }
           return title;
         },
+        '_insert_context': function (content) {
+          log('@@ _insert_context needs to wrap with section comments');
+          var range = this.bespin_editor.selection;
+          var text = this.bespin_editor.selectedText;
+          text = text + content;
+          this.bespin_editor.replace(range, text, false);
+        },
+        '_handle_drop': function (event, ui) {
+          log('dropped!');
+          log('@@ doc_cache should wrap get_document to prevent multiple fetches');
+          log('@@ not here and not in the Listing');
+          if (this.bespin_editor) {
+            var target = $(ui.draggable);
+            var content = target.data('content');
+            if (content) {
+              this._insert_context(content);
+            }
+            else {
+              var doc_cache = $('#editor').get(0).doc_cache;
+              var docid = target.get(0).id.split('-').slice(1).join('-').split(':')[0];
+              doc_cache.get_document(
+                docid,
+                $.proxy(
+                  function (doc) {
+                    if (doc) {
+                      this._insert_context(doc.content);
+                    }
+                  },
+                  this
+                )
+              );
+            }
+          }
+        },
         'init': function (doc) {
           var id_no = this._generate_tabs_id();
           var tab_id = '#tabs-' + id_no;
@@ -315,8 +349,8 @@
           }
           this.tab = $('li', t).last().get(0);
           $('.tab-button', this.tab).click($.proxy(this, 'close'));
-          var target = $(tab_id).find('.bespin-container').get(0);
-          bespin.useBespin(target).then(
+          var container = $(tab_id).find('.bespin-container');
+          bespin.useBespin(container.get(0)).then(
             $.proxy(
               function (env) {
                 this.bespin_editor = env.editor;
@@ -324,6 +358,12 @@
                 this.bespin_editor.value = this.initial_content;
                 this.bespin_editor.setLineNumber(4);
                 this.focus();
+                container.droppable({
+                    'accept': 'li.listing',
+                    'hoverClass': 'ui-state-active',
+                    'drop': $.proxy(this, '_handle_drop')
+                  }
+                );
                 // handle events
                 // this.bespin_editor.textChanged.add(this.handle_text_change);
                 // this.bespin_editor.selectionChanged.add(this.handle_selection_change);
@@ -585,6 +625,10 @@
             <div class="preview-content">${content}</div>\
           </li>'
         ),
+        '_generate_helper': function (event) {
+          var title = $(this).find('span > a').first().attr('title');
+          return $('<div class="insert-section-helper">' + title + '</div>');
+        },
         '_call_callbacks': function () { /*
             
             When you trigger a dblclick event in most browsers,
@@ -687,10 +731,15 @@
               value, 
               children,
               key_item,
+              level,
+              hashes,
               path_items,
+              path,
               parent_path,
               parent_id,
-              path;
+              parent,
+              section_id,
+              rendered_section;
           
           for (i = 0; i < l; i++) { /*
               
@@ -713,9 +762,9 @@
             */
             
             path_items = [];
-            for (j = 2; j < k; j += 2) {
+            for (j = 1; j < k; j++) {
               key_item = key[j];
-              if (key_item != null) {
+              if (j == k || key[j + 1] != null) {
                 path_items.push(encodeURIComponent(key_item));
               }
               else {
@@ -723,25 +772,47 @@
               }
             }
             
+            level = path_items.length / 2;
+            hashes = '';
+            for (j = 0; j < level; j++) {
+              hashes += '#';
+            }
+            
             path = this._id + ':' + path_items.join(':');
             title = decodeURIComponent(path_items.pop());
             
+            path_items.pop();
             parent_path = this._id + ':' + path_items.join(':');
             if (parent_path.endsWith(':')) {
               parent_path = parent_path.slice(0, -1);
             }
             parent_id = 'sections:' + parent_path;
-            parent_id = parent_id.makeSelectorSafe()
+            parent_id = parent_id.makeSelectorSafe();
             
             // insert the section markup
             
-            $('#' + parent_id).append(
+            parent = $('#' + parent_id);
+            parent.append(
               this._section_template, {
                 'path': path,
                 'type': this._get_type(),
                 'title': title,
               }
             );
+            
+            // make the section heading a draggable
+            
+            section_id = '#section-' + path;
+            rendered_section = $(section_id.makeSelectorSafe(), parent);
+            rendered_section.draggable({
+                'helper': this._generate_helper,
+                'appendTo': 'body'
+              }
+            );
+            
+            // store the content against it
+            
+            rendered_section.data('content', hashes + ' ' + title + '\n' + value);
             
             // insert the showdown'd section content into a div
             
@@ -782,10 +853,16 @@
           this.context = context;
           this._id = _id;
           this.title = title;
+          $(this.context).draggable({
+              'helper': this._generate_helper,
+              'appendTo': 'body'
+            }
+          );
           var link = $(this.context).find('a').first();
           // link.click($.proxy(this, 'select'));
           // link.dblclick($.proxy(this, 'open'));
           link.fixClick($.proxy(this, 'select'), $.proxy(this, 'open'));
+          this.context.listing = this;
         },
         'select': function (event) {
           if (event) { event.stopPropagation(); }

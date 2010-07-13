@@ -428,6 +428,24 @@ class Editor(RequestHandler):
         
     
     
+    """
+    def _section(self):
+        path = self.get_argument('path', u'')
+        try:
+            path = schema.SectionPath(not_empty=True).to_python(path)
+        except formencode.Invalid, err:
+            data = utils.json_encode({'path': 'Invalid ``path``'})
+            return self.error(400, body=data)
+        else:
+            parts = [urllib.unquote_plus(item) for item in path.split(':')]
+            logging.debug(parts)
+            
+            raise NotImplementedError
+            
+        
+    
+    """
+    
     def _listen(self):
         """Register the ``client_id`` against the repo in redis, so 
           it's renewed every poll and expires after a few minutes.

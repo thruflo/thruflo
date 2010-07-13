@@ -3,9 +3,7 @@
 
 ## Drag to insert
 
-* insert markup for:
-  * document
-  * document section
+* insert markup for document / document section
 * insert into the right place
 
 ## Syntax highlighted UI

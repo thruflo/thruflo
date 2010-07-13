@@ -46,3 +46,9 @@ a.disabled {
 .sections-list {
   margin-left: 1em;
 }
+
+.insert-section-helper {
+  position: absolute;
+  z-index: 9999;
+  background: white;
+}

@@ -29,6 +29,9 @@ valid_document_id = re.compile(r'^%s$' % document_id_pattern, re.U)
 client_id_pattern = r'[A-Z0-9]{8}-[A-Z0-9]{4}-4[A-Z0-9]{3}-[A-Z0-9]{4}-[A-Z0-9]{12}'
 valid_client_id = re.compile(r'^%s$' % client_id_pattern)
 
+section_path_pattern = r'%s(\:(.*))*' % document_id_pattern
+valid_section_path = re.compile(r'^%s$' % section_path_pattern, re.U)
+
 class Slug(validators.UnicodeString):
     """An eight digit string.
     """
@@ -156,6 +159,31 @@ class ClientId(validators.UnicodeString):
     
     
 
+class SectionPath(validators.UnicodeString):
+    """``edb88c841a594f73510bd8c0a491085c:Example Sections:A``.
+    """
+    
+    messages = {
+        'invalid': 'Invalid section path'
+    }
+    
+    def _to_python(self, value, state):
+        value = super(SectionPath, self)._to_python(value, state)
+        return value.strip()
+        
+    
+    
+    def validate_python(self, value, state):
+        super(SectionPath, self).validate_python(value, state)
+        if not valid_section_path.match(value):
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        
+    
+    
 
 class SecurePassword(validators.UnicodeString):
     """Hashes the user input before we do anything with it.
