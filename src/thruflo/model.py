@@ -293,7 +293,7 @@ class Repository(SluggedDocument):
     # display name
     name = StringProperty(default=u'Default')
     
-    def list_documents(self, sort_by='title', start=False, end=[], limit=2000):
+    def list_documents(self, sort_by='filename', start=False, end=[], limit=2000):
         return Document.view(
             'document/by_%s' % sort_by,
             startkey=[self.id, start],
@@ -311,6 +311,7 @@ class Document(BaseDocument):
     
     repository = StringProperty(required=True)
     path = StringProperty(required=True)
+    filename = StringProperty(required=True)
     
     content = StringProperty()
     
@@ -321,7 +322,7 @@ class Document(BaseDocument):
           
           * first we get the doc by id
           * then we get raw sections data filtering by the 
-            document title
+            document filename
           
           Then we filter the sections results by doc id to 
           deduplicate them if necessary.
@@ -330,7 +331,7 @@ class Document(BaseDocument):
         if doc is None:
             return None
         
-        key_stub = [doc.repository, 0, doc.title]
+        key_stub = [doc.repository, 0, doc.filename]
         candidates = cls.view(
             'document/sections',
             startkey = key_stub + ten_lies,
@@ -345,6 +346,23 @@ class Document(BaseDocument):
         
     
     """
+    
+    @classmethod
+    def generate_id(cls, path=None, filename=None):
+        if path is None or filename is None:
+            raise ValueError('must provide a path and filename to generate_id')
+        s = u'%s/%s' % (path, filename)
+        return generate_hash(s=s)
+        
+    
+    
+    def save_sections(self):
+        logging.warning('@@ todo: doc.save_sections')
+        
+        return []
+        
+        
+    
     
 
 

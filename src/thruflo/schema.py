@@ -23,7 +23,7 @@ valid_slug = re.compile(r'^%s$' % slug_pattern, re.U)
 username_pattern = r'[.\-\w]{3,18}'
 valid_username = re.compile(r'^%s$' % username_pattern, re.U)
 
-document_id_pattern = r'[a-z0-9]{32}'
+document_id_pattern = r'[a-z0-9]{32,40}'
 valid_document_id = re.compile(r'^%s$' % document_id_pattern, re.U)
 
 client_id_pattern = r'[A-Z0-9]{8}-[A-Z0-9]{4}-4[A-Z0-9]{3}-[A-Z0-9]{4}-[A-Z0-9]{12}'
@@ -308,26 +308,14 @@ h1_pattern = r'(%s)|(%s)' % (setext_h1_pattern, atx_h1_pattern)
 starts_with_h1 = re.compile(h1_pattern, re.U)
 
 class Content(validators.UnicodeString):
-    """Parses the content into html with `Python-Markdown`_
-      and enforces that the html must start with an ``<h1>``.
-      
-      .. _`Python-Markdown`: http://www.freewisdom.org/projects/python-markdown
-      
+    """Enforces that the content starts with a top level heading.
     """
     
-    messages = {'invalid': 'Content must contain a top level heading.'}
-    
-    def _to_python(self, value, state):
-        logging.debug(u'_%s_' % value)
-        value = super(Content, self)._to_python(value, state)
-        return value.lstrip()
-        
-    
+    messages = {'invalid': 'Content must start with a top level heading.'}
     
     def validate_python(self, value, state):
         super(Content, self).validate_python(value, state)
-        logging.debug(u'_%s_' % value)
-        if not starts_with_h1.match(value):
+        if not starts_with_h1.match(value.lstrip()):
             raise validators.Invalid(
                 self.message("invalid", state),
                 value,
@@ -360,9 +348,42 @@ class Path(validators.UnicodeString):
     
     
 
+class IdMatchesPathFilename(validators.FormValidator):
+    show_match = False
+    validate_partial_form = True
+    __unpackargs__ = ('*', 'field_names')
+    
+    messages = {'invalid': "_id does not match path and filename"}
+    
+    def validate_python(self, field_dict, state):
+        try:
+            _id = field_dict['_id']
+            path = field_dict['path']
+            filename = field_dict['filename']
+        except TypeError, KeyError:
+            raise validators.Invalid(
+                self.message('invalid', state), 
+                field_dict, 
+                state,
+                error_dict={'_id': '_id does not match path and filename'}
+            )
+        else:
+            gid = model.Document.generate_id(path=path, filename=filename)
+            if not _id == gid:
+                raise validators.Invalid(
+                    self.message('invalid', state), 
+                    field_dict, 
+                    state,
+                    error_dict={'_id': '_id does not match path and filename'}
+                )
+            
+        
+    
+    
+
 
 class CreateDocument(formencode.Schema):
-    title = validators.UnicodeString(not_empty=True)
+    filename = validators.UnicodeString(not_empty=True)
     content = Content(not_empty=True)
     path = Path(not_empty=True)
     
@@ -370,9 +391,12 @@ class CreateDocument(formencode.Schema):
 class OverwriteDocument(formencode.Schema):
     _id = CouchDocumentId(not_empty=True)
     _rev = CouchRevId(not_empty=True)
-    title = validators.UnicodeString(not_empty=True)
+    filename = validators.UnicodeString(not_empty=True)
     content = Content(not_empty=True)
     path = Path(not_empty=True)
+    chained_validators = [
+        IdMatchesPathFilename()
+    ]
     
 
 class DeleteDocument(formencode.Schema):

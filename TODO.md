@@ -1,20 +1,32 @@
 
 # 0.4
 
-## Drag to insert
+## Reuse Sections
 
-* insert markup for document / document section
-* insert into the right place
++ dummy hack the save dialogue:
+  + normalise leading H1 lower() with funny chars removed & underscores & .md added as filename
+  + uniqueness is enforced by using a hash of the path and filename as doc id
 
-## Syntax highlighted UI
++ comment syntax: `<!-- section:/test_doc_one.md#Test Doc One##Sub Head pos:0:0 -->` where:
+  + all the parts are `decodeURIComponent`ed with `/` and `#` escaped as `\/` and `\#`
+  + `pos 0:0:1` is appended to provide the section order info
 
-* sort out the trimming so it's consistent coming back from the db
-* use bespin syntax highlighting to visually demarkate `<!-- section:... -->` comment blocks
-  * write syntax highlighter plugin
-  * `dryrun` rake / bundle a custom embedded bespin
-  * apply styles and behaviour to bespin canvas elements
-* `unpin`: 
-  * click to lose the `<!-- section -->` comments and ensure the behaviour is removed
+* what happens when:
+  * fetch document:
+    * with the latest content of each section and latest rev data for each section, 
+      updating the section content and rev and re-saving the document before returning it
+  * render document
+    * extract the rev from the section comment and hold it in memory against the section path
+    * generate a hash of each section, to determin `changed` against
+  * update from remote change
+    * if the document is open, has the section changed? if not prompt the user to accept an update
+    * if it has, flag the change to the user and either overwrite (@@ later merge) or unpin
+    * update the rev in memory against the section as necessary
+  * save
+    * client side: send a dict of `rev` and `changed` flags along with the doc
+    * server side: for each changed section, save that doc using the latest rev
+* doubleclick to lose the `<!-- section -->` comments
+* syntax highlighting to visually demarkate `<!-- section:... -->` comment blocks
 
 ## Preview
 
@@ -25,12 +37,21 @@
 
 ## Save & close
 
-* if save without a heading, prompt for a heading and *write into the markdown*
-* saveas and move dialog with folders
-* prompt for save on `close`
+* https://bespin.mozillalabs.com/docs/pluginguide/keymapping.html
+  * ctlr+s to save
+  * ctlr+shift+s to saveas
+  * ctlr+w to close
+  * ctlr+n for new
+* when you save a document, you get a dialogue
+  * the default suggestion is based on the lead H1
+  * the title is 'suggestively normalised' lower() with funny chars removed & underscores
+  * .md is auto added
+  * you can select a folder
+  * you can make a folder if it doesn't exist
+  * uniqueness is enforced by using a hash of the path and filename as doc id
+* prompt for save on `close` if changed
+* on renaming, try to fix the affected section paths in docs depending on the renamed doc
 * rerender sections if showing (render sections and click click down the tree)
-* handle conflicting saves
-
 
 ## Listing options
 
@@ -69,7 +90,7 @@
 
 ## Editing
 
-* https://bespin.mozillalabs.com/docs/pluginguide/keymapping.html
+* handle conflicting updates with merging
 * copy and paste and insert from open document to open document
 
 

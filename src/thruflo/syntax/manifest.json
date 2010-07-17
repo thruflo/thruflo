@@ -1,0 +1,11 @@
+{
+    "output_dir": "/env/thruflo/src/thruflo/static",
+    "plugins": [
+      "embedded", 
+      "html", 
+      "javascript", 
+      "stylesheet", 
+      "thruflo"
+    ],
+    "include_sample": true
+}

@@ -300,7 +300,7 @@ class Editor(RequestHandler):
                       'id': '8c4bd062ec3d096db552ab12471452ac', 
                       'key': [
                           'c18862966c9a294c0f4ed6558a63540b', # repo id
-                          'Doc 3' # title
+                          'doc_3.md' # filename
                       ]
                   }
               ]
@@ -322,7 +322,7 @@ class Editor(RequestHandler):
         logging.debug(data)
         
         redis = Redis(namespace=self.repository.id, expire_after=300)
-        redis_ready_data = urllib.urlencode(data)
+        redis_ready_data = utils.json_encode(data)
         
         for key in redis('keys', 'client-*'):
             client_id = key.split('client-')[1]
@@ -331,18 +331,21 @@ class Editor(RequestHandler):
     
     def _notify_doc_deleted(self, _id):
         data = {'_id': _id, 'type': 'document', 'action': 'deleted'}
-        self._notify_clients(data)
+        self._notify_clients([data])
         
     
-    def _notify_doc_changed(self, doc):
-        data = {
-            '_id': doc.id, 
-            'type': 'document',
-            'action': 'changed',
-            'title': doc.title.encode('utf8'), 
-            'mod': doc.mod.replace(microsecond=0).isoformat() + 'Z'
-        }
-        self._notify_clients(data)
+    def _notify_doc_changed(self, docs):
+        changed = []
+        for item in docs:
+            data = {
+                '_id': item.id, 
+                'type': 'document',
+                'action': 'changed',
+                'filename': item.filename.encode('utf8'), 
+                'mod': item.mod.replace(microsecond=0).isoformat() + 'Z'
+            }
+            changed.append(data)
+        self._notify_clients(changed)
         
     
     
@@ -374,7 +377,7 @@ class Editor(RequestHandler):
             '_id': self.get_argument('_id', u''),
             '_rev': self.get_argument('_rev', u''),
             'path': self.get_argument('path', u''),
-            'title': self.get_argument('title', u''),
+            'filename': self.get_argument('filename', u''),
             'content': self.get_argument('content', u'')
         }
         try:
@@ -383,22 +386,25 @@ class Editor(RequestHandler):
             data = utils.json_encode(err.error_dict)
             return self.error(400, body=data)
         else:
+            changed = []
             params['repository'] = self.repository.id
             doc = model.Document(**params)
+            dependencies = doc.save_sections()
+            changed.extend(dependencies)
             doc.save()
-            self._notify_doc_changed(doc)
+            changed.append(doc)
+            self._notify_doc_changed(changed)
             return {'_id': doc._id, '_rev': doc._rev}
-            
         
     
     def _create(self):
-        """Creates a new document called ``title`` at ``path``
+        """Creates a new document called ``filename`` at ``path``
           with the ``content`` provided.
         """
         
         params = {
             'path': self.get_argument('path'),
-            'title': self.get_argument('title'),
+            'filename': self.get_argument('filename'),
             'content': self.get_argument('content')
         }
         try:
@@ -407,12 +413,19 @@ class Editor(RequestHandler):
             data = utils.json_encode(err.error_dict)
             return self.error(400, body=data)
         else:
+            changed = []
             params['repository'] = self.repository.id
             doc = model.Document(**params)
+            doc._id = model.Document.generate_id(
+                path=doc.path, 
+                filename=doc.filename
+            )
+            dependencies = doc.save_sections()
+            changed.extend(dependencies)
             doc.save()
-            self._notify_doc_changed(doc)
+            changed.append(doc)
+            self._notify_doc_changed(changed)
             return {'_id': doc._id, '_rev': doc._rev}
-            
         
     
     def _fetch(self):
@@ -474,10 +487,14 @@ class Editor(RequestHandler):
                 return webob.Response(status=304)
             # if we got something, return it
             data = eval(response[1])
+            response = []
             for item in data:
-                data[item] = data[item].decode('utf8')
-            logging.debug(data)
-            return data
+                response_item = {}
+                for k, v in item.iteritems():
+                    response_item[k] = v.decode('utf8')
+                response.append(response_item)
+            logging.debug(response)
+            return response
         
         
     

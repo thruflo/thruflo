@@ -339,4 +339,73 @@ if (!thruflo.hasOwnProperty('markdown')) {
       
     };
     
+    /*
+      
+      thruflo.markdown.get_section_ids function
+      
+    */
+    
+    var start_section_comment = new RegExp('<!-- section:(' + dot + '*) -->', 'gm');
+    
+    thruflo.markdown.get_section_ids = function (content) { /*
+        
+        Extracts the 
+        
+            ``test_doc_one.md#Test Doc One##Footer ord:0:2``s 
+        
+        from a document with a load of 
+        
+        ``<!-- section:test_doc_one.md#Test Doc One##Footer ord:0:2 -->``s.
+        
+        
+      */
+      
+      throw '@@ thruflo.markdown.get_section_ids -- how to match literal backslash?';
+      
+      var sections_ids = [];
+      
+      var start_comments = content.match(start_section_comment);
+      
+      var i, 
+          start_comment, 
+          path,
+          filename,
+          l = start_comments.length;
+      for (i = 0; i < l; i++) {
+        start_comment = start_comments[i];
+        var parts = start_comment.split(/\/?!\//); /*
+          
+          parts is an array of strings like:
+          
+          '<!-- section:/test_doc_one.md#Test Doc One##Sub Head pos:0:0 -->'
+          
+        */
+        
+        
+      }
+      
+      /*
+        
+        var start_comment = '<!-- section:foo/bar/test_doc_one.md#T\/est ';
+        
+        // Doc One##Sub He\#ad pos:0:0 -->
+        
+        console.log(start_comment);
+        
+        var SAFE_SLASH = '__thruflo::fwdslash::thruflo__';
+        var SAFE_HASH = '__thruflo::hash::thruflo__';
+        
+        var text = start_comment.split('<!-- section:')[1];
+        
+        console.log(text);
+        
+        text = text.replace('[\\\\\/]', SAFE_SLASH);
+        //text = text.replace('\#', SAFE_HASH);
+        
+        console.log(text);
+        
+      */
+      
+    };
+    
 })();

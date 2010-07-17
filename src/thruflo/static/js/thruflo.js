@@ -86,28 +86,31 @@
         'max': 16000,
         'multiplier': 1.5,
         'backoff': 1000,
-        '_handle_success': function (data) {
-          if (data) {
-            var _id = data['_id'];
-            // invalidate the cache by ``_id``
-            var doc_cache = $('#editor').get(0).doc_cache;
-            doc_cache.invalidate(_id);
-            // update the listings appropriately
-            var listings = $('#' + data['type'] + '-listings');
-            var listings_manager = listings.get(0).listings_manager;
-            if (data.action == 'changed') {
-              listings_manager.insert(
-                null, 
-                _id, 
-                data['title'], 
-                data['mod']
-              );
-            }
-            else if (data.action == 'deleted') {
-              listings_manager.remove(
-                null, 
-                _id
-              );
+        '_handle_success': function (items) {
+          if (items) {
+            for (var i = 0; i < items.length; i++) {
+              var data = items[i];
+              var _id = data['_id'];
+              // invalidate the cache by ``_id``
+              var doc_cache = $('#editor').get(0).doc_cache;
+              doc_cache.invalidate(_id);
+              // update the listings appropriately
+              var listings = $('#' + data['type'] + '-listings');
+              var listings_manager = listings.get(0).listings_manager;
+              if (data.action == 'changed') {
+                listings_manager.insert(
+                  null, 
+                  _id, 
+                  data['filename'], 
+                  data['mod']
+                );
+              }
+              else if (data.action == 'deleted') {
+                listings_manager.remove(
+                  null, 
+                  _id
+                );
+              }
             }
           }
         },
@@ -145,6 +148,8 @@
     var DocumentCache = SingleContextBase.extend({
         '_handle': 'doc_cache',
         '_docs': {},
+        '_fetching': {},
+        '_callbacks': {},
         '_doc_methods': {
           'get_sections': function () {
             if (!this.hasOwnProperty('_sections')) {
@@ -155,24 +160,44 @@
         },
         'get_document': function (_id, callback, args) {
           if (!this._docs.hasOwnProperty(_id)) {
-            var _handle_success = function (data) {
-              this._docs[_id] = $.extend(data['doc'], this._doc_methods);
-              callback(this._docs[_id], args);
-            };
-            var _handle_error = function (transport) {
-              log('@@ fetch failed');
-              log(transport.responseText);
-              callback(null, args);
-            };
-            $.ajax({
-                'url': current_path + '/fetch',
-                'type': 'POST',
-                'dataType': 'json',
-                'data': {'_id': _id},
-                'success': $.proxy(_handle_success, this),
-                'error': $.proxy(_handle_error, this)
-              }
-            );
+            // store the callback against the id
+            if (!this._callbacks.hasOwnProperty(_id)) {
+              this._callbacks[_id] = [];
+            }
+            this._callbacks[_id].push(callback);
+            // if we're not already fetching
+            if (!this._fetching.hasOwnProperty(_id)) {
+              // flag that we are fetching
+              this._fetching[_id] = true;
+              var _handle_success = function (data) {
+                log('@@ fetch success'); log(data);
+                this._docs[_id] = $.extend(data['doc'], this._doc_methods);
+                var doc = this._docs[_id];
+                for (var i = 0; i < this._callbacks[_id].length; i++) {
+                  this._callbacks[_id][i](doc, args);
+                }
+              };
+              var _handle_error = function (transport) {
+                log('@@ fetch error'); log(transport.responseText);
+                for (var i = 0; i < this._callbacks[_id].length; i++) {
+                  this._callbacks[_id][i](null, args);
+                }
+              };
+              var _handle_complete = function () {
+                delete this._callbacks[_id];
+                delete this._fetching[_id];
+              };
+              $.ajax({
+                  'url': current_path + '/fetch',
+                  'type': 'POST',
+                  'dataType': 'json',
+                  'data': {'_id': _id},
+                  'success': $.proxy(_handle_success, this),
+                  'error': $.proxy(_handle_error, this),
+                  'complete': $.proxy(_handle_complete, this)
+                }
+              );
+            }
           }
           else {
             callback(this._docs[_id], args);
@@ -269,13 +294,25 @@
     );
     var Editor = Class.extend({
         '_handle': 'editor',
+        '_section_revs': {},
+        '_section_hashes': {},
         'UNTITLED': 'Untitled',
         '_generate_tabs_id': function () {
           var id = intid;
           intid += 1;
           return id;
         },
-        '_get_title': function (content) { /*
+        '_normalise_title': function (title) {
+          log('@@ dummy hack normalising title');
+          return $.trim(
+            title.toLowerCase().replace(
+              /[-\s]/g, '_'
+            ).replace(
+              /[^\w]/g, ''
+            )
+          ) + '.md';
+        },
+        '_get_filename': function (content) { /*
             
             Extracts document title from the opening H1
             in the markdown content.
@@ -287,7 +324,7 @@
             
           */
           var title = thruflo.markdown.get_first_title(content);
-          return title;
+          return this._normalise_title(title);
         },
         '_trim_title': function (title) {
           if (title.length > 20) {
@@ -295,38 +332,113 @@
           }
           return title;
         },
-        '_insert_context': function (content) {
-          log('@@ _insert_context needs to wrap with section comments');
+        '_parse_out_section_ids': function (content) {
+          return thruflo.markdown.get_section_ids(content);
+        },
+        '_generate_section_id': function (path, filename, section_path, sections) { /*
+            
+            We want `path/filename.md#Heading##Sub Heading` where all the parts 
+            are `decodeURIComponent`ed with `/` and `#` escaped.
+            
+            We need the numbers from the section path to uniquely identify the
+            sections, e.g.: `0:Test%20Doc%20One:0:Sub%20Head`.  So we compromise
+            and append them so the output is like:
+            
+            path/My File.md#Test Doc One##Sub Head###Sub Sub Head 0:0:2
+            
+          */
+          
+          var i, 
+              part, 
+              parts = [path, filename].concat(section_path.split(':')),
+              l = parts.length;
+          // decode and escape
+          for (i = 0; i < l; i++) {
+            part = decodeURIComponent(parts[i]);
+            parts[i] = part.replace(/\//g, '\/').replace(/#/g, '\#');
+          }
+          // start with ``path/filename.md``
+          var section_id = parts[0] + parts[1];
+          if (section_id.startsWith('/')) {
+            section_id = section_id.slice(1);
+          }
+          var numbers = [];
+          if (parts[2]) {
+            // append the section path
+            var j, hashes;
+            for (i = 3; i < l; i = i + 2) {
+              hashes = '';
+              for (j = 1; j < (i + 1) / 2; j++) {
+                hashes += '#';
+              }
+              numbers.push(parts[i - 1]);
+              section_id = section_id + hashes + parts[i];
+            }
+          }
+          if (numbers.length) {
+            return section_id + ' ord:' + numbers.join(':');
+          }
+          else {
+            return section_id;
+          }
+        },
+        '_store_section_version': function (section_id, rev, content) {
+          this._section_hashes[section_id] = Crypto.SHA256(content);
+          this._section_revs[section_id] = rev;
+        },
+        '_insert_content': function (path, filename, section_path, rev, content, sections) {
+          log('Editor._insert_content');
+          var section_id = this._generate_section_id(path, filename, section_path, sections);
           var range = this.bespin_editor.selection;
-          var text = this.bespin_editor.selectedText;
-          text = text + content;
-          this.bespin_editor.replace(range, text, false);
+          var current_text = this.bespin_editor.selectedText;
+          var start_comment = '<!-- section:' + section_id + ' -->\n\n';
+          var end_comment = '\n\n<!-- end section:' + section_id + ' -->';
+          var new_text = current_text + start_comment + $.trim(content) + end_comment;
+          this.bespin_editor.replace(range, new_text, false);
+          this._store_section_version(section_id, rev, content);
         },
         '_handle_drop': function (event, ui) {
           log('dropped!');
-          log('@@ doc_cache should wrap get_document to prevent multiple fetches');
-          log('@@ not here and not in the Listing');
           if (this.bespin_editor) {
             var target = $(ui.draggable);
-            var content = target.data('content');
-            if (content) {
-              this._insert_context(content);
-            }
-            else {
-              var doc_cache = $('#editor').get(0).doc_cache;
-              var docid = target.get(0).id.split('-').slice(1).join('-').split(':')[0];
-              doc_cache.get_document(
-                docid,
-                $.proxy(
-                  function (doc) {
-                    if (doc) {
-                      this._insert_context(doc.content);
+            var stub = target.get(0).id.split('-').slice(1).join('-');
+            var parts = stub.split(':');
+            var target_id = parts[0];
+            var section_path = parts.slice(1).join(':');
+            log('target_id: ' + target_id);
+            log('section_path: ' + section_path);
+            var doc_cache = $('#editor').get(0).doc_cache;
+            doc_cache.get_document(
+              target_id,
+              $.proxy(
+                function (doc) {
+                  if (doc) {
+                    var content = target.data('content');
+                    if (content) {
+                      this._insert_content(
+                        target.data('path'), 
+                        target.data('filename'), 
+                        section_path, 
+                        target.data('rev'), 
+                        content,
+                        doc.get_sections()
+                      );
                     }
-                  },
-                  this
-                )
-              );
-            }
+                    else {
+                      this._insert_content(
+                        doc.path, 
+                        doc.filename, 
+                        section_path,
+                        doc._rev, 
+                        doc.content,
+                        doc.get_sections()
+                      );
+                    }
+                  }
+                },
+                this
+              )
+            );
           }
         },
         'init': function (doc) {
@@ -338,7 +450,7 @@
             this.rev = doc._rev;
             this.path = doc.path;
             this.initial_content = doc.content;
-            t.tabs('add', tab_id, this._trim_title(doc.title));
+            t.tabs('add', tab_id, this._trim_title(doc.filename));
           }
           else {
             this.id = Math.uuid();
@@ -389,8 +501,11 @@
         'save': function () {
           if (this.bespin_editor) {
             var content = this.bespin_editor.value;
-            var title = this._get_title(content);
-            if (!title) {
+            
+            alert('@@ _parse_out_section_ids, ...');
+            
+            var filename = this._get_filename(content);
+            if (!filename) {
               alert('please add a heading (@@ make nice prompt)');
             }
             else {
@@ -400,7 +515,7 @@
                 var params = {
                   '_id': this.id,
                   '_rev': this.rev,
-                  'title': title,
+                  'filename': filename,
                   'content': content,
                   'path': this.path
                 };
@@ -408,7 +523,7 @@
               else {
                 var url = current_path + '/create';
                 var params = {
-                  'title': title,
+                  'filename': filename,
                   'content': content,
                   'path': this.path
                 };
@@ -424,7 +539,7 @@
                     self.id = data['_id'];
                     self.rev = data['_rev'];
                     // update the tab label
-                    var label = self._trim_title(title);
+                    var label = self._trim_title(filename);
                     $(self.tab).find('span').text(label);
                     // register with the EditorManager
                     var editor_manager = $('#editor').get(0).editor_manager;
@@ -491,7 +606,7 @@
             if (this.bespin_editor.value != doc.content) {
               if (
                 confirm(
-                  this._get_title(this.bespin_editor.value) + 
+                  this._get_filename(this.bespin_editor.value) + 
                   " has changed." + 
                   " Are you sure you want to revert to the saved version?"
                 )
@@ -527,14 +642,14 @@
     );
     var ListingsManager = SingleContextBase.extend({
         '_handle': 'listings_manager',
-        '_sort_by': 'title', // | mod
+        '_sort_by': 'filename', // | mod
         '_current_preview': null,
         'listing_template': $.template(
           '<li id="listing-${id}" class="listing document-listing">\
-            <span class="listing-title">\
-              <a href="#${id}" title="${title}"\
+            <span class="listing-filename">\
+              <a href="#${id}" title="${filename}"\
                   thruflo:mod="${mod}">\
-                ${title}\
+                ${filename}\
               </a>\
             </span>\
             <ul id="sections:${id}" class="sections-list">\
@@ -553,7 +668,7 @@
           this._sort_by = what;
           this.sort();
         },
-        'insert': function (context, _id, title, mod, should_not_sort) {
+        'insert': function (context, _id, filename, mod, should_not_sort) {
           if (!context) {
             existing = $('#listing-' + _id, this.context);
             existing.find('*').unbind();
@@ -564,13 +679,13 @@
             $(this.context).append(
               this.listing_template, {
                 'id': _id,
-                'title': title,
+                'filename': filename,
                 'mod': mod
               }
             );
             context = $('#listing-' + _id, this.context).get(0);
           }
-          var listing = new Listing(context, _id, title);
+          var listing = new Listing(context, _id, filename);
           if (!should_not_sort) {
             this.sort();
           }
@@ -588,8 +703,8 @@
         },
         'sort': function () {
           $('.listing', this.context).tsort(
-            "span.listing-title a", {
-              'attr': this._sort_by == 'title' ? 'title' : 'thruflo.mod'
+            "span.listing-filename a", {
+              'attr': this._sort_by == 'filename' ? 'filename' : 'thruflo:mod'
             }
           );
         },
@@ -600,9 +715,9 @@
             function () {
               var _id = this.id.split('listing-')[1];
               var link = $(this).find('a').eq(0);
-              var title = link.attr('title');
+              var filename = link.attr('title');
               var mod = link.attr('thruflo:mod');
-              self.insert(this, _id, title, mod, true);
+              self.insert(this, _id, filename, mod, true);
             }
           );
           this.sort();
@@ -629,66 +744,20 @@
           var title = $(this).find('span > a').first().attr('title');
           return $('<div class="insert-section-helper">' + title + '</div>');
         },
-        '_call_callbacks': function () { /*
-            
-            When you trigger a dblclick event in most browsers,
-            you actually trigger:
-            
-                mousedown
-                mouseup
-                click
-                mousedown
-                mouseup
-                click
-                dblclick
-            
-            So, to hang ``click`` and a ``dblclick`` events off
-            the same element, you need an idempotent, unobtrusive
-            ``click`` handler that can be called twice without
-            harm when dblclick is triggered.
-            
-            Now, because our click handler is wrapped by 
-            ``this._ensure_has_doc``, which may make a ajax call,
-            we have to invent this 'store up your callbacks and
-            only make one ajax fetch' palava.
-            
-            In a nutshell:
-            
-            * we use a ``this._fetching`` to record whether an
-              ajax call is in progress
-            * if it is, we cache the callbacks in a list
-            * when the request comes back, we call all the callbacks
-              in order, clear the list and set ``this._fetching`` to
-              false
-            
-            N.b.: this is infinitely better than some sort of nasty
-            'delay all clicks by 300ms' hack, shudder.
-            
-          */
-          
-          for (var i = 0; i < this._callbacks.length; i++) {
-            this._callbacks[i]();
-          }
-        },
         '_ensure_has_doc': function (callback) {
-          this._callbacks.push(callback);
-          if (!this._fetching) {
-            $('#editor').get(0).doc_cache.get_document(
-              this._id, 
-              $.proxy(
-                function (doc) {
-                  if (doc) {
-                    this.doc = doc;
-                    this.sections = doc.get_sections();
-                    this._call_callbacks();
-                  }
-                  this._callbacks = new Array();
-                  this._fetching = false;
-                },
-                this
-              )
-            );
-          }
+          $('#editor').get(0).doc_cache.get_document(
+            this._id, 
+            $.proxy(
+              function (doc) {
+                if (doc) {
+                  this.doc = doc;
+                  this.sections = doc.get_sections();
+                  callback();
+                }
+              },
+              this
+            )
+          );
         },
         '_get_type': function () {
           if (!this.hasOwnProperty('_type')) {
@@ -813,6 +882,9 @@
             // store the content against it
             
             rendered_section.data('content', hashes + ' ' + title + '\n' + value);
+            rendered_section.data('path', this.doc.path);
+            rendered_section.data('filename', this.doc.filename);
+            rendered_section.data('rev', this.doc._rev);
             
             // insert the showdown'd section content into a div
             
@@ -844,15 +916,13 @@
         '_trigger_open': function () {
           $('#editor').get(0).editor_manager.open(this.doc);
         },
-        'init': function (context, _id, title) {
+        'init': function (context, _id, filename) {
           this.doc = null;
           this.sections = null;
-          this._fetching = false;
           this._rendered = false;
-          this._callbacks = [];
           this.context = context;
           this._id = _id;
-          this.title = title;
+          this.filename = filename;
           $(this.context).draggable({
               'helper': this._generate_helper,
               'appendTo': 'body'
