@@ -218,7 +218,7 @@
       // clearing anything after this level
       var i;
       var key_length = key.length;
-      var heading_index = (level * 2);
+      var heading_index = 2 + (level * 2);
       var sort_counter_index = heading_index - 1;
       for (i = heading_index + 1; i < key_length; i += 2) {
         // n.b.: ``0`` and ``null`` are explicit default values
@@ -269,7 +269,7 @@
     var map = function (doc) {
       if (doc.doc_type == 'Document') {
         var heading_level = 1;
-        var key = [doc.repository].concat(_six_zero_null_pairs);
+        var key = [doc.repository, doc.path, doc.filename].concat(_six_zero_null_pairs);
         recursively_emit(doc.content, heading_level, key);
       }
     };

@@ -13,8 +13,10 @@
 
 * what happens when:
   * fetch document:
-    * with the latest content of each section and latest rev data for each section, 
-      updating the section content and rev and re-saving the document before returning it
+    + with the latest content of each section
+    + and latest rev data for each section
+    * updating the section content and rev
+    + and re-saving the document before returning it
   * render document
     * extract the rev from the section comment and hold it in memory against the section path
     * generate a hash of each section, to determin `changed` against
@@ -55,8 +57,8 @@
 
 ## Listing options
 
-* images & videos
 * search
+* images & videos
 * browse by folder
 * sort
 
@@ -78,7 +80,7 @@
 ## Deployment
 
 * deploy supervised
-* v. minimal optimisation of db calls every request
+* v. minimal optimisation of db calls every request / server side sectioning
 * thruflo.webapp etags
 
 

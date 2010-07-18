@@ -422,6 +422,10 @@ class Editor(RequestHandler):
     
     
     def _fetch(self):
+        """Gets the thing by ``_id`` and ensures that any reused
+          sections are uptodate.
+        """
+        
         _id = self.get_argument('_id', u'')
         try:
             _id = schema.CouchDocumentId(not_empty=True).to_python(_id)
@@ -430,7 +434,12 @@ class Editor(RequestHandler):
             return self.error(400, body=data)
         else:
             doc = model.Document.soft_get(_id)
-            return {'doc': doc and doc.to_json() or None}
+            if doc is not None:
+                dependencies = doc.update_dependencies()
+                return {'doc': doc.to_json(), 'dependencies': dependencies}
+            else:
+                return {'doc': None, 'dependencies': {}}
+            
         
     
     
