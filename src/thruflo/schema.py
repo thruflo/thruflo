@@ -13,7 +13,7 @@ from formencode import validators
 
 # import markdown
 
-from thruflo.webapp.utils import generate_hash
+from thruflo.webapp import utils
 
 import model
 
@@ -192,7 +192,7 @@ class SecurePassword(validators.UnicodeString):
     
     def _to_python(self, value, state):
         value = super(SecurePassword, self)._to_python(value, state)
-        return generate_hash(s=value.strip().lower())
+        return utils.generate_hash(s=value.strip().lower())
         
     
     
@@ -381,11 +381,43 @@ class IdMatchesPathFilename(validators.FormValidator):
     
     
 
+class Sections(validators.UnicodeString):
+    messages = {'invalid': 'Content must be a list of dicts as valid JSON'}
+    
+    def _to_python(self, value, state):
+        value = super(Sections, self)._to_python(value, state)
+        return utils.json_decode(value)
+        
+    
+    
+    def validate_python(self, value, state):
+        super(Sections, self).validate_python(value, state)
+        if not isinstance(value, list):
+            logging.debug('*')
+            raise validators.Invalid(
+                self.message("invalid", state),
+                value,
+                state
+            )
+        for item in value:
+            if not isinstance(item, dict):
+                raise validators.Invalid(
+                    self.message("invalid", state),
+                    value,
+                    state
+                )
+                break
+            
+        
+    
+    
+
 
 class CreateDocument(formencode.Schema):
     filename = validators.UnicodeString(not_empty=True)
     content = Content(not_empty=True)
     path = Path(not_empty=True)
+    sections = Sections(not_empty=True)
     
 
 class OverwriteDocument(formencode.Schema):
@@ -394,13 +426,16 @@ class OverwriteDocument(formencode.Schema):
     filename = validators.UnicodeString(not_empty=True)
     content = Content(not_empty=True)
     path = Path(not_empty=True)
+    sections = Sections(not_empty=True)
     chained_validators = [
         IdMatchesPathFilename()
     ]
     
 
+
 class DeleteDocument(formencode.Schema):
     _id = CouchDocumentId(not_empty=True)
     _rev = CouchRevId(not_empty=True)
     
+
 

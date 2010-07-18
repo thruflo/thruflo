@@ -365,6 +365,42 @@ class Editor(RequestHandler):
             self._notify_doc_deleted(params['_id'])
         
     
+    
+    def _create_or_overwrite(self, overwriting=False):
+        params = {
+            'path': self.get_argument('path', u''),
+            'filename': self.get_argument('filename', u''),
+            'content': self.get_argument('content', u''),
+            'sections': self.get_argument('sections', u'')
+        }
+        if overwriting:
+            params['_id'] = self.get_argument('_id', u'')
+            params['_rev'] = self.get_argument('_rev', u'')
+        form_schema_name = overwriting and 'Overwrite' or 'Create'
+        form_schema = getattr(schema, '%sDocument' % form_schema_name)
+        try:
+            params = form_schema.to_python(params)
+        except formencode.Invalid, err:
+            data = utils.json_encode(err.error_dict)
+            return self.error(400, body=data)
+        else:
+            changed = []
+            params['repository'] = self.repository.id
+            doc = model.Document(**params)
+            if not overwriting:
+                doc._id = model.Document.generate_id(
+                    path=doc.path, 
+                    filename=doc.filename
+                )
+            dependencies = doc.save_sections(params['sections'])
+            changed.extend(dependencies)
+            doc.save()
+            changed.append(doc)
+            self._notify_doc_changed(changed)
+            return {'_id': doc._id, '_rev': doc._rev}
+        
+    
+    
     def _overwrite(self):
         """Save overwrites the content of a previously stored
           document.  If the ``doc._rev`` is out of date, this 
@@ -373,28 +409,7 @@ class Editor(RequestHandler):
           @@ todo: handle conflicts / merging.
         """
         
-        params = {
-            '_id': self.get_argument('_id', u''),
-            '_rev': self.get_argument('_rev', u''),
-            'path': self.get_argument('path', u''),
-            'filename': self.get_argument('filename', u''),
-            'content': self.get_argument('content', u'')
-        }
-        try:
-            params = schema.OverwriteDocument.to_python(params)
-        except formencode.Invalid, err:
-            data = utils.json_encode(err.error_dict)
-            return self.error(400, body=data)
-        else:
-            changed = []
-            params['repository'] = self.repository.id
-            doc = model.Document(**params)
-            dependencies = doc.save_sections()
-            changed.extend(dependencies)
-            doc.save()
-            changed.append(doc)
-            self._notify_doc_changed(changed)
-            return {'_id': doc._id, '_rev': doc._rev}
+        return self._create_or_overwrite(overwriting=True)
         
     
     def _create(self):
@@ -402,31 +417,9 @@ class Editor(RequestHandler):
           with the ``content`` provided.
         """
         
-        params = {
-            'path': self.get_argument('path'),
-            'filename': self.get_argument('filename'),
-            'content': self.get_argument('content')
-        }
-        try:
-            params = schema.CreateDocument.to_python(params)
-        except formencode.Invalid, err:
-            data = utils.json_encode(err.error_dict)
-            return self.error(400, body=data)
-        else:
-            changed = []
-            params['repository'] = self.repository.id
-            doc = model.Document(**params)
-            doc._id = model.Document.generate_id(
-                path=doc.path, 
-                filename=doc.filename
-            )
-            dependencies = doc.save_sections()
-            changed.extend(dependencies)
-            doc.save()
-            changed.append(doc)
-            self._notify_doc_changed(changed)
-            return {'_id': doc._id, '_rev': doc._rev}
+        return self._create_or_overwrite(overwriting=False)
         
+    
     
     def _fetch(self):
         _id = self.get_argument('_id', u'')
@@ -440,24 +433,6 @@ class Editor(RequestHandler):
             return {'doc': doc and doc.to_json() or None}
         
     
-    
-    """
-    def _section(self):
-        path = self.get_argument('path', u'')
-        try:
-            path = schema.SectionPath(not_empty=True).to_python(path)
-        except formencode.Invalid, err:
-            data = utils.json_encode({'path': 'Invalid ``path``'})
-            return self.error(400, body=data)
-        else:
-            parts = [urllib.unquote_plus(item) for item in path.split(':')]
-            logging.debug(parts)
-            
-            raise NotImplementedError
-            
-        
-    
-    """
     
     def _listen(self):
         """Register the ``client_id`` against the repo in redis, so 

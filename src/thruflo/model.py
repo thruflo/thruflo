@@ -348,6 +348,28 @@ class Document(BaseDocument):
     """
     
     @classmethod
+    def extract_path_and_filename(cls, section_id):
+        path_and_filename = section_id.split('.md#')[0]
+        if not path_and_filename.endswith('.md'):
+            path_and_filename = u'%s.md' % path_and_filename
+        if not path_and_filename.startswith('/'):
+            path_and_filename = u'/%s' % path_and_filename
+        parts = path_and_filename.split('/')
+        path = parts[0:-1]
+        filename = parts[-1]
+        return path, filename
+        
+    
+    
+    @classmethod
+    def get_from_section_id(cls, section_id):
+        path, filename = cls.extract_path_and_filename(section_id)
+        docid = cls.generate_id(path=path, filename=filename)
+        return cls.soft_get(docid)
+        
+    
+    
+    @classmethod
     def generate_id(cls, path=None, filename=None):
         if path is None or filename is None:
             raise ValueError('must provide a path and filename to generate_id')
@@ -356,11 +378,61 @@ class Document(BaseDocument):
         
     
     
-    def save_sections(self):
-        logging.warning('@@ todo: doc.save_sections')
+    def update_section_content(self, section_id, section_content):
+        """Update the part of the ``content`` of this ``Document``s, as 
+          identified by the ``section_id``, ala::
+          
+              path/foo/filename.md#Heading##Sub Head###Sub Sub Head ord:0:0:0
+          
+          The ``section_path`` we're interested in this bit::
+          
+              #Heading##Sub Head###Sub Sub Head ord:0:0:0
+          
+          The process is then to use this path to identify the start and
+          end pos of the relevant chunk of content in this doc and to overwrite
+          it with the ``section_content`` provided.
+          
+        """
         
-        return []
+        section_path = u'.md'.join(section_id.split(u'.md')[1:])
         
+        startpos = 0
+        
+        # for each level
+          # get the text, e.g.: ``Test Doc One``
+          # loop through, matching via setext or atx from pos
+          # if this is the n'th match where n = ord/2
+            # startpos = the end of the heading
+        
+        # endpos = either the start of the next sibling heading or the end of doc
+        
+        # replace startpos - endpos with '\n\n' + content + '\n\n'
+        
+        raise NotImplementedError
+        
+    
+    
+    def save_sections(self, sections):
+        """Updates other documents' section content.
+        """
+        
+        docs = []
+        
+        for data in sections:
+            changed = data.get('changed', True)
+            if changed:
+                # get the doc that contains this section
+                section_id = data['id']
+                doc = get_from_section_id(section_id)
+                # amend its content
+                doc.update_section_content(section_id, data['content'])
+                # try to save it 
+                doc._rev = data['rev']
+                logging.warning('@@ save_sections needs to handle saving better')
+                doc.save()
+                docs.append(doc)
+            
+        return docs
         
     
     

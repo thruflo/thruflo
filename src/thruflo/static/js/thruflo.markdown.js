@@ -347,64 +347,122 @@ if (!thruflo.hasOwnProperty('markdown')) {
     
     var start_section_comment = new RegExp('<!-- section:(' + dot + '*) -->', 'gm');
     
-    thruflo.markdown.get_section_ids = function (content) { /*
+    thruflo.markdown.get_section_content_by_id = function (content) { /*
         
-        Extracts the 
+        Extracts the ``<!-- section:... --> ... <!-- end section -->`` sections
+        and returns them, in the order the appear in the document, in dicts
+        with ``{'id': '...', 'content': '...'}``.
         
-            ``test_doc_one.md#Test Doc One##Footer ord:0:2``s 
+        E.g.:
         
-        from a document with a load of 
+            # Hello
+            
+            <!-- section:test_doc_one.md#Test Doc One##Footer ord:0:2 -->
+            
+            I love you
+            
+            <!-- end section:test_doc_one.md#Test Doc One##Footer ord:0:2 -->
+            
+            Won't you tell me your name
+            
+        Returns:
         
-        ``<!-- section:test_doc_one.md#Test Doc One##Footer ord:0:2 -->``s.
-        
+            [{
+                'id': 'test_doc_one.md#Test Doc One##Footer ord:0:2', 
+                'content': 'I love you'
+              }
+            ]
         
       */
       
-      throw '@@ thruflo.markdown.get_section_ids -- how to match literal backslash?';
-      
-      var sections_ids = [];
+      var results = [];
       
       var start_comments = content.match(start_section_comment);
-      
-      var i, 
-          start_comment, 
-          path,
-          filename,
-          l = start_comments.length;
-      for (i = 0; i < l; i++) {
-        start_comment = start_comments[i];
-        var parts = start_comment.split(/\/?!\//); /*
+      if (start_comments) {
+        var i, 
+            l = start_comments.length,
+            start_comment,
+            section_id,
+            end_comment,
+            start_pos,
+            end_pos,
+            section_content,
+            match_content,
+            match_string,
+            counter = 1,
+            match,
+            pos,
+            is_end_comment;
+        for (i = 0; i < l; i++) {
+          start_comment = start_comments[i];
+          section_id = start_comment.slice(13, -4);
           
-          parts is an array of strings like:
+          start_pos = content.indexOf(start_comment) + start_comment.length;
+          end_pos = 0;
           
-          '<!-- section:/test_doc_one.md#Test Doc One##Sub Head pos:0:0 -->'
+          /* 
+            
+            we have to handle nested comments, e.g.:
+            
+            start abc
+              start abc
+                start abc
+                end abc
+              end abc
+            end abc
+            
+            so we keep a counter of the number of ``end``s we're looking
+            for and walk the tree, incrementing it when we hit a start
+            and decrementing when we hit an end, until / unless the counter
+            is one, in which case we have our matching comment:
+            
+            start abc # n = 1
+              start abc # incr, so n = 2
+                start abc # incr, so n = 3
+                end abc # n = 3, so decr
+              end abc # n = 2, so decr
+            end abc # n = 1, bingo :)
+            
+            @@ how to handle pooped nesting?
           
-        */
-        
-        
+          */
+          
+          content = content.slice(start_pos);
+          
+          match_content = content;
+          match_string = ' section:' + section_id + ' -->';
+          counter = 1;
+          while (true) {
+            match = match_content.match(match_string);
+            if (!match) { 
+              break; 
+            }
+            else {
+              pos = match_content.indexOf(match);
+              is_end_comment = match_content.substr(pos-3, 3) == 'end';
+              if (is_end_comment) {
+                if (counter == 1) { // bingo :)
+                  end_pos = content.indexOf(match_content) + pos + match.length - 9;
+                  break;
+                }
+                else { // decr
+                  counter = counter - 1;
+                }
+              }
+              else { // incr
+                counter = counter + 1;
+              }
+              match_content = match_content.slice(pos + match.length);
+            }
+          }
+          if (end_pos) {
+            section_content = $.trim(content.slice(0, end_pos));
+            results.push({'id': section_id, 'content': section_content});
+          }
+        }
       }
       
-      /*
-        
-        var start_comment = '<!-- section:foo/bar/test_doc_one.md#T\/est ';
-        
-        // Doc One##Sub He\#ad pos:0:0 -->
-        
-        console.log(start_comment);
-        
-        var SAFE_SLASH = '__thruflo::fwdslash::thruflo__';
-        var SAFE_HASH = '__thruflo::hash::thruflo__';
-        
-        var text = start_comment.split('<!-- section:')[1];
-        
-        console.log(text);
-        
-        text = text.replace('[\\\\\/]', SAFE_SLASH);
-        //text = text.replace('\#', SAFE_HASH);
-        
-        console.log(text);
-        
-      */
+      return results;
       
     };
     

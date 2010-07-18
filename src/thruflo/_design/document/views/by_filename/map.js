@@ -1,5 +1,9 @@
 function (doc) {
   if (doc.doc_type == 'Document') {
-    emit([doc.repository, doc.filename], [doc._rev, doc.mod])
+    var path = doc.path + doc.filename;
+    if (path.substr(0, 1) == '/') {
+      path = path.slice(1);
+    }
+    emit([doc.repository, path], [doc._rev, doc.mod])
   };
 };

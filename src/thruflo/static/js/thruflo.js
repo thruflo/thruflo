@@ -332,9 +332,6 @@
           }
           return title;
         },
-        '_parse_out_section_ids': function (content) {
-          return thruflo.markdown.get_section_ids(content);
-        },
         '_generate_section_id': function (path, filename, section_path, sections) { /*
             
             We want `path/filename.md#Heading##Sub Heading` where all the parts 
@@ -353,9 +350,9 @@
               parts = [path, filename].concat(section_path.split(':')),
               l = parts.length;
           // decode and escape
-          for (i = 0; i < l; i++) {
+          for (i = 2; i < l; i++) {
             part = decodeURIComponent(parts[i]);
-            parts[i] = part.replace(/\//g, '\/').replace(/#/g, '\#');
+            parts[i] = part.replace(/\//g, '\\/').replace(/#/g, '\\#');
           }
           // start with ``path/filename.md``
           var section_id = parts[0] + parts[1];
@@ -388,12 +385,13 @@
         },
         '_insert_content': function (path, filename, section_path, rev, content, sections) {
           log('Editor._insert_content');
+          var content = $.trim(content);
           var section_id = this._generate_section_id(path, filename, section_path, sections);
           var range = this.bespin_editor.selection;
           var current_text = this.bespin_editor.selectedText;
           var start_comment = '<!-- section:' + section_id + ' -->\n\n';
           var end_comment = '\n\n<!-- end section:' + section_id + ' -->';
-          var new_text = current_text + start_comment + $.trim(content) + end_comment;
+          var new_text = current_text + start_comment + content + end_comment;
           this.bespin_editor.replace(range, new_text, false);
           this._store_section_version(section_id, rev, content);
         },
@@ -501,33 +499,57 @@
         'save': function () {
           if (this.bespin_editor) {
             var content = this.bespin_editor.value;
-            
-            alert('@@ _parse_out_section_ids, ...');
-            
+            var sections = [];
+            var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
+            log('get_section_content_by_id');
+            log(sections_by_id);
+            var i,
+                l = sections_by_id.length,
+                section,
+                section_id,
+                section_hash;
+            for (i = 0; i < l; i++) {
+              section = sections_by_id[i];
+              section_id = section['id'];
+              log('section_id: ' + section_id);
+              if (this._section_revs.hasOwnProperty(section_id)) {
+                log('*');
+                section['rev'] = this._section_revs[section_id];
+                if (this._section_hashes.hasOwnProperty(section_id)) {
+                  log('**');
+                  section_hash = Crypto.SHA256(section['content']);
+                  if (section_hash == this._section_hashes[section_id]) {
+                    log('ignore: hasn\'t changed');
+                    section['changed'] = false;
+                  }
+                  else {
+                    log('changed!');
+                    section['changed'] = true;
+                  }
+                }
+              }
+              sections.push(section);
+            }
             var filename = this._get_filename(content);
             if (!filename) {
               alert('please add a heading (@@ make nice prompt)');
             }
             else {
-              var self = this;
+              var url = current_path + '/overwrite';
+              var params = {
+                'filename': filename,
+                'content': content,
+                'path': this.path,
+                'sections': JSON.stringify(sections)
+              };
               if (this.id && this.rev) {
-                var url = current_path + '/overwrite';
-                var params = {
-                  '_id': this.id,
-                  '_rev': this.rev,
-                  'filename': filename,
-                  'content': content,
-                  'path': this.path
-                };
+                params['_id'] = this.id;
+                params['_rev'] = this.rev;
               }
               else {
                 var url = current_path + '/create';
-                var params = {
-                  'filename': filename,
-                  'content': content,
-                  'path': this.path
-                };
               }
+              var self = this;
               $.ajax({
                   'url': url,
                   'type': 'POST',
