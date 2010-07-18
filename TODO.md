@@ -23,8 +23,8 @@
     * if it has, flag the change to the user and either overwrite (@@ later merge) or unpin
     * update the rev in memory against the section as necessary
   * save
-    * client side: send a dict of `rev` and `changed` flags along with the doc
-    * server side: for each changed section, save that doc using the latest rev
+    + client side: send a dict of `rev` and `changed` flags along with the doc
+    + server side: for each changed section, save that doc using the latest rev
 * doubleclick to lose the `<!-- section -->` comments
 * syntax highlighting to visually demarkate `<!-- section:... -->` comment blocks
 

@@ -14,6 +14,7 @@ __all__ = [
 ]
 
 import logging
+import re
 import sys
 import uuid
 
@@ -34,6 +35,9 @@ ten_lies = [
     False, False, False, False, False, 
     False, False, False, False, False
 ]
+
+SAFE_HASH = r'__thruflo::hash::thruflo__'
+SAFE_FWDSLASH = r'__thruflo::fwdslash::thruflo__'
 
 class Couch(object):
     """Convenience wrapper around the ``couchdbkit``
@@ -65,7 +69,7 @@ class BaseDocument(CouchDBKitDocument):
     """
     
     @classmethod
-    def soft_get(cls, docid, default=None):
+    def soft_get(cls, docid, rev=None, default=None):
         """Allows::
           
               inst = cls.soft_get(possible_id)
@@ -76,7 +80,7 @@ class BaseDocument(CouchDBKitDocument):
         """
         
         try:
-            return cls.get(docid)
+            return cls.get(docid, rev=rev)
         except ResourceNotFound:
             return default
         
@@ -354,20 +358,20 @@ class Document(BaseDocument):
             path_and_filename = u'%s.md' % path_and_filename
         if not path_and_filename.startswith('/'):
             path_and_filename = u'/%s' % path_and_filename
+        logging.debug(path_and_filename)
         parts = path_and_filename.split('/')
-        path = parts[0:-1]
+        path = u'/%s' % u'/'.join(parts[0:-1])
         filename = parts[-1]
         return path, filename
         
     
-    
     @classmethod
-    def get_from_section_id(cls, section_id):
+    def get_from_section_id(cls, section_id, rev=None):
         path, filename = cls.extract_path_and_filename(section_id)
+        logging.debug('path, filename: %s, %s' % (path, filename))
         docid = cls.generate_id(path=path, filename=filename)
-        return cls.soft_get(docid)
+        return cls.soft_get(docid, rev=rev)
         
-    
     
     @classmethod
     def generate_id(cls, path=None, filename=None):
@@ -396,25 +400,112 @@ class Document(BaseDocument):
         
         section_path = u'.md'.join(section_id.split(u'.md')[1:])
         
-        startpos = 0
+        if not section_path:
+            self.content = section_content
+            return
+        
+        section_path = section_path.replace(r'\#', SAFE_HASH)
+        section_path = section_path.replace(r'\/', SAFE_FWDSLASH)
+        
+        ordstring = section_path[section_path.index('ord:') + 4:]
+        ords = [int(item) for item in ordstring.split(':')]
+        
+        startpos = -1
+        level = 1
+        hashes = '#'
         
         # for each level
-          # get the text, e.g.: ``Test Doc One``
-          # loop through, matching via setext or atx from pos
-          # if this is the n'th match where n = ord/2
-            # startpos = the end of the heading
+        while True:
+            # get the text, e.g.: ``Test Doc One``
+            try:
+                s = section_path.index(hashes) + len(hashes)
+            except ValueError:
+                # when we're out of sections,
+                # set the endpos to either the start of 
+                # the next sibling heading or the end of doc
+                if level == 2:
+                    setext_pattern = r'^(.+?)[ \t]*\n=+[ \t]*[\n|$]'
+                elif level == 3:
+                    setext_pattern = r'^(.+?)[ \t]*\n-+[ \t]*[\n|$]'
+                atx_pattern = r''.join([
+                        r'^\#{1,',
+                        str(level - 1),
+                        r'}[ \t]*(?!\#)(.+?)[ \t]*(?<!\\)\#*[\n|$]'
+                    ]
+                )
+                sibling_or_end_of_doc = re.compile(
+                  r'(' + atx_pattern + r')|(' + setext_pattern + r')',
+                  re.U | re.M
+                )
+                sibling_match = sibling_or_end_of_doc.search(content, startpos + 1)
+                endpos = sibling_match and sibling_match.start() or -1
+                break;
+            else:
+                hashes += '#'
+                try:
+                    e = section_path.index(hashes)
+                except ValueError:
+                    e = section_path.index('ord:') - 1
+                text = section_path[s:e].replace(SAFE_HASH, r'#')
+                text = text.replace(SAFE_FWDSLASH, r'/')
+                if level == 1:
+                    setext_pattern = r''.join([
+                            r'^(',
+                            re.escape(text),
+                            r')[ \t]*\n=+[ \t]*[\n|$]'
+                        ]
+                    )
+                elif level == 2:
+                    setext_pattern = r''.join([
+                            r'^(',
+                            re.escape(text),
+                            r')[ \t]*\n-+[ \t]*[\n|$]'
+                        ]
+                    )
+                atx_pattern = r''.join([
+                        r'^\#{',
+                        str(level),
+                        r'}[ \t]*(',
+                        re.escape(text),
+                        r')[ \t]*(?<!\\)\#*[\n|$]'
+                    ]
+                )
+                target_heading = re.compile(
+                  r'(' + atx_pattern + r')|(' + setext_pattern + r')', 
+                  re.U | re.M
+                )
+                target_match_number = ords[level - 1] / 2
+                match_number = 0
+                scan_pos = 0
+                # loop through, matching via setext or atx from pos
+                while True:
+                    match = target_heading.search(content, scan_pos)
+                    if not match:
+                        break;
+                    else:
+                        # if this is the n'th match where n = ord/2
+                        if match_number == target_match_number:
+                            # startpos = the end of the heading
+                            startpos = match.end()
+                            break;
+                        match_number += 1
+                level += 1
+            
+        if startpos > -1:
+            self.content = u''.join(
+                self.content[:startpos].rstrip(),
+                u'\n\n',
+                section_content.strip(),
+                u'\n\n',
+                self.content[endpos:].lstrip()
+            )
         
-        # endpos = either the start of the next sibling heading or the end of doc
-        
-        # replace startpos - endpos with '\n\n' + content + '\n\n'
-        
-        raise NotImplementedError
-        
-    
     
     def save_sections(self, sections):
         """Updates other documents' section content.
         """
+        
+        logging.debug('save_sections')
         
         docs = []
         
@@ -423,14 +514,17 @@ class Document(BaseDocument):
             if changed:
                 # get the doc that contains this section
                 section_id = data['id']
-                doc = get_from_section_id(section_id)
-                # amend its content
-                doc.update_section_content(section_id, data['content'])
-                # try to save it 
-                doc._rev = data['rev']
-                logging.warning('@@ save_sections needs to handle saving better')
-                doc.save()
-                docs.append(doc)
+                logging.debug('section_id: %s' % section_id)
+                doc = Document.get_from_section_id(section_id, rev=data['rev'])
+                logging.debug('doc: %s' % doc)
+                if doc is not None:
+                    # amend its content
+                    doc.update_section_content(section_id, data['content'])
+                    # try to save it 
+                    logging.warning('@@ save_sections needs to handle ResourceConflict')
+                    logging.warning('@@ save_sections needs to take care over saving')
+                    doc.save()
+                    docs.append(doc)
             
         return docs
         
