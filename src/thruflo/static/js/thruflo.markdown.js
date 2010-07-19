@@ -25,7 +25,7 @@ if (!thruflo.hasOwnProperty('markdown')) {
   
 */
 
-(function () { 
+(function ($) { 
     
     /*
       
@@ -42,6 +42,25 @@ if (!thruflo.hasOwnProperty('markdown')) {
     var sp = '[' + space + ']';
     var wp = '[' + new_line + space + ']';
     var dot = '[^' + new_line + ']'; 
+    
+    
+    /*
+      
+      ``$.rtrim`` and ``$.ltrim``
+      
+    */
+    
+    /*
+    var rtrim_expression = new RegExp('(' + wp + ')+$', 'm');
+    $.rtrim = function (s) {
+      return s.replace(rtrim_expression, '');
+    };
+    
+    var ltrim_expression = new RegExp('^(' + wp + ')+', 'm');
+    $.ltrim = function (s) {
+      return s.replace(ltrim_expression, '');
+    };
+    */
     
     /*
       
@@ -377,6 +396,9 @@ if (!thruflo.hasOwnProperty('markdown')) {
       
       var results = [];
       
+      console.log('get_section_content_by_id content');
+      console.log(content);
+      
       var start_comments = content.match(start_section_comment);
       if (start_comments) {
         var i, 
@@ -466,4 +488,109 @@ if (!thruflo.hasOwnProperty('markdown')) {
       
     };
     
-})();
+    var re_escape = function (str) {
+      return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    };
+    
+    thruflo.markdown.get_updated_dependency_content = function(doc_content, section_id, section_content) { /*
+        
+        overwrites ``doc_content``s dependency section's that match ``section_id``
+        with ``section_content``
+        
+      */
+      
+      console.log('update_dependency_content ' + section_id);
+      console.log(section_content);
+      
+      var content = doc_content;
+      var start_comment = new RegExp(
+        '\<\!\-\-\ section\:' + re_escape(section_id) + '\ \-\-\>', 'gm'
+      );
+      var all_comments = new RegExp(
+        '\ section\:' + re_escape(section_id) + '\ \-\-\>', 'm'
+      );
+      var start_comments = content.match(start_comment);
+      console.log('start_comments');
+      console.log(start_comments);
+      if (start_comments) {
+        var i, 
+            l = start_comments.length,
+            start_comment,
+            section_id,
+            end_comment,
+            start_pos,
+            total_start_pos = 0,
+            end_pos,
+            match_content,
+            match_string,
+            counter = 1,
+            match,
+            pos,
+            is_end_comment;
+        for (i = 0; i < l; i++) {
+          start_comment = start_comments[i];
+          section_id = start_comment.slice(13, -4);
+          console.log('section_id');
+          console.log(section_id);
+          start_pos = content.indexOf(start_comment) + start_comment.length;
+          end_pos = 0;
+          content = content.slice(start_pos);
+          total_start_pos += start_pos;
+          match_content = content;
+          counter = 1;
+          while (true) {
+            console.log('start_pos');
+            console.log(start_pos);
+            console.log('total_start_pos');
+            console.log(total_start_pos);
+            match = match_content.match(all_comments);
+            if (!match) { 
+              console.log('*');
+              break; 
+            }
+            else {
+              console.log('**');
+              pos = match_content.indexOf(match);
+              is_end_comment = match_content.substr(pos-3, 3) == 'end';
+              if (is_end_comment) {
+                console.log('***');
+                if (counter == 1) { // bingo :)
+                  console.log('****');
+                  end_pos = content.indexOf(match_content) + pos - 8;
+                  break;
+                }
+                else { // decr
+                  console.log('*****');
+                  counter = counter - 1;
+                }
+              }
+              else { // incr
+                console.log('******');
+                counter = counter + 1;
+              }
+              match_content = match_content.slice(pos + match.length);
+            }
+          }
+          console.log('end_pos: ' + end_pos);
+          if (end_pos) {
+            var start_insert = total_start_pos;
+            var end_insert = total_start_pos + end_pos;
+            console.log('insert at: ' + start_insert + ', ' + end_insert);
+            console.log('existing substring at that pos');
+            console.log(doc_content.substr(start_insert, end_insert));
+            console.log('the text we want to insert');
+            console.log(section_content);
+            doc_content = [
+              doc_content.slice(0, start_insert),
+              '\n\n',
+              section_content,
+              '\n\n',
+              doc_content.slice(end_insert)
+            ].join('');
+          }
+        }
+      }
+      return doc_content;
+    };
+    
+})(jQuery);

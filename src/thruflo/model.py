@@ -352,46 +352,47 @@ class Document(BaseDocument):
     """
     
     @classmethod
-    def convert_to_sections_key(cls, repo_id, section_id):
-        logging.debug('convert_to_sections_key: %s' % section_id)
+    def get_docid_or_sections_key(cls, repo_id, section_id):
+        logging.debug('get_docid_or_sections_key: %s' % section_id)
         path, filename = cls.extract_path_and_filename(section_id)
-        logging.debug(path)
-        logging.debug(filename)
-        key = [
-            repo_id, path, filename,
-            0, None, 
-            0, None, 
-            0, None, 
-            0, None, 
-            0, None, 
-            0, None
-        ]
         section_path = section_id.split(filename)[1]
-        section_path = section_path.replace(r'\#', SAFE_HASH)
-        section_path = section_path.replace(r'\/', SAFE_FWDSLASH)
-        ordstring = section_path[section_path.index('ord:') + 4:]
-        ords = [int(item) for item in ordstring.split(':')]
-        level = 1
-        hashes = '#'
-        while True:
-            ord_pos = 1 + (level * 2)
-            text_pos = 2 + (level * 2)
-            try:
-                s = section_path.index(hashes) + len(hashes)
-            except ValueError:
-                break;
-            else:
-                hashes += '#'
+        if not section_path:
+            return cls.generate_id(path=path, filename=filename)
+        else:
+            key = [
+                repo_id, path, filename,
+                0, None, 
+                0, None, 
+                0, None, 
+                0, None, 
+                0, None, 
+                0, None
+            ]
+            section_path = section_path.replace(r'\#', SAFE_HASH)
+            section_path = section_path.replace(r'\/', SAFE_FWDSLASH)
+            ordstring = section_path[section_path.index('ord:') + 4:]
+            ords = [int(item) for item in ordstring.split(':')]
+            level = 1
+            hashes = '#'
+            while True:
+                ord_pos = 1 + (level * 2)
+                text_pos = 2 + (level * 2)
                 try:
-                    e = section_path.index(hashes)
+                    s = section_path.index(hashes) + len(hashes)
                 except ValueError:
-                    e = section_path.index('ord:') - 1
-                text = section_path[s:e].replace(SAFE_HASH, r'#')
-                text = text.replace(SAFE_FWDSLASH, r'/')
-                key[ord_pos] = ords[level - 1]
-                key[text_pos] = text
-                level += 1
-        return key
+                    break;
+                else:
+                    hashes += '#'
+                    try:
+                        e = section_path.index(hashes)
+                    except ValueError:
+                        e = section_path.index('ord:') - 1
+                    text = section_path[s:e].replace(SAFE_HASH, r'#')
+                    text = text.replace(SAFE_FWDSLASH, r'/')
+                    key[ord_pos] = ords[level - 1]
+                    key[text_pos] = text
+                    level += 1
+            return key
         
     
     @classmethod
@@ -451,31 +452,37 @@ class Document(BaseDocument):
             logging.debug(item)
             section_id = item['key'][4]
             logging.debug(section_id)
-            stored_content = item['value']
-            # lookup the latest corresponding content for the stored doc
-            section_key = Document.convert_to_sections_key(
-                self.repository, 
-                section_id
-            )
-            section = couch.db.view(
-                'document/sections', 
-                key=section_key,
-            ).first()
-            logging.debug('section')
-            logging.debug(section)
-            if not section:
-                # @@ todo: it it doesn't exist unpin
-                logging.warning('*** @@ section doesn\'t exist ***')
-                logging.warning('*** need a mechanism to handle this!!! ***')
-            # if it's changed
-            actual_content = section['value'].strip()
-            if not actual_content == stored_content:
-                doc = Document.get(section['id'])
-                # update the relevant section of content
-                # using the revs dict to ensure only update the same section_id once
-                if not section_id in revs:
+            cached_content = item['value']
+            # using the revs dict to ensure only update the same section_id once
+            if not section_id in revs:
+                actual_content = None
+                # lookup the 'master' / actual content (stored in the dependency doc)
+                docid_or_section_key = Document.get_docid_or_sections_key(
+                    self.repository, 
+                    section_id
+                )
+                if isinstance(docid_or_section_key, basestring):
+                    docid = docid_or_section_key
+                    doc = Document.soft_get(docid)
+                    if doc is not None:
+                        actual_content = doc.content
+                else:
+                    section_key = docid_or_section_key
+                    section = couch.db.view('document/sections', key=section_key).first()
+                    if section is not None:
+                        actual_content = section['value'].strip()
+                        doc = Document.get(section['id'])
+                if actual_content is None:
+                    logging.warning('*** @@ section_id doesn\'t resolve ***')
+                    logging.warning('*** need to handle this by unpinning ***')
+                elif not actual_content == cached_content:
+                    # update the relevant section of content
                     self.update_dependency_content(section_id, actual_content)
-                    # and return the rev to go with the id
+                # @@ todo: optimise
+                logging.warning('*** @@ fetching *every* dependency *every* fetch ***')
+                logging.warning('*** could do with some caching at some point ***')
+                # and return the rev to go with the id
+                if doc:
                     revs[section_id] = doc._rev
                 
         if should_save and not self.content == snapshot:
@@ -533,7 +540,7 @@ class Document(BaseDocument):
                     if match_number == 0:
                         logging.debug('******')
                         # we have the corresponding end comment
-                        endpos = match.start() - 8
+                        endpos = match.start() - 9
                         break;
                     else:
                         logging.debug('*******')
@@ -584,7 +591,7 @@ class Document(BaseDocument):
         section_path = u'.md'.join(section_id.split(u'.md')[1:])
         
         if not section_path:
-            self.content = section_content
+            self.content = u'\n%s\n' % section_content
             return
         
         logging.debug('it\'s a section')
@@ -698,26 +705,27 @@ class Document(BaseDocument):
         
         logging.debug('save_sections')
         
-        docs = []
+        revs = {}
         
         for data in sections:
             changed = data.get('changed', True)
             if changed:
-                # get the doc that contains this section
                 section_id = data['id']
                 logging.debug('section_id: %s' % section_id)
-                doc = Document.get_from_section_id(section_id, rev=data['rev'])
-                logging.debug('doc: %s' % doc)
-                if doc is not None:
-                    # amend its content
-                    doc.update_section_content(section_id, data['content'])
-                    # try to save it 
-                    logging.warning('@@ save_sections needs to handle ResourceConflict')
-                    logging.warning('@@ save_sections needs to take care over saving')
-                    doc.save()
-                    docs.append(doc)
+                if not section_id in revs:
+                    # get the doc that contains this section
+                    doc = Document.get_from_section_id(section_id, rev=data['rev'])
+                    logging.debug('doc: %s' % doc)
+                    if doc is not None:
+                        # amend its content
+                        doc.update_section_content(section_id, data['content'])
+                        # try to save it 
+                        logging.warning('@@ save_sections needs to handle ResourceConflict')
+                        logging.warning('@@ save_sections needs to take care over saving')
+                        doc.save()
+                        revs[section_id] = doc
             
-        return docs
+        return revs
         
     
     

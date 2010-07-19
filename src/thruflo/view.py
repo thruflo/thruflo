@@ -6,6 +6,7 @@
 
 import functools
 import logging
+import time
 import urllib
 import urlparse
 
@@ -338,10 +339,12 @@ class Editor(RequestHandler):
         changed = []
         for item in docs:
             data = {
-                '_id': item.id, 
+                '_id': item.id,
+                '_rev': item._rev,
+                'path': item.path.encode('utf8'),
+                'filename': item.filename.encode('utf8'),
                 'type': 'document',
                 'action': 'changed',
-                'filename': item.filename.encode('utf8'), 
                 'mod': item.mod.replace(microsecond=0).isoformat() + 'Z'
             }
             changed.append(data)
@@ -364,7 +367,6 @@ class Editor(RequestHandler):
             doc = model.Document.get_db().delete_doc(params)
             self._notify_doc_deleted(params['_id'])
         
-    
     
     def _create_or_overwrite(self, overwriting=False):
         params = {
@@ -393,13 +395,14 @@ class Editor(RequestHandler):
                     filename=doc.filename
                 )
             dependencies = doc.save_sections(params['sections'])
-            changed.extend(dependencies)
+            changed.extend(dependencies.values())
+            for item in dependencies:
+                dependencies[item] = dependencies[item]._rev
             doc.save()
             changed.append(doc)
             self._notify_doc_changed(changed)
-            return {'_id': doc._id, '_rev': doc._rev}
+            return {'_id': doc._id, '_rev': doc._rev, 'dependencies': dependencies}
         
-    
     
     def _overwrite(self):
         """Save overwrites the content of a previously stored
@@ -420,11 +423,13 @@ class Editor(RequestHandler):
         return self._create_or_overwrite(overwriting=False)
         
     
-    
     def _fetch(self):
         """Gets the thing by ``_id`` and ensures that any reused
           sections are uptodate.
         """
+        
+        if self.settings['debug']:
+            s = time.time()
         
         _id = self.get_argument('_id', u'')
         try:
@@ -436,12 +441,16 @@ class Editor(RequestHandler):
             doc = model.Document.soft_get(_id)
             if doc is not None:
                 dependencies = doc.update_dependencies()
-                return {'doc': doc.to_json(), 'dependencies': dependencies}
+                response = {'doc': doc.to_json(), 'dependencies': dependencies}
             else:
-                return {'doc': None, 'dependencies': {}}
+                response = {'doc': None, 'dependencies': {}}
             
+            if self.settings['debug']:
+                e = time.time()
+                logging.debug('request time: %s' % (e - s))
+                
+            return response
         
-    
     
     def _listen(self):
         """Register the ``client_id`` against the repo in redis, so 
@@ -501,17 +510,3 @@ class Editor(RequestHandler):
         
     
     
-
-class Bespin(RequestHandler):
-    """Just serves the static bespin page.  It's a template
-      to ensure the static file anti-cache versioning by
-      query string works.
-      
-    """
-    
-    def get(self, *args):
-        return self.render_template('bespin.tmpl')
-        
-    
-    
-

@@ -8,6 +8,11 @@
       return d >= 0 && this.lastIndexOf(pattern) === d;
     };
     
+    var SAFE_HASH = '__thruflo::hash::thruflo__';
+    var safe_hash_pattern = /\_\_thruflo\:\:hash\:\:thruflo\_\_/gm;
+    var SAFE_FWDSLASH = '__thruflo::fwdslash::thruflo__';
+    var safe_fwdslash_pattern = /\_\_thruflo\:\:fwdslash\:\:thruflo\_\_/gm;
+    
     var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split(''); 
     Math.uuid = function() {
       var chars = CHARS, 
@@ -104,12 +109,14 @@
                   data['filename'], 
                   data['mod']
                 );
+                $(document).trigger('document:changed', [data]);
               }
               else if (data.action == 'deleted') {
                 listings_manager.remove(
                   null, 
                   _id
                 );
+                $(document).trigger('document:deleted', [data]);
               }
             }
           }
@@ -171,7 +178,12 @@
               this._fetching[_id] = true;
               var _handle_success = function (data) {
                 log('@@ fetch success'); log(data);
-                this._docs[_id] = $.extend(data['doc'], this._doc_methods);
+                this._docs[_id] = $.extend(
+                  data['doc'], 
+                  this._doc_methods, {
+                    'dependencies': data.dependencies
+                  }
+                );
                 var doc = this._docs[_id];
                 for (var i = 0; i < this._callbacks[_id].length; i++) {
                   this._callbacks[_id][i](doc, args);
@@ -332,6 +344,78 @@
           }
           return title;
         },
+        '_extract_path_and_filename': function(section_id) {
+          var path_and_filename = section_id.split('.md#')[0];
+          if (!path_and_filename.endsWith('.md')) {
+            path_and_filename = path_and_filename + '.md';
+          }
+          if (!path_and_filename.startsWith('/')) {
+            path_and_filename = '/' + path_and_filename;
+          }
+          log(path_and_filename);
+          var parts = path_and_filename.split('/');
+          var path = '/' + parts.slice(0, -1).join('/');
+          var filename = parts.pop();
+          return [path, filename];
+        },
+        '_get_docid_or_sections_key': function (repo_id, doc_id, section_id) {
+          log('get_docid_or_sections_key: ' + section_id);
+          
+          var path_and_filename = this._extract_path_and_filename(section_id);
+          var path = path_and_filename[0];
+          var filename = path_and_filename[1];
+          
+          var section_path = section_id.split(filename)[1];
+          if (!section_path) {
+            return doc_id;
+          }
+          else {
+            var key = [
+              repo_id, 
+              path, 
+              filename,
+              0, null, 
+              0, null, 
+              0, null, 
+              0, null, 
+              0, null, 
+              0, null
+            ];
+            section_path = section_path.replace(/\#/gm, SAFE_HASH);
+            section_path = section_path.replace(/\//gm, SAFE_FWDSLASH);
+            var ordstring = section_path.slice(section_path.indexOf('ord:') + 4);
+            var ordparts = ordstring.split(':');
+            var ords = [];
+            for (var i = 0; i < ordparts.length; i++) {
+              ords[i] = parseInt(ordparts[i]);
+            }
+            var level = 1
+            var hashes = '#'
+            while (true) {
+              var ord_pos = 1 + (level * 2);
+              var text_pos = 2 + (level * 2);
+              try {
+                var s = section_path.indexOf(hashes) + hashes.length;
+              }
+              catch (e) {
+                break;
+              }
+              hashes += '#';
+              try {
+                var e = section_path.indexOf(hashes);
+              }
+              catch (e) {
+                var e = section_path.index('ord:') - 1;
+              }
+              var text = section_path.substr(s, e).replace(safe_hash_pattern, '#');
+              text = text.replace(safe_fwdslash_pattern, '/');
+              key[ord_pos] = ords[level - 1];
+              key[text_pos] = text;
+              level += 1;
+            }
+            return key;
+          }
+        },
         '_generate_section_id': function (path, filename, section_path, sections) { /*
             
             We want `path/filename.md#Heading##Sub Heading` where all the parts 
@@ -448,6 +532,13 @@
             this.rev = doc._rev;
             this.path = doc.path;
             this.initial_content = doc.content;
+            this._section_revs = doc.dependencies;
+            var sections_by_id = thruflo.markdown.get_section_content_by_id(doc.content);
+            var i, l = sections_by_id.length, section;
+            for (i = 0; i < l; i++) {
+              section = sections_by_id[i];
+              this._section_hashes[section['id']] = Crypto.SHA256(section['content']);
+            }
             t.tabs('add', tab_id, this._trim_title(doc.filename));
           }
           else {
@@ -459,10 +550,13 @@
           }
           this.tab = $('li', t).last().get(0);
           $('.tab-button', this.tab).click($.proxy(this, 'close'));
+          $(document).bind('document:changed', $.proxy(this, 'handle_document_changed'));
+          $(document).bind('document:deleted', $.proxy(this, 'handle_document_deleted'));
           var container = $(tab_id).find('.bespin-container');
           bespin.useBespin(container.get(0)).then(
             $.proxy(
               function (env) {
+                this.bespin = env;
                 this.bespin_editor = env.editor;
                 // default the content to something friendly
                 this.bespin_editor.value = this.initial_content;
@@ -511,15 +605,11 @@
             for (i = 0; i < l; i++) {
               section = sections_by_id[i];
               section_id = section['id'];
-              log('section_id: ' + section_id);
               if (this._section_revs.hasOwnProperty(section_id)) {
-                log('*');
                 section['rev'] = this._section_revs[section_id];
+                section_hash = Crypto.SHA256(section['content']);
                 if (this._section_hashes.hasOwnProperty(section_id)) {
-                  log('**');
-                  section_hash = Crypto.SHA256(section['content']);
                   if (section_hash == this._section_hashes[section_id]) {
-                    log('ignore: hasn\'t changed');
                     section['changed'] = false;
                   }
                   else {
@@ -560,6 +650,16 @@
                     var prev_id = self.id;
                     self.id = data['_id'];
                     self.rev = data['_rev'];
+                    $.extend(self._section_revs, data['dependencies']);
+                    var i, l = sections_by_id.length, section;
+                    for (i = 0; i < l; i++) {
+                      section = sections_by_id[i];
+                      if (!section.hasOwnProperty('changed') || section['changed']) {
+                        self._section_hashes[section['id']] = Crypto.SHA256(
+                          section['content']
+                        );
+                      }
+                    }
                     // update the tab label
                     var label = self._trim_title(filename);
                     $(self.tab).find('span').text(label);
@@ -640,6 +740,117 @@
             }
           }
         },
+        'handle_document_changed': function (event, data) {
+          
+          log('handle_document_changed');
+          log(data);
+          
+          // we have the filename and path
+          
+          var stub = data['path'] + data['filename'];
+          if (stub.startsWith('/')) {
+            stub = stub.slice(1);
+          }
+          
+          // if that matches our sections list
+          
+          var matched = [];
+          var content = this.bespin_editor.value;
+          var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
+          var i, 
+              section, 
+              section_id, 
+              l = sections_by_id.length;
+          for (i = 0; i < l; i++) {
+            section = sections_by_id[i];
+            section_id = section['id'];
+            if (section_id.startsWith(stub)) {
+              matched.push(section);
+            }
+          }
+          
+          if (matched.length) {
+            // get the new, uptodate sections
+            var doc_cache = $('#editor').get(0).doc_cache;
+            var doc = doc_cache.get_document(
+              data['_id'],
+              $.proxy(
+                function (doc) {
+                  if (doc) {
+                    /*
+                      
+                      we want to compare the section content parsed out of our doc
+                      with the content that comes from the doc's sections
+                      
+                    */
+                    var our_section, 
+                        docs_section = null,
+                        has_changed;
+                    for (i = 0; i < matched.length; i++) {
+                      our_section = matched[i];
+                      // get the doc section 
+                      var docid_or_sections_key = this._get_docid_or_sections_key(
+                        doc.repository, 
+                        doc._id, 
+                        section['id']
+                      );
+                      if (!(docid_or_sections_key instanceof Array)) {
+                        docs_section = $.trim(doc.content);
+                      }
+                      else {
+                        var sections = doc.get_sections();
+                        for (var j = 0; j < sections.length; j++) {
+                          if (sections[j][0] == docid_or_sections_key) {
+                            docs_section = sections[j][1];
+                          }
+                        }
+                      }
+                      if (!docs_section) {
+                        log('*** @@ need to unpin when section not found ***');
+                      }
+                      else {
+                        has_changed = !(our_section == docs_section);
+                        var should_store_section_version = !has_changed;
+                        if (has_changed) {
+                          // if so, prompt
+                          if (
+                            confirm(
+                              '@@ ' + doc.filename + ' contains ' + section['id'] + 
+                              ' which has been updated. ' + 
+                              ' Do you want to overwrite that section in ' + 
+                              doc.filename + '?'
+                            )
+                          ) {
+                            // insert the new content into the doc at the right place
+                            var new_content = thruflo.markdown.get_updated_dependency_content(
+                              content,
+                              section['id'],
+                              docs_section
+                            );
+                            this.bespin_editor.value = new_content;
+                            this.bespin.dimensionsChanged();
+                            should_store_section_version = true;
+                          }
+                        }
+                        if (should_store_section_version) {
+                          this._store_section_version(
+                            section['id'], 
+                            data['_rev'], 
+                            docs_section
+                          );
+                        }
+                      }
+                    }
+                  }
+                },
+                this
+              )
+            );
+          }
+        },
+        'handle_document_deleted': function (event, data) {
+          log('@@ todo: handle_document_deleted');
+        },
         'handle_text_change': function (oldRange, newRange, newText) {
           /*
             
@@ -668,7 +879,7 @@
         '_current_preview': null,
         'listing_template': $.template(
           '<li id="listing-${id}" class="listing document-listing">\
-            <span class="listing-filename">\
+            <span class="listing-title">\
               <a href="#${id}" title="${filename}"\
                   thruflo:mod="${mod}">\
                 ${filename}\
@@ -725,8 +936,8 @@
         },
         'sort': function () {
           $('.listing', this.context).tsort(
-            "span.listing-filename a", {
-              'attr': this._sort_by == 'filename' ? 'filename' : 'thruflo:mod'
+            "span.listing-title a", {
+              'attr': this._sort_by == 'filename' ? 'title' : 'thruflo:mod'
             }
           );
         },

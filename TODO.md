@@ -17,13 +17,15 @@
     + and latest rev data for each section
     + updating the section content and rev
     + and re-saving the document before returning it
-  * render document
-    * extract the rev from the section comment and hold it in memory against the section path
-    * generate a hash of each section, to determin `changed` against
+  + render document
+    + extract the rev from the section comment and hold it in memory against the section path
+    + generate a hash of each section, to determin `changed` against
   * update from remote change
-    * if the document is open, has the section changed? if not prompt the user to accept an update
-    * if it has, flag the change to the user and either overwrite (@@ later merge) or unpin
-    * update the rev in memory against the section as necessary
+    + if the document is open, has the section changed? if not prompt the user to accept an update
+    + if it has, flag the change to the user and either overwrite (@@ later merge) or unpin
+    + update the rev in memory against the section as necessary
+    * pass a 'trigger by' id round to avoid confirming handling the change in the originating `Editor` instance
+    * update whole docs that are open, that match the id, not just ones containing sections
   * save
     + client side: send a dict of `rev` and `changed` flags along with the doc
     + server side: for each changed section, save that doc using the latest rev
