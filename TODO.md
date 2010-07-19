@@ -12,10 +12,10 @@
   + `pos 0:0:1` is appended to provide the section order info
 
 * what happens when:
-  * fetch document:
+  + fetch document:
     + with the latest content of each section
     + and latest rev data for each section
-    * updating the section content and rev
+    + updating the section content and rev
     + and re-saving the document before returning it
   * render document
     * extract the rev from the section comment and hold it in memory against the section path

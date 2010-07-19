@@ -353,7 +353,10 @@ class Document(BaseDocument):
     
     @classmethod
     def convert_to_sections_key(cls, repo_id, section_id):
+        logging.debug('convert_to_sections_key: %s' % section_id)
         path, filename = cls.extract_path_and_filename(section_id)
+        logging.debug(path)
+        logging.debug(filename)
         key = [
             repo_id, path, filename,
             0, None, 
@@ -439,21 +442,18 @@ class Document(BaseDocument):
             snapshot = self.content
         
         # get the reused section_ids and corresponding content
-        
         dependencies = couch.db.view(
             'document/dependencies', 
             startkey=[self.repository, self.id, False],
             endkey=[self.repository, self.id, []]
         ).all()
-        
         for item in dependencies:
-            section_id = item['key'][2]
+            logging.debug(item)
+            section_id = item['key'][4]
+            logging.debug(section_id)
             stored_content = item['value']
-            
             # lookup the latest corresponding content for the stored doc
-            
             section_key = Document.convert_to_sections_key(
-                Document, 
                 self.repository, 
                 section_id
             )
@@ -461,30 +461,23 @@ class Document(BaseDocument):
                 'document/sections', 
                 key=section_key,
             ).first()
-            
-            # @@ todo: it it doesn't exist unpin
-            
+            logging.debug('section')
+            logging.debug(section)
             if not section:
+                # @@ todo: it it doesn't exist unpin
                 logging.warning('*** @@ section doesn\'t exist ***')
                 logging.warning('*** need a mechanism to handle this!!! ***')
-            
-            # hash both, compare...
-            
+            # if it's changed
             actual_content = section['value'].strip()
-            actual_hash = utils.generate_hash(s=actual_content)
-            stored_hash = utils.generate_hash(s=stored_hash)
-            if not stored_hash == actual_hash:
-                
-                # if it's changed
-                # update the relevant section of content
-                
-                self.update_dependency_content(section_id, section_content)
-                
-                # and return the rev to go with the id
-                
+            if not actual_content == stored_content:
                 doc = Document.get(section['id'])
-                revs[section_id] = doc._rev
-            
+                # update the relevant section of content
+                # using the revs dict to ensure only update the same section_id once
+                if not section_id in revs:
+                    self.update_dependency_content(section_id, actual_content)
+                    # and return the rev to go with the id
+                    revs[section_id] = doc._rev
+                
         if should_save and not self.content == snapshot:
             self.save()
             
@@ -492,17 +485,81 @@ class Document(BaseDocument):
         
     
     def update_dependency_content(self, section_id, section_content):
-        """
+        """Like ``update_section_content`` below, but finds the dependency 
+          content as demarked by the ``<!-- section:... --> ... 
+          <!-- end section:... -->`` comments and overwrites the content.
         """
         
-        raise NotImplementedError(
-            """@@ need to do a method like ``update_section_content`` 
-              below that finds the dependency content as demarked by 
-              the ``<!-- section:... --> ... <!-- end section:... -->`` 
-              comments and overwrites the content.
-            """
+        logging.debug('update_dependency_content')
+        logging.debug('section_id: %s' % section_id)
+        logging.debug(section_content)
+        
+        section_content = section_content.strip()
+        start_comment = re.compile(
+            r'<!-- section:' + re.escape(section_id) + r' -->',
+            re.M | re.U
         )
+        all_comments = re.compile(
+            r' section:' + re.escape(section_id) + r' -->',
+            re.M | re.U
+        )
+        start_scan_pos = 0
+        # iterate through the content to handle all the instances 
+        # of this dependency
+        while True:
+            logging.debug('* :: %s' % start_scan_pos)
+            # find the start comment
+            match = start_comment.search(self.content, start_scan_pos)
+            if not match: 
+                # if we don't find one, then exit
+                break;
+            # find the corresponding end comment (n.b.: nested dependencies get
+            # overwritten...)
+            startpos = match.end()
+            endpos = -1
+            match_number = 0
+            scan_pos = startpos
+            while True:
+                logging.debug('** :: %s' % startpos)
+                match = all_comments.search(self.content, scan_pos)
+                if not match:
+                    logging.debug('***')
+                    start_scan_pos = startpos + 1
+                    break;
+                logging.debug('****')
+                if self.content[match.start() - 3:match.start()] == 'end':
+                    logging.debug('*****')
+                    # it's an end comment
+                    if match_number == 0:
+                        logging.debug('******')
+                        # we have the corresponding end comment
+                        endpos = match.start() - 8
+                        break;
+                    else:
+                        logging.debug('*******')
+                        # we're one match closer
+                        match_number -= 1
+                else:
+                    logging.debug('********')
+                    # we're one match further away
+                    match_number += 1
+                scan_pos = match.end()
+            if endpos < 0:
+                logging.debug('*********')
+                break;
+            match_length = match.end() - match.start()
+            start_scan_pos = startpos + len(section_content) + match_length
+            logging.debug('inserting from %s to %s' % (startpos, endpos))
+            self.content = u''.join([
+                    self.content[:startpos].rstrip() + 
+                    u'\n\n',
+                    section_content,
+                    u'\n\n',
+                    self.content[endpos:].lstrip()
+                ]
+            )
         
+    
     
     def update_section_content(self, section_id, section_content):
         """Update the part of the ``content`` of this ``Document``s, as 
