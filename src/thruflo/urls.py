@@ -30,8 +30,5 @@ mapping = [(
             slug
         ),
         view.Editor
-    ),(
-        r'^/bespin\/?',
-        view.Bespin
     )
 ]
