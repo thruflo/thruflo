@@ -1,3 +1,7 @@
+
+*n.b.: *these are just the author's collated ramblings, for the sake of recording them for possible future reference*
+
+
 * idea for a markdown > pdf service
 * somewhat opaquely recorded as [business development with version control][]
 * essential, core insight was my own copy and pasting
@@ -226,3 +230,66 @@ we provide a through the web interface with a custom js client that happens to u
 [business development with version control]: http://cl.o.se/post/561413499/business-development-with-version-control
 
 [python-markdown HeaderId]: http://www.freewisdom.org/projects/python-markdown/HeaderId
+
+
+
+
+
+
+
+
+
+
+# what's going on
+
+
+## server side
+
+### Fetching
+
+In `fetch`, `dependencies = doc.update_dependencies()` updates the content of the dependencies using the section to read the latest version
+
+Currently, overwriting is done with Python parsing to determine where to insert: instead, the couch view that returns the section ids and content should also emit rows for start and end position.
+
+Currently, the rev data isn't stored in the document.  If we write the rev into the section or even store a dict of dependency section ids and revs against the `Document` instance and index documents against rev, we can do a keys lookup to check which dependencies have changed when fetching.
+
+N.b.: `update_dependencies` should be `refresh_dependencies`.
+
+### Saving
+
+In `create` and `overwrite`, `dependencies = doc.save_sections(params['sections'])`.  This takes a list of dependencies (called `sections`, sigh) and, for each of them, gets the corresponding document (using the path/filename.md to get the docid and the latest rev that the parent document knows about), calls `doc.update_section_content(section_id, data['content'])` for each of them.
+
+As above, overwriting using Python parsing.  This needs to be done using a position index in the couch view that spits out the heading delimited sections.
+
+N.b.: `save_sections` should be `update_dependencies`.
+
+### Live Updates
+  
+Atm, `self._notify_doc_changed(changed)` sends a list of all the documents that have changed.  This is then picked up client side.  The document cache is invalidated and a document change event is fired, which `Editor`s handle.
+
+
+## client side
+
+### `Editor.handle_document_changed`
+
+Atm, this parses the current `bespin_editor.value` for section_ids, and for those that match, overwrites the editor content *if it's not what's in the update dependency*.  If we do want to do this, the check needs to first be against *the checksum when the doc was last checked*.  i.e.: we want to overwrite if the user hasn't changed it and "merge" if they have.
+
+Qu: do we actually want live updates?  What's the UX?  Let's think through the scenarios with a `Document` rendered into an `Editor`.  Well, if the originating session id is passed through and the originating editor (somehow) then we can provide an interface of:
+
+* `handle_document_changed(session_id, originating_document_id)`
+* `handle_dependency_changed(session_id, originating_document_id)`
+
+This allows us to stub these methods for now, as per:
+
+* `handle_document_changed`: if we've edited the document, prompt, else overwrite
+* `handle_dependency_changed`: if we've edited the section, prompt, else overwrite
+
+Both these approaches assume that *we want to update documents silently*.  This is fine as a stub.  We can add a UI later for accepting changes, or provide options to a user, etc.
+
+### markdown
+
+We need to replicate the logic that spits out the positioning by passing a flag to the methods.  It may be actually that we should generate the actual js files from a single source file.  This could apply a patch / use flags to control the different final output.
+
+# bugs
+
+* seems listen isn't clearing the list (or we have ye-old redis keys about)

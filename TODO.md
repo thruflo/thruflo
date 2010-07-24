@@ -3,34 +3,38 @@
 
 ## Reuse Sections
 
-+ dummy hack the save dialogue:
-  + normalise leading H1 lower() with funny chars removed & underscores & .md added as filename
-  + uniqueness is enforced by using a hash of the path and filename as doc id
+x rename `update_dependencies` to `refresh_dependencies`
+x rename `save_sections` to `update_dependencies`
+x store dependency_revs dict against a stored document
+x couch view of `Document`s by [id, rev]
++ optimised `doc.overwrite_content_at(start, end, new_content)` method
+x when `refresh`ing:
+  x do a keys lookup to check which dependencies have changed
+  x use overwrite_content_at
+x `update_dependencies` should use `overwrite_content_at`
+x pass ``session_id`` and ``originating_document_id`` through the changed machinery
 
-+ comment syntax: `<!-- section:/test_doc_one.md#Test Doc One##Sub Head pos:0:0 -->` where:
-  + all the parts are `decodeURIComponent`ed with `/` and `#` escaped as `\/` and `\#`
-  + `pos 0:0:1` is appended to provide the section order info
+* in `Editor.handle_document_changed`:
+  * work out what's going on with `session_id` and `originating_document_id`
+  * if this document id matches originating_document_id ignore
+  * else:
+    * `handle_content_changed`: if we've edited the content, prompt, else overwrite
+    * `handle_dependency_changed`: if we've edited the section, prompt, else overwrite
+    * check changed against the saved checksum!
+  * fire some events to can be handled to tell the user what's going on
 
-* what happens when:
-  + fetch document:
-    + with the latest content of each section
-    + and latest rev data for each section
-    + updating the section content and rev
-    + and re-saving the document before returning it
-  + render document
-    + extract the rev from the section comment and hold it in memory against the section path
-    + generate a hash of each section, to determin `changed` against
-  * update from remote change
-    + if the document is open, has the section changed? if not prompt the user to accept an update
-    + if it has, flag the change to the user and either overwrite (@@ later merge) or unpin
-    + update the rev in memory against the section as necessary
-    * pass a 'trigger by' id round to avoid confirming handling the change in the originating `Editor` instance
-    * update whole docs that are open, that match the id, not just ones containing sections
-  * save
-    + client side: send a dict of `rev` and `changed` flags along with the doc
-    + server side: for each changed section, save that doc using the latest rev
+* seems listen isn't clearing the list (or we have ye-old redis keys about)
+
 * doubleclick to lose the `<!-- section -->` comments
 * syntax highlighting to visually demarkate `<!-- section:... -->` comment blocks
+
+* `_design/document/dependencies` should emit rows for start and end position
+* `_design/document/sections` should emit rows for start and end position
+* in `refresh_dependencies` get the positions using the view
+* in `update_dependencies` get the positions using the view
+* rename any other "section" nomenclature that should use "dependency"
+* build the design and the thruflo.markdown js from a single source
+* change the client side 'get start and end' logic to use the same as per the _design views
 
 ## Preview
 
