@@ -381,17 +381,17 @@ class IdMatchesPathFilename(validators.FormValidator):
     
     
 
-class Sections(validators.UnicodeString):
+class ListOfDicts(validators.UnicodeString):
     messages = {'invalid': 'Content must be a list of dicts as valid JSON'}
     
     def _to_python(self, value, state):
-        value = super(Sections, self)._to_python(value, state)
+        value = super(ListOfDicts, self)._to_python(value, state)
         return utils.json_decode(value)
         
     
     
     def validate_python(self, value, state):
-        super(Sections, self).validate_python(value, state)
+        super(ListOfDicts, self).validate_python(value, state)
         if not isinstance(value, list):
             logging.debug('*')
             raise validators.Invalid(
@@ -417,7 +417,8 @@ class CreateDocument(formencode.Schema):
     filename = validators.UnicodeString(not_empty=True)
     content = Content(not_empty=True)
     path = Path(not_empty=True)
-    sections = Sections(not_empty=True)
+    dependencies = ListOfDicts(not_empty=True)
+    client_id = ClientId(not_empty=True)
     
 
 class OverwriteDocument(formencode.Schema):
@@ -426,16 +427,17 @@ class OverwriteDocument(formencode.Schema):
     filename = validators.UnicodeString(not_empty=True)
     content = Content(not_empty=True)
     path = Path(not_empty=True)
-    sections = Sections(not_empty=True)
+    dependencies = ListOfDicts(not_empty=True)
     chained_validators = [
         IdMatchesPathFilename()
     ]
+    client_id = ClientId(not_empty=True)
     
 
 
 class DeleteDocument(formencode.Schema):
     _id = CouchDocumentId(not_empty=True)
     _rev = CouchRevId(not_empty=True)
-    
+    client_id = ClientId(not_empty=True)
 
 

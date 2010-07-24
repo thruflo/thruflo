@@ -330,12 +330,18 @@ class Editor(RequestHandler):
             redis('rpush', client_id, data)
         
     
-    def _notify_doc_deleted(self, _id):
-        data = {'_id': _id, 'type': 'document', 'action': 'deleted'}
+    def _notify_doc_deleted(self, _id, client_id, originating_document_id):
+        data = {
+            '_id': _id, 
+            'type': 'document', 
+            'action': 'deleted',
+            'client_id': client_id,
+            'originating_document_id': originating_document_id
+        }
         self._notify_clients([data])
         
     
-    def _notify_doc_changed(self, docs):
+    def _notify_doc_changed(self, docs, client_id, originating_document_id):
         changed = []
         for item in docs:
             data = {
@@ -345,7 +351,9 @@ class Editor(RequestHandler):
                 'filename': item.filename.encode('utf8'),
                 'type': 'document',
                 'action': 'changed',
-                'mod': item.mod.replace(microsecond=0).isoformat() + 'Z'
+                'mod': item.mod.replace(microsecond=0).isoformat() + 'Z',
+                'client_id': client_id,
+                'originating_document_id': originating_document_id
             }
             changed.append(data)
         self._notify_clients(changed)
@@ -355,7 +363,8 @@ class Editor(RequestHandler):
     def _delete(self):
         params = {
             '_id': self.get_argument('_id', u''),
-            '_rev': self.get_argument('_rev', u'')
+            '_rev': self.get_argument('_rev', u''),
+            'client_id': self.get_argument('client_id', u'')
         }
         try:
             params = schema.DeleteDocument.to_python(params)
@@ -364,8 +373,9 @@ class Editor(RequestHandler):
             return self.error(400, body=data)
         else:
             params['repository'] = self.repository.id
+            client_id = params.pop('client_id')
             doc = model.Document.get_db().delete_doc(params)
-            self._notify_doc_deleted(params['_id'])
+            self._notify_doc_deleted(params['_id'], client_id, params['_id'])
         
     
     def _create_or_overwrite(self, overwriting=False):
@@ -373,7 +383,8 @@ class Editor(RequestHandler):
             'path': self.get_argument('path', u''),
             'filename': self.get_argument('filename', u''),
             'content': self.get_argument('content', u''),
-            'sections': self.get_argument('sections', u'')
+            'dependencies': self.get_argument('dependencies', u''),
+            'client_id': self.get_argument('client_id', u'')
         }
         if overwriting:
             params['_id'] = self.get_argument('_id', u'')
@@ -386,7 +397,8 @@ class Editor(RequestHandler):
             data = utils.json_encode(err.error_dict)
             return self.error(400, body=data)
         else:
-            changed = []
+            dependencies = params.pop('dependencies')
+            client_id = params.pop('client_id')
             params['repository'] = self.repository.id
             doc = model.Document(**params)
             if not overwriting:
@@ -394,14 +406,11 @@ class Editor(RequestHandler):
                     path=doc.path, 
                     filename=doc.filename
                 )
-            dependencies = doc.save_sections(params['sections'])
-            changed.extend(dependencies.values())
-            for item in dependencies:
-                dependencies[item] = dependencies[item]._rev
+            changed, revs = doc.update_dependencies(dependencies)
             doc.save()
             changed.append(doc)
-            self._notify_doc_changed(changed)
-            return {'_id': doc._id, '_rev': doc._rev, 'dependencies': dependencies}
+            self._notify_doc_changed(changed, client_id, doc._id)
+            return {'_id': doc._id, '_rev': doc._rev, 'dependencies': revs}
         
     
     def _overwrite(self):
@@ -440,8 +449,8 @@ class Editor(RequestHandler):
         else:
             doc = model.Document.soft_get(_id)
             if doc is not None:
-                dependencies = doc.update_dependencies()
-                response = {'doc': doc.to_json(), 'dependencies': dependencies}
+                doc.refresh_dependencies()
+                response = {'doc': doc.to_json(), 'dependencies': doc.dependency_revs}
             else:
                 response = {'doc': None, 'dependencies': {}}
             
@@ -460,7 +469,7 @@ class Editor(RequestHandler):
         """
         
         client_id = self.get_argument('client_id', u'')
-        logging.debug(client_id)
+        #logging.debug(client_id)
         try:
             client_id = schema.ClientId(not_empty=True).to_python(client_id)
         except formencode.Invalid, err:
@@ -473,7 +482,7 @@ class Editor(RequestHandler):
             client_key = 'client-%s' % client_id
             redis[client_key] = client_id
             # wait for updates
-            logging.debug('blocking waiting for %s' % client_id)
+            #logging.debug('blocking waiting for %s' % client_id)
             response = redis('blpop', [client_id], timeout=timeout)
             # if it timed out, no worries
             if response is None:
@@ -486,7 +495,7 @@ class Editor(RequestHandler):
                 for k, v in item.iteritems():
                     response_item[k] = v.decode('utf8')
                 response.append(response_item)
-            logging.debug(response)
+            #logging.debug(response)
             return response
         
         

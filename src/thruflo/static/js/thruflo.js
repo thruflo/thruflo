@@ -630,7 +630,8 @@
                 'filename': filename,
                 'content': content,
                 'path': this.path,
-                'sections': JSON.stringify(sections)
+                'client_id': client_id,
+                'dependencies': JSON.stringify(sections)
               };
               if (this.id && this.rev) {
                 params['_id'] = this.id;
@@ -692,7 +693,11 @@
           else {
             var self = this;
             var url = current_path + '/delete';
-            var params = {'_id': this.id, '_rev': this.rev};
+            var params = {
+              '_id': this.id, 
+              '_rev': this.rev,
+              'client_id': client_id
+            };
             $.ajax({
                 'url': url,
                 'type': 'POST',

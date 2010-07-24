@@ -318,38 +318,13 @@ class Document(BaseDocument):
     filename = StringProperty(required=True)
     
     content = StringProperty()
+    dependency_revs = DictProperty()
     
-    """
     @classmethod
-    def soft_get_with_sections(cls, _id):
-        Two stage lookup:
-          
-          * first we get the doc by id
-          * then we get raw sections data filtering by the 
-            document filename
-          
-          Then we filter the sections results by doc id to 
-          deduplicate them if necessary.
+    def get_docid(cls, section_id):
+        path, filename = cls.extract_path_and_filename(section_id)
+        return cls.generate_id(path=path, filename=filename)
         
-        doc = cls.soft_get(_id)
-        if doc is None:
-            return None
-        
-        key_stub = [doc.repository, 0, doc.filename]
-        candidates = cls.view(
-            'document/sections',
-            startkey = key_stub + ten_lies,
-            endkey = key_stub + ten_lists
-        ).all()
-        
-        sections = [item for item in candidates if item['id'] == doc.id]
-        
-        logging.debug(sections)
-        
-        return {'sections': sections, 'doc': doc.to_json()}
-        
-    
-    """
     
     @classmethod
     def get_docid_or_sections_key(cls, repo_id, section_id):
@@ -426,18 +401,40 @@ class Document(BaseDocument):
         
     
     
-    def update_dependencies(self, should_save=True):
+    def _overwrite_content_at(self, startpos, endpos, new_content):
+        """@@ todo, optimise this...
+        """
+        
+        logging.debug('@@ todo: optimise _overwrite_content_at')
+        
+        self.content = u''.join([
+                self.content[:startpos].rstrip() + 
+                u'\n\n',
+                new_content,
+                u'\n\n',
+                self.content[endpos:].lstrip()
+            ]
+        )
+        
+    
+    
+    def refresh_dependencies(self, should_save=True):
         """Goes this like:
           
           * get the reused section_ids from the doc's content
-          * lookup the latest corresponding content for the stored
-            doc (@@ todo: it it doesn't exist unpin)
-          * if it's changed, update the relevant section of content
-            and return the rev to go with the id
-        
+          * do a keys lookup to check which dependencies have changed
+          * for those that have:
+            * lookup the latest corresponding content for the stored doc
+            * @@ todo: it it doesn't exist unpin
+            * if it's changed, update the relevant section of content
+              and return the rev to go with the id
+            
+          
         """
         
-        revs = {}
+        # @@ todo: optimise
+        logging.warning('*** @@ fetching *every* dependency *every* fetch ***')
+        logging.warning('*** could do with some caching at some point ***')
         
         if should_save:
             snapshot = self.content
@@ -448,56 +445,86 @@ class Document(BaseDocument):
             startkey=[self.repository, self.id, False],
             endkey=[self.repository, self.id, []]
         ).all()
+        
+        logging.debug('dependencies')
+        logging.debug(dependencies)
+        
+        # weed out duplicates
+        deduplicated = []
+        section_ids = {}
         for item in dependencies:
-            logging.debug(item)
             section_id = item['key'][4]
-            logging.debug(section_id)
-            cached_content = item['value']
-            # using the revs dict to ensure only update the same section_id once
-            if not section_id in revs:
-                actual_content = None
-                # lookup the 'master' / actual content (stored in the dependency doc)
-                docid_or_section_key = Document.get_docid_or_sections_key(
-                    self.repository, 
-                    section_id
-                )
-                if isinstance(docid_or_section_key, basestring):
-                    docid = docid_or_section_key
-                    doc = Document.soft_get(docid)
+            if not section_id in section_ids:
+                section_ids[section_id] = True
+                deduplicated.append(item)
+            
+        logging.debug('deduplicated')
+        logging.debug(deduplicated)
+        
+        # weed out unchanged
+        maybe_changed = []
+        query_keys = []
+        for item in deduplicated:
+            section_id = item['key'][4]
+            if self.dependency_revs.has_key(section_id):
+                docid = self.get_docid(item['key'][4])
+                query_keys.append([docid, self.dependency_revs.get(section_id)])
+            else:
+                query_keys.append([None, None])
+        
+        logging.debug('query_keys')
+        logging.debug(query_keys)
+        
+        results = couch.db.view('document/by_rev', keys=query_keys)
+        result_ids = [item.get('id') for item in results]
+        
+        logging.debug('result_ids')
+        logging.debug(result_ids)
+        
+        for item in deduplicated:
+            if not item.get('id') in result_ids:
+                maybe_changed.append(item)
+            
+        logging.debug('maybe_changed')
+        logging.debug(maybe_changed)
+        
+        for item in maybe_changed:
+            section_id = item['key'][4]
+            docid_or_section_key = Document.get_docid_or_sections_key(
+                self.repository, 
+                section_id
+            )
+            doc = None
+            if isinstance(docid_or_section_key, basestring):
+                docid = docid_or_section_key
+                doc = Document.soft_get(docid)
+                if doc is not None:
+                    actual_content = doc.content
+            else:
+                section_key = docid_or_section_key
+                section = couch.db.view('document/sections', key=section_key).first()
+                if section is not None:
+                    doc = Document.get(section['id'])
                     if doc is not None:
-                        actual_content = doc.content
-                else:
-                    section_key = docid_or_section_key
-                    section = couch.db.view('document/sections', key=section_key).first()
-                    if section is not None:
                         actual_content = section['value'].strip()
-                        doc = Document.get(section['id'])
-                if actual_content is None:
-                    logging.warning('*** @@ section_id doesn\'t resolve ***')
-                    logging.warning('*** need to handle this by unpinning ***')
-                elif not actual_content == cached_content:
-                    # update the relevant section of content
-                    self.update_dependency_content(section_id, actual_content)
-                # @@ todo: optimise
-                logging.warning('*** @@ fetching *every* dependency *every* fetch ***')
-                logging.warning('*** could do with some caching at some point ***')
-                # and return the rev to go with the id
-                if doc:
-                    revs[section_id] = doc._rev
-                
+            if actual_content is None:
+                logging.warning('*** @@ section_id doesn\'t resolve ***')
+                logging.warning('*** need to handle this by unpinning ***')
+            else: # update the relevant section of content
+                self.dependency_revs[section_id] = doc._rev
+                self.overwrite_dependency_content(section_id, actual_content)
+            
         if should_save and not self.content == snapshot:
             self.save()
-            
-        return revs
         
     
-    def update_dependency_content(self, section_id, section_content):
-        """Like ``update_section_content`` below, but finds the dependency 
+    def overwrite_dependency_content(self, section_id, section_content):
+        """Like ``overwrite_section_content`` below, but finds the dependency 
           content as demarked by the ``<!-- section:... --> ... 
           <!-- end section:... -->`` comments and overwrites the content.
         """
         
-        logging.debug('update_dependency_content')
+        logging.debug('overwrite_dependency_content')
         logging.debug('section_id: %s' % section_id)
         logging.debug(section_content)
         
@@ -557,18 +584,10 @@ class Document(BaseDocument):
             match_length = match.end() - match.start()
             start_scan_pos = startpos + len(section_content) + match_length
             logging.debug('inserting from %s to %s' % (startpos, endpos))
-            self.content = u''.join([
-                    self.content[:startpos].rstrip() + 
-                    u'\n\n',
-                    section_content,
-                    u'\n\n',
-                    self.content[endpos:].lstrip()
-                ]
-            )
+            self._overwrite_content_at(startpos, endpos, section_content)
         
     
-    
-    def update_section_content(self, section_id, section_content):
+    def overwrite_section_content(self, section_id, section_content):
         """Update the part of the ``content`` of this ``Document``s, as 
           identified by the ``section_id``, ala::
           
@@ -584,7 +603,7 @@ class Document(BaseDocument):
           
         """
         
-        logging.debug('update_section_content')
+        logging.debug('overwrite_section_content')
         logging.debug('section_id: %s' % section_id)
         # logging.debug('section_content: %s' % section_content)
         
@@ -689,43 +708,54 @@ class Document(BaseDocument):
                 level += 1
             
         if startpos > -1:
-            self.content = u''.join([
-                    self.content[:startpos].rstrip(),
-                    u'\n\n',
-                    section_content.strip(),
-                    u'\n\n',
-                    self.content[endpos:].lstrip()
-                ]
-            )
+            self._overwrite_content_at(startpos, endpos, section_content.strip())
+            
         
     
-    def save_sections(self, sections):
+    def update_dependencies(self, sections):
         """Updates other documents' section content.
         """
         
-        logging.debug('save_sections')
+        logging.debug('update_dependencies')
+        logging.debug(sections)
         
+        logging.warning(
+          '@@ update_dependencies needs to take care over fetching and saving'
+        )
+        logging.warning(
+          '@@ update_dependencies needs to handle ResourceConflict'
+        )
+        
+        changed_docs = []
         revs = {}
         
         for data in sections:
-            changed = data.get('changed', True)
-            if changed:
-                section_id = data['id']
-                logging.debug('section_id: %s' % section_id)
-                if not section_id in revs:
-                    # get the doc that contains this section
-                    doc = Document.get_from_section_id(section_id, rev=data['rev'])
-                    logging.debug('doc: %s' % doc)
-                    if doc is not None:
-                        # amend its content
-                        doc.update_section_content(section_id, data['content'])
-                        # try to save it 
-                        logging.warning('@@ save_sections needs to handle ResourceConflict')
-                        logging.warning('@@ save_sections needs to take care over saving')
+            section_id = data.get('id')
+            # if we've not processed this before
+            if not section_id in revs:
+                # get the doc that contains this section
+                kwargs = {}
+                if data.has_key('rev'):
+                    kwargs['rev'] = data['rev']
+                # @@ this should be bulk & handled...
+                doc = Document.get_from_section_id(section_id, **kwargs)
+                if doc is not None:
+                    # if its changed
+                    has_changed = data.get('changed', True)
+                    if has_changed:
+                        # amend its content and try to save it 
+                        doc.overwrite_section_content(section_id, data['content'])
+                        # @@ this should be bulk & handled...
                         doc.save()
-                        revs[section_id] = doc
-            
-        return revs
+                        changed_docs.append(doc)
+                    # either way, grab the doc._rev for this section_id
+                    revs[section_id] = doc._rev
+                
+        # store the revs
+        self.dependency_revs = revs
+        
+        # returned a list of changed docs and the dict of revs
+        return changed_docs, revs
         
     
     
