@@ -405,9 +405,6 @@ if (!thruflo.hasOwnProperty('markdown')) {
       
       var results = [];
       
-      log('get_section_content_by_id content');
-      log(content);
-      
       var start_comments = content.match(start_section_comment);
       if (start_comments) {
         var i, 
@@ -522,8 +519,6 @@ if (!thruflo.hasOwnProperty('markdown')) {
         
       */
       
-      log('get_dependency_ranges ' + section_id);
-      
       var original_content = content;
       
       // step 1: we use regexp matching to get the start and end
@@ -587,9 +582,6 @@ if (!thruflo.hasOwnProperty('markdown')) {
         }
       }
       
-      log('positions');
-      log(positions);
-      
       // step 2: convert the character positions into `Range`s
       
       /*
@@ -611,9 +603,6 @@ if (!thruflo.hasOwnProperty('markdown')) {
       
       var ranges = [];
       var lines = original_content.split(at_new_line);
-      
-      log('lines');
-      log(lines);
       
       var cursor = 0,
           row = 0,
@@ -669,9 +658,6 @@ if (!thruflo.hasOwnProperty('markdown')) {
           }
         }
       }
-      
-      log('ranges');
-      log(ranges);
       
       return ranges;
       

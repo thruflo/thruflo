@@ -369,7 +369,7 @@ class Editor(RequestHandler):
         try:
             params = schema.DeleteDocument.to_python(params)
         except formencode.Invalid, err:
-            data = utils.json_encode(err.error_dict)
+            data = unicode(err.error_dict)
             return self.error(400, body=data)
         else:
             params['repository'] = self.repository.id
@@ -394,7 +394,7 @@ class Editor(RequestHandler):
         try:
             params = form_schema.to_python(params)
         except formencode.Invalid, err:
-            data = utils.json_encode(err.error_dict)
+            data = unicode(err.error_dict)
             return self.error(400, body=data)
         else:
             dependencies = params.pop('dependencies')

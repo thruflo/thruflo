@@ -3,40 +3,8 @@
 
 ## Reuse Sections
 
-x rename `update_dependencies` to `refresh_dependencies`
-x rename `save_sections` to `update_dependencies`
-x store dependency_revs dict against a stored document
-x couch view of `Document`s by [id, rev]
-+ optimised `doc.overwrite_content_at(start, end, new_content)` method
-x when `refresh`ing:
-  x do a keys lookup to check which dependencies have changed
-  x use overwrite_content_at
-x `update_dependencies` should use `overwrite_content_at`
-x pass ``session_id`` and ``originating_document_id`` through the changed machinery
-
-+ in `Editor.handle_document_changed`:
-  + work out what's going on with `session_id` and `originating_document_id`
-  + if this document id matches originating_document_id ignore
-  + else:
-    + `handle_content_changed`: if we've edited the content, prompt, else overwrite
-    + `handle_dependency_changed`: if we've edited the section, prompt, else overwrite
-    + check changed against the saved checksum!
-  * fire some events to can be handled to tell the user what's going on
-  * seems only to reliably display when the thing is forced to redraw by a diff no. of lines
-* need to re-hash the content on save
-
-* seems listen isn't clearing the list (or we have ye-old redis keys about)
-
 * doubleclick to lose the `<!-- section -->` comments
 * syntax highlighting to visually demarkate `<!-- section:... -->` comment blocks
-
-* `_design/document/dependencies` should emit rows for start and end position
-* `_design/document/sections` should emit rows for start and end position
-* in `refresh_dependencies` get the positions using the view
-* in `update_dependencies` get the positions using the view
-* rename any other "section" nomenclature that should use "dependency"
-* build the design and the thruflo.markdown js from a single source
-* change the client side 'get start and end' logic to use the same as per the _design views
 
 ## Preview
 
@@ -77,6 +45,16 @@ x pass ``session_id`` and ``originating_document_id`` through the changed machin
 
 * generate template (i.e.: stylesheet) management
 * views / selecting & publishing through stylesheets
+
+## N.b.
+
+* `_design/document/dependencies` should emit rows for start and end position
+* `_design/document/sections` should emit rows for start and end position
+* in `refresh_dependencies` get the positions using the view
+* in `update_dependencies` get the positions using the view
+* rename any other "section" nomenclature that should use "dependency"
+* build the design and the thruflo.markdown js from a single source
+* change the client side 'get start and end' logic to use the same as per the _design views
 
 
 # 0.7

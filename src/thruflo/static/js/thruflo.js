@@ -177,7 +177,6 @@
               // flag that we are fetching
               this._fetching[_id] = true;
               var _handle_success = function (data) {
-                log('@@ fetch success'); log(data);
                 this._docs[_id] = $.extend(
                   data['doc'], 
                   this._doc_methods, {
@@ -353,15 +352,12 @@
           if (!path_and_filename.startsWith('/')) {
             path_and_filename = '/' + path_and_filename;
           }
-          log(path_and_filename);
           var parts = path_and_filename.split('/');
           var path = '/' + parts.slice(0, -1).join('/');
           var filename = parts.pop();
           return [path, filename];
         },
         '_get_docid_or_sections_key': function (repo_id, doc_id, section_id) {
-          log('get_docid_or_sections_key: ' + section_id);
-          
           var path_and_filename = this._extract_path_and_filename(section_id);
           var path = path_and_filename[0];
           var filename = path_and_filename[1];
@@ -469,7 +465,6 @@
           this._section_revs[section_id] = rev;
         },
         '_insert_content': function (path, filename, section_path, rev, content, sections) {
-          log('Editor._insert_content');
           var content = $.trim(content);
           var section_id = this._generate_section_id(path, filename, section_path, sections);
           var range = this.bespin_editor.selection;
@@ -481,15 +476,12 @@
           this._store_section_version(section_id, rev, content);
         },
         '_handle_drop': function (event, ui) {
-          log('dropped!');
           if (this.bespin_editor) {
             var target = $(ui.draggable);
             var stub = target.get(0).id.split('-').slice(1).join('-');
             var parts = stub.split(':');
             var target_id = parts[0];
             var section_path = parts.slice(1).join(':');
-            log('target_id: ' + target_id);
-            log('section_path: ' + section_path);
             var doc_cache = $('#editor').get(0).doc_cache;
             doc_cache.get_document(
               target_id,
@@ -524,14 +516,17 @@
             );
           }
         },
-        '_accept_doc': function (doc) {
+        '_accept_doc': function (doc, saved_content) {
           this.id = doc._id;
           this.rev = doc._rev;
-          this.path = doc.path;
-          this._content_hash = Crypto.SHA256($.trim(this.initial_content));
+          if (doc.hasOwnProperty('path')) {
+            this.path = doc.path;
+          }
           this._section_revs = doc.dependencies;
           this._section_hashes = {};
-          var sections_by_id = thruflo.markdown.get_section_content_by_id(doc.content);
+          var content = saved_content ? saved_content : doc.content;
+          this._content_hash = Crypto.SHA256($.trim(content));
+          var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
           var i, l = sections_by_id.length, section;
           for (i = 0; i < l; i++) {
             section = sections_by_id[i];
@@ -602,8 +597,6 @@
             var content = this.bespin_editor.value;
             var sections = [];
             var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
-            log('get_section_content_by_id');
-            log(sections_by_id);
             var i,
                 l = sections_by_id.length,
                 section,
@@ -620,7 +613,6 @@
                     section['changed'] = false;
                   }
                   else {
-                    log('changed!');
                     section['changed'] = true;
                   }
                 }
@@ -656,18 +648,7 @@
                   'success': function (data) {
                     // store the new doc data
                     var prev_id = self.id;
-                    self.id = data['_id'];
-                    self.rev = data['_rev'];
-                    $.extend(self._section_revs, data['dependencies']);
-                    var i, l = sections_by_id.length, section;
-                    for (i = 0; i < l; i++) {
-                      section = sections_by_id[i];
-                      if (!section.hasOwnProperty('changed') || section['changed']) {
-                        self._section_hashes[section['id']] = Crypto.SHA256(
-                          section['content']
-                        );
-                      }
-                    }
+                    self._accept_doc(data, content);
                     // update the tab label
                     var label = self._trim_title(filename);
                     $(self.tab).find('span').text(label);
@@ -737,24 +718,21 @@
         },
         'update': function (doc) {
           if (doc._id == this.id) {
+            var stored_hash = this._content_hash;
+            var current_hash = Crypto.SHA256($.trim(this.bespin_editor.value));
+            var should_merge = !!(!!(current_hash == stored_hash) || confirm(
+                this.filename + " has changed." + 
+                " Do you want to overwrite the file you have open?" + 
+                " If you do, you'll lose your changes." +
+                " If you don't, you'll not be able to save them" +
+                " -- very helpful huh ;)"
+              )
+            );
             // if the content of the editor has changed
-            var current_content_hash = Crypto.SHA256($.trim(this.bespin_editor.value));
-            if (this._content_hash != current_content_hash) {
-              // @@ todo: "merge", etc.
-              // for now, prompt the user to see if they want to accept the change
-              if (
-                confirm(
-                  this._get_filename(this.bespin_editor.value) + 
-                  " has changed." + 
-                  " Do you want to overwrite the file you have open?" + 
-                  " If you do, you'll lose you're changes." +
-                  " If you don't, you'll not be able to save them." +
-                  " (@@ this needs to be a merge!!!)"
-                )
-              ) {
-                this._accept_doc(doc);
-                this.bespin_editor.value = doc.content;
-              }
+            // @@ todo: "merge", etc.
+            if (should_merge) {
+              this._accept_doc(doc);
+              this.bespin_editor.value = doc.content;
             }
           }
         },
@@ -769,11 +747,6 @@
           this._store_section_version(section_id, rev, content_to_insert);
         },
         'handle_document_changed': function (event, data) {
-          
-          log('handle_document_changed');
-          log(this._get_filename(this.bespin_editor.value));
-          log(data);
-          
           /*
             
             * else:
@@ -794,10 +767,6 @@
           var was_from_this_client = !!(data['client_id'] == client_id);
           var was_from_this_editor = !!(was_from_this_client && _odi == this.id);
           
-          log('is_this_doc: ' + is_this_doc);
-          log('was_from_this_client: ' + was_from_this_client);
-          log('was_from_this_editor: ' + was_from_this_editor);
-          
           if (was_from_this_editor) {
             // ignore
           }
@@ -808,6 +777,14 @@
                 function (doc) {
                   if (doc) {
                     this.update(doc);
+                    // @@ hack to try to get the changes to display
+                    window.setTimeout(
+                      $.proxy(
+                        this.bespin_editor.dimensionsChanged,
+                        this.bespin_editor
+                      ), 
+                      50
+                    );
                   }
                 },
                 this
@@ -835,9 +812,6 @@
                 matched.push(section);
               }
             }
-            
-            log('matched');
-            log(matched);
             
             if (matched.length) {
               // get the new, uptodate sections
@@ -915,7 +889,7 @@
                         this.bespin_editor.dimensionsChanged,
                         this.bespin_editor
                       ), 
-                      1
+                      50
                     );
                   },
                   this
