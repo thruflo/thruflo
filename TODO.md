@@ -14,14 +14,16 @@ x when `refresh`ing:
 x `update_dependencies` should use `overwrite_content_at`
 x pass ``session_id`` and ``originating_document_id`` through the changed machinery
 
-* in `Editor.handle_document_changed`:
-  * work out what's going on with `session_id` and `originating_document_id`
-  * if this document id matches originating_document_id ignore
-  * else:
-    * `handle_content_changed`: if we've edited the content, prompt, else overwrite
-    * `handle_dependency_changed`: if we've edited the section, prompt, else overwrite
-    * check changed against the saved checksum!
++ in `Editor.handle_document_changed`:
+  + work out what's going on with `session_id` and `originating_document_id`
+  + if this document id matches originating_document_id ignore
+  + else:
+    + `handle_content_changed`: if we've edited the content, prompt, else overwrite
+    + `handle_dependency_changed`: if we've edited the section, prompt, else overwrite
+    + check changed against the saved checksum!
   * fire some events to can be handled to tell the user what's going on
+  * seems only to reliably display when the thing is forced to redraw by a diff no. of lines
+* need to re-hash the content on save
 
 * seems listen isn't clearing the list (or we have ye-old redis keys about)
 

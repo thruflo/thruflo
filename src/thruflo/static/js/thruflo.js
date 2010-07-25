@@ -40,7 +40,7 @@
     
     var log = function (what) {
       try { 
-        console.log(what); 
+        console.log(what);
       }
       catch (err) {
         // pass
@@ -308,6 +308,7 @@
         '_handle': 'editor',
         '_section_revs': {},
         '_section_hashes': {},
+        '_content_hash': null,
         'UNTITLED': 'Untitled',
         '_generate_tabs_id': function () {
           var id = intid;
@@ -523,22 +524,27 @@
             );
           }
         },
+        '_accept_doc': function (doc) {
+          this.id = doc._id;
+          this.rev = doc._rev;
+          this.path = doc.path;
+          this._content_hash = Crypto.SHA256($.trim(this.initial_content));
+          this._section_revs = doc.dependencies;
+          this._section_hashes = {};
+          var sections_by_id = thruflo.markdown.get_section_content_by_id(doc.content);
+          var i, l = sections_by_id.length, section;
+          for (i = 0; i < l; i++) {
+            section = sections_by_id[i];
+            this._section_hashes[section['id']] = Crypto.SHA256(section['content']);
+          }
+        },
         'init': function (doc) {
           var id_no = this._generate_tabs_id();
           var tab_id = '#tabs-' + id_no;
           var t = $('#editor .tabs');
           if (doc) {
-            this.id = doc._id;
-            this.rev = doc._rev;
-            this.path = doc.path;
+            this._accept_doc(doc);
             this.initial_content = doc.content;
-            this._section_revs = doc.dependencies;
-            var sections_by_id = thruflo.markdown.get_section_content_by_id(doc.content);
-            var i, l = sections_by_id.length, section;
-            for (i = 0; i < l; i++) {
-              section = sections_by_id[i];
-              this._section_hashes[section['id']] = Crypto.SHA256(section['content']);
-            }
             t.tabs('add', tab_id, this._trim_title(doc.filename));
           }
           else {
@@ -560,6 +566,7 @@
                 this.bespin_editor = env.editor;
                 // default the content to something friendly
                 this.bespin_editor.value = this.initial_content;
+                this.initial_content = null;
                 this.bespin_editor.setLineNumber(4);
                 this.focus();
                 container.droppable({
@@ -730,127 +737,191 @@
         },
         'update': function (doc) {
           if (doc._id == this.id) {
-            if (this.bespin_editor.value != doc.content) {
+            // if the content of the editor has changed
+            var current_content_hash = Crypto.SHA256($.trim(this.bespin_editor.value));
+            if (this._content_hash != current_content_hash) {
+              // @@ todo: "merge", etc.
+              // for now, prompt the user to see if they want to accept the change
               if (
                 confirm(
                   this._get_filename(this.bespin_editor.value) + 
                   " has changed." + 
-                  " Are you sure you want to revert to the saved version?"
+                  " Do you want to overwrite the file you have open?" + 
+                  " If you do, you'll lose you're changes." +
+                  " If you don't, you'll not be able to save them." +
+                  " (@@ this needs to be a merge!!!)"
                 )
               ) {
-                this.id = doc._id;
-                this.rev = doc._rev;
+                this._accept_doc(doc);
                 this.bespin_editor.value = doc.content;
               }
             }
           }
         },
+        'update_section': function (content, section_id, content_to_insert, rev) {
+          var ranges = thruflo.markdown.get_dependency_ranges(content, section_id);
+          var start_comment = '<!-- section:' + section_id + ' -->\n\n';
+          var end_comment = '\n\n<!-- end section:' + section_id + ' -->';
+          var selection = start_comment + $.trim(content_to_insert) + end_comment;
+          for (var i = ranges.length - 1; i >= 0; i--) {
+            this.bespin_editor.replace(ranges[i], selection, true);
+          }
+          this._store_section_version(section_id, rev, content_to_insert);
+        },
         'handle_document_changed': function (event, data) {
           
           log('handle_document_changed');
+          log(this._get_filename(this.bespin_editor.value));
           log(data);
           
-          // we have the filename and path
+          /*
+            
+            * else:
+              * `handle_content_changed`: if we've edited the content, prompt, else overwrite
+              * `handle_dependency_changed`: if we've edited the section, prompt, else overwrite
+              * check changed against the saved checksum!
+            * fire some events to can be handled to tell the user what's going on
+            
+          */
           
-          var stub = data['path'] + data['filename'];
-          if (stub.startsWith('/')) {
-            stub = stub.slice(1);
+          // first up, if the document changed is the document this editor has rendered
+          
+          var doc_cache = $('#editor').get(0).doc_cache;
+          
+          var _odi = data['originating_document_id'];
+          
+          var is_this_doc = !!(data['_id'] == this.id);
+          var was_from_this_client = !!(data['client_id'] == client_id);
+          var was_from_this_editor = !!(was_from_this_client && _odi == this.id);
+          
+          log('is_this_doc: ' + is_this_doc);
+          log('was_from_this_client: ' + was_from_this_client);
+          log('was_from_this_editor: ' + was_from_this_editor);
+          
+          if (was_from_this_editor) {
+            // ignore
           }
-          
-          // if that matches our sections list
-          
-          var matched = [];
-          var content = this.bespin_editor.value;
-          var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
-          var i, 
-              section, 
-              section_id, 
-              l = sections_by_id.length;
-          for (i = 0; i < l; i++) {
-            section = sections_by_id[i];
-            section_id = section['id'];
-            if (section_id.startsWith(stub)) {
-              matched.push(section);
-            }
-          }
-          
-          if (matched.length) {
-            // get the new, uptodate sections
-            var doc_cache = $('#editor').get(0).doc_cache;
+          else if (is_this_doc) {
             var doc = doc_cache.get_document(
               data['_id'],
               $.proxy(
                 function (doc) {
                   if (doc) {
-                    /*
-                      
-                      we want to compare the section content parsed out of our doc
-                      with the content that comes from the doc's sections
-                      
-                    */
-                    var our_section, 
-                        docs_section = null,
-                        has_changed;
-                    for (i = 0; i < matched.length; i++) {
-                      our_section = matched[i];
-                      // get the doc section 
-                      var docid_or_sections_key = this._get_docid_or_sections_key(
-                        doc.repository, 
-                        doc._id, 
-                        section['id']
-                      );
-                      if (!(docid_or_sections_key instanceof Array)) {
-                        docs_section = $.trim(doc.content);
-                      }
-                      else {
-                        var sections = doc.get_sections();
-                        for (var j = 0; j < sections.length; j++) {
-                          if (sections[j][0] == docid_or_sections_key) {
-                            docs_section = sections[j][1];
-                          }
-                        }
-                      }
-                      if (!docs_section) {
-                        log('*** @@ need to unpin when section not found ***');
-                      }
-                      else {
-                        has_changed = !(our_section == docs_section);
-                        var should_store_section_version = !has_changed;
-                        if (has_changed) {
-                          // if so, prompt
-                          if (
-                            confirm(
-                              '@@ ' + doc.filename + ' contains ' + section['id'] + 
-                              ' which has been updated. ' + 
-                              ' Do you want to overwrite that section in ' + 
-                              doc.filename + '?'
-                            )
-                          ) {
-                            // insert the new content into the doc at the right place
-                            var new_content = thruflo.markdown.get_updated_dependency_content(
-                              content,
-                              section['id'],
-                              docs_section
-                            );
-                            this.bespin_editor.value = new_content;
-                            this.bespin.dimensionsChanged();
-                            should_store_section_version = true;
-                          }
-                        }
-                        if (should_store_section_version) {
-                          this._store_section_version(
-                            section['id'], 
-                            data['_rev'], 
-                            docs_section
-                          );
-                        }
-                      }
-                    }
+                    this.update(doc);
                   }
                 },
                 this
               )
             );
+          }
+          else {
+            // we have the filename and path
+            var stub = data['path'] + data['filename'];
+            if (stub.startsWith('/')) {
+              stub = stub.slice(1);
+            }
+            // if that matches our sections list
+            var matched = [];
+            var content = this.bespin_editor.value;
+            var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
+            var i, 
+                section, 
+                section_id, 
+                l = sections_by_id.length;
+            for (i = 0; i < l; i++) {
+              section = sections_by_id[i];
+              section_id = section['id'];
+              if (section_id.startsWith(stub)) {
+                matched.push(section);
+              }
+            }
+            
+            log('matched');
+            log(matched);
+            
+            if (matched.length) {
+              // get the new, uptodate sections
+              var doc = doc_cache.get_document(
+                data['_id'],
+                $.proxy(
+                  function (doc) {
+                    if (doc) { /*
+                        
+                        we want to compare the section content parsed out of our doc
+                        with any hash we may have stored for it
+                        
+                        if the hash matches, we can "merge" silently
+                        
+                        if not, we prompt to "merge" the content that comes 
+                        from the doc's sections
+                        
+                      */
+                      var section,
+                          section_id,
+                          current_hash,
+                          stored_hash,
+                          should_merge,
+                          docid_or_sections_key,
+                          doc_sections,
+                          content_to_insert,
+                          found_content_to_insert = false,
+                          j,
+                          sl;
+                      for (i = 0; i < matched.length; i++) {
+                        section = matched[i];
+                        section_id = section['id'];
+                        docid_or_sections_key = this._get_docid_or_sections_key(
+                          doc.repository, doc._id, section_id
+                        );
+                        if (!(docid_or_sections_key instanceof Array)) {
+                          content_to_insert = $.trim(doc.content);
+                          found_content_to_insert = true;
+                        }
+                        else {
+                          doc_sections = doc.get_sections();
+                          sl = doc_sections.length
+                          for (j = 0; j < sl; j++) {
+                            if (doc_sections[j][0] == docid_or_sections_key) {
+                              content_to_insert = doc_sections[j][1];
+                              found_content_to_insert = true;
+                              break;
+                            }
+                          }
+                        }
+                        if (found_content_to_insert) {
+                          current_hash = Crypto.SHA256(section['content']);
+                          stored_hash = this._section_hashes[section_id];
+                          should_merge = !!(!!(current_hash == stored_hash) || confirm(
+                              '@@ ' + doc.filename + 
+                              ' contains ' + section['id'] + 
+                              ' which has been updated. ' + 
+                              ' Do you want to overwrite that section in ' + 
+                              doc.filename + '?'
+                          ));
+                          if (should_merge) {
+                            this.update_section(
+                              content, 
+                              section_id, 
+                              content_to_insert,
+                              doc._rev
+                            );
+                          }
+                        }
+                      }
+                    }
+                    // @@ hack to try to get the changes to display
+                    window.setTimeout(
+                      $.proxy(
+                        this.bespin_editor.dimensionsChanged,
+                        this.bespin_editor
+                      ), 
+                      1
+                    );
+                  },
+                  this
+                )
+              );
+            }
           }
         },
         'handle_document_deleted': function (event, data) {
