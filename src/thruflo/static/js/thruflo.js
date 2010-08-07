@@ -166,7 +166,9 @@
           }
         },
         'get_document': function (_id, callback, args) {
+          log('get_document: ' + _id);
           if (!this._docs.hasOwnProperty(_id)) {
+            log('^');
             // store the callback against the id
             if (!this._callbacks.hasOwnProperty(_id)) {
               this._callbacks[_id] = [];
@@ -209,6 +211,7 @@
                 }
               );
             }
+            log('^^');
           }
           else {
             callback(this._docs[_id], args);
@@ -358,6 +361,7 @@
           return [path, filename];
         },
         '_get_docid_or_sections_key': function (repo_id, doc_id, section_id) {
+          log('_get_docid_or_sections_key(' + doc_id + ', ' + section_id + ')');
           var path_and_filename = this._extract_path_and_filename(section_id);
           var path = path_and_filename[0];
           var filename = path_and_filename[1];
@@ -378,8 +382,8 @@
               0, null, 
               0, null
             ];
-            section_path = section_path.replace(/\#/gm, SAFE_HASH);
-            section_path = section_path.replace(/\//gm, SAFE_FWDSLASH);
+            //section_path = section_path.replace(/\#/gm, SAFE_HASH);
+            //section_path = section_path.replace(/\//gm, SAFE_FWDSLASH);
             var ordstring = section_path.slice(section_path.indexOf('ord:') + 4);
             var ordparts = ordstring.split(':');
             var ords = [];
@@ -397,15 +401,28 @@
               catch (e) {
                 break;
               }
+              if (s - hashes.length < 0) {
+                break;
+              }
               hashes += '#';
+              log('@@ matching ``ord:`` is open to clashes');
               try {
                 var e = section_path.indexOf(hashes);
+                if (e < 0) {
+                  if (section_path.indexOf(' ord:') > -1) {
+                    e = section_path.indexOf(' ord:');
+                  }
+                  else {
+                    e = section_path.length;
+                  }
+                }
               }
-              catch (e) {
-                var e = section_path.index('ord:') - 1;
+              catch (err) {
+                var e = section_path.indexOf(' ord:');
               }
-              var text = section_path.substr(s, e).replace(safe_hash_pattern, '#');
-              text = text.replace(safe_fwdslash_pattern, '/');
+              var text = section_path.slice(s, e);
+              //.replace(safe_hash_pattern, '#');
+              //text = text.replace(safe_fwdslash_pattern, '/');
               key[ord_pos] = ords[level - 1];
               key[text_pos] = text;
               level += 1;
@@ -551,8 +568,14 @@
           }
           this.tab = $('li', t).last().get(0);
           $('.tab-button', this.tab).click($.proxy(this, 'close'));
-          $(document).bind('document:changed', $.proxy(this, 'handle_document_changed'));
-          $(document).bind('document:deleted', $.proxy(this, 'handle_document_deleted'));
+          $(document).bind(
+            'document:changed.' + this.id, 
+            $.proxy(this, 'handle_document_changed')
+          );
+          $(document).bind(
+            'document:deleted.' + this.id, 
+            $.proxy(this, 'handle_document_deleted')
+          );
           var container = $(tab_id).find('.bespin-container');
           bespin.useBespin(container.get(0)).then(
             $.proxy(
@@ -588,8 +611,9 @@
             var e = this.bespin_editor;
             var set_focus = function () { 
               e.focus = true;
+              e.dimensionsChanged();
             };
-            window.setTimeout(set_focus, 10);
+            window.setTimeout(set_focus, 50);
           }
         },
         'save': function () {
@@ -715,6 +739,7 @@
           var i = $('li', $('#editor .tabs')).index(this.tab);
           $('#editor .tabs').tabs('remove', i);
           editor_manager.refresh_selected();
+          $(document).unbind('.' + this.id);
         },
         'update': function (doc) {
           if (doc._id == this.id) {
@@ -732,18 +757,29 @@
             // @@ todo: "merge", etc.
             if (should_merge) {
               this._accept_doc(doc);
+              var prev_line_number = this.bespin_editor.selection.start.row;
               this.bespin_editor.value = doc.content;
+              this.bespin_editor.setLineNumber(40000);
+              this.bespin_editor.setLineNumber(prev_line_number);
+              this.bespin_editor.dimensionsChanged();
             }
           }
         },
         'update_section': function (content, section_id, content_to_insert, rev) {
+          log('update section');
           var ranges = thruflo.markdown.get_dependency_ranges(content, section_id);
+          log('ranges');
+          log(ranges);
           var start_comment = '<!-- section:' + section_id + ' -->\n\n';
           var end_comment = '\n\n<!-- end section:' + section_id + ' -->';
           var selection = start_comment + $.trim(content_to_insert) + end_comment;
+          var prev_line_number = this.bespin_editor.selection.start.row;
           for (var i = ranges.length - 1; i >= 0; i--) {
             this.bespin_editor.replace(ranges[i], selection, true);
           }
+          this.bespin_editor.setLineNumber(40000);
+          this.bespin_editor.setLineNumber(prev_line_number);
+          this.bespin_editor.dimensionsChanged();
           this._store_section_version(section_id, rev, content_to_insert);
         },
         'handle_document_changed': function (event, data) {
@@ -767,14 +803,21 @@
           var was_from_this_client = !!(data['client_id'] == client_id);
           var was_from_this_editor = !!(was_from_this_client && _odi == this.id);
           
+          log(this.id + ' handle_document_changed');
+          log('is_this_doc: ' + is_this_doc);
+          log('was_from_this_client: ' + was_from_this_client);
+          log('was_from_this_editor: ' + was_from_this_editor);
+          
           if (was_from_this_editor) {
             // ignore
           }
           else if (is_this_doc) {
-            var doc = doc_cache.get_document(
+            log('a');
+            doc_cache.get_document(
               data['_id'],
               $.proxy(
                 function (doc) {
+                  log('aa');
                   if (doc) {
                     this.update(doc);
                     // @@ hack to try to get the changes to display
@@ -792,6 +835,8 @@
             );
           }
           else {
+            log('b');
+            
             // we have the filename and path
             var stub = data['path'] + data['filename'];
             if (stub.startsWith('/')) {
@@ -808,17 +853,22 @@
             for (i = 0; i < l; i++) {
               section = sections_by_id[i];
               section_id = section['id'];
+              log('testing if ' + section_id + ' starts with ' + stub);
               if (section_id.startsWith(stub)) {
                 matched.push(section);
               }
             }
             
+            log('matched');
+            log(matched);
+            
             if (matched.length) {
               // get the new, uptodate sections
-              var doc = doc_cache.get_document(
+              doc_cache.get_document(
                 data['_id'],
                 $.proxy(
                   function (doc) {
+                    log('bb');
                     if (doc) { /*
                         
                         we want to compare the section content parsed out of our doc
@@ -847,24 +897,100 @@
                         docid_or_sections_key = this._get_docid_or_sections_key(
                           doc.repository, doc._id, section_id
                         );
+                        log('docid_or_sections_key for ' + section_id);
+                        log(docid_or_sections_key);
                         if (!(docid_or_sections_key instanceof Array)) {
                           content_to_insert = $.trim(doc.content);
                           found_content_to_insert = true;
                         }
                         else {
                           doc_sections = doc.get_sections();
-                          sl = doc_sections.length
-                          for (j = 0; j < sl; j++) {
-                            if (doc_sections[j][0] == docid_or_sections_key) {
-                              content_to_insert = doc_sections[j][1];
-                              found_content_to_insert = true;
-                              break;
+                          var relevant_section_key = docid_or_sections_key.slice(3);
+                          var slice_pos = 1;
+                          var recurse = {};
+                          recurse.get_content = function (items, slice_pos, section_key) { /*
+                              
+                              iterate through a::
+                                  
+                                  [[
+                                      key, 
+                                      value, [[
+                                          key, 
+                                          value, [[
+                                              key, 
+                                              value, 
+                                              []
+                                            ],
+                                            ...
+                                          ]
+                                        ],
+                                        ...
+                                      ]
+                                    ],
+                                    ...
+                                  ]
+                              
+                              structure, i.e.: check [0], then for each in [2] repeat
+                              
+                            */
+                            
+                            var i, 
+                                l = items.length,
+                                target,
+                                value;
+                            
+                            log('iterating through ' + items.length + ' items');
+                            log('trying to find');
+                            log(section_key);
+                            
+                            for (i = 0; i < l; i++) {
+                              target = items[i];
+                              var ord = target[0][slice_pos];
+                              var val = target[0][slice_pos + 1];
+                              log(i);
+                              log(target[0]);
+                              log('ord: ' + ord);
+                              log('val: ' + val);
+                              // if the stub matches
+                              if (ord == section_key[0] && val == section_key[1]) { 
+                                log('stub matches');
+                                // if there's another level
+                                if (section_key.length > 3 && section_key[3] != null) {
+                                  log('the section_key goes on');
+                                  // go through to the children
+                                  if (target[2] && target[2].length) {
+                                    log('going through to children');
+                                    return recurse.get_content(
+                                      target[2],
+                                      slice_pos += 2,
+                                      section_key.slice(2)
+                                    );
+                                  }
+                                }
+                                else {
+                                  // this is the match!
+                                  return target[1];
+                                }
+                              }
                             }
+                            return null;
+                          };
+                          content_to_insert = recurse.get_content(
+                            doc_sections, 
+                            slice_pos,
+                            relevant_section_key
+                          );
+                          if (content_to_insert != null) {
+                            found_content_to_insert = true;
                           }
                         }
                         if (found_content_to_insert) {
+                          log('found_content_to_insert');
+                          log('should insert: ' + content_to_insert);
+                          log('instead of: ' + section['content']);
                           current_hash = Crypto.SHA256(section['content']);
                           stored_hash = this._section_hashes[section_id];
+                          log(!!(current_hash == stored_hash));
                           should_merge = !!(!!(current_hash == stored_hash) || confirm(
                               '@@ ' + doc.filename + 
                               ' contains ' + section['id'] + 
@@ -873,6 +999,7 @@
                               doc.filename + '?'
                           ));
                           if (should_merge) {
+                            log('should_merge');
                             this.update_section(
                               content, 
                               section_id, 
@@ -883,14 +1010,6 @@
                         }
                       }
                     }
-                    // @@ hack to try to get the changes to display
-                    window.setTimeout(
-                      $.proxy(
-                        this.bespin_editor.dimensionsChanged,
-                        this.bespin_editor
-                      ), 
-                      50
-                    );
                   },
                   this
                 )

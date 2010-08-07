@@ -635,6 +635,7 @@ class Document(BaseDocument):
                 # when we're out of sections,
                 # set the endpos to either the start of 
                 # the next sibling heading or the end of doc
+                setext_pattern = None
                 if level == 2:
                     setext_pattern = r'^(.+?)[ \t]*\n=+[ \t]*[\n|$]'
                 elif level == 3:
@@ -645,10 +646,13 @@ class Document(BaseDocument):
                         r'}[ \t]*(?!\#)(.+?)[ \t]*(?<!\\)\#*[\n|$]'
                     ]
                 )
-                sibling_or_end_of_doc = re.compile(
-                  r'(' + atx_pattern + r')|(' + setext_pattern + r')',
-                  re.U | re.M
-                )
+                if setext_pattern:
+                    sibling_or_end_of_doc = re.compile(
+                        r'(' + atx_pattern + r')|(' + setext_pattern + r')',
+                        re.U | re.M
+                    )
+                else:
+                    sibling_or_end_of_doc = re.compile(atx_pattern, re.U | re.M)
                 sibling_match = sibling_or_end_of_doc.search(self.content, startpos + 1)
                 endpos = sibling_match and sibling_match.start() or -1
                 break;
@@ -663,21 +667,8 @@ class Document(BaseDocument):
                 text = text.replace(SAFE_FWDSLASH, r'/')
                 
                 logging.debug('text')
+                logging.debug(text)
                 
-                if level == 1:
-                    setext_pattern = r''.join([
-                            r'^(',
-                            re.escape(text),
-                            r')[ \t]*\n=+[ \t]*[\n|$]'
-                        ]
-                    )
-                elif level == 2:
-                    setext_pattern = r''.join([
-                            r'^(',
-                            re.escape(text),
-                            r')[ \t]*\n-+[ \t]*[\n|$]'
-                        ]
-                    )
                 atx_pattern = r''.join([
                         r'^\#{',
                         str(level),
@@ -686,23 +677,43 @@ class Document(BaseDocument):
                         r')[ \t]*(?<!\\)\#*[\n|$]'
                     ]
                 )
-                target_heading = re.compile(
-                  r'(' + atx_pattern + r')|(' + setext_pattern + r')', 
-                  re.U | re.M
-                )
+                if level < 3:
+                    if level == 1:
+                        setext_pattern = r''.join([
+                                r'^(',
+                                re.escape(text),
+                                r')[ \t]*\n=+[ \t]*[\n|$]'
+                            ]
+                        )
+                    elif level == 2:
+                        setext_pattern = r''.join([
+                                r'^(',
+                                re.escape(text),
+                                r')[ \t]*\n-+[ \t]*[\n|$]'
+                            ]
+                        )
+                    target_heading = re.compile(
+                        r'(' + atx_pattern + r')|(' + setext_pattern + r')', 
+                        re.U | re.M
+                    )
+                else:
+                    target_heading = re.compile(atx_pattern, re.U | re.M)
                 target_match_number = ords[level - 1] / 2
                 match_number = 0
-                scan_pos = 0
                 # loop through, matching via setext or atx from pos
                 while True:
-                    match = target_heading.search(self.content, scan_pos)
+                    match = target_heading.search(self.content, startpos)
                     if not match:
                         break;
                     else:
                         # if this is the n'th match where n = ord/2
+                        startpos = match.end()
+                        logging.debug('have match at %s' % startpos)
+                        logging.debug('%s == %s' % (match_number, target_match_number))
                         if match_number == target_match_number:
                             # startpos = the end of the heading
-                            startpos = match.end()
+                            logging.debug('ord matches')
+                            logging.debug('startpos: %s' % startpos)
                             break;
                         match_number += 1
                 level += 1
