@@ -1,16 +1,6 @@
 
 # 0.4
 
-## Reuse Sections
-
-+ editor with section changed after `update_section` triggers alert as if edited when then updated again
-+ create document doesn't update the dependencies:
-  + saving the dependency content shouldn't include the heading
-  + the content within a dependency needs to include the heading
-+ where did that duplicate title come from?  can we replicate?
-* sanity check manual test against all scenarios
-* sanity check logic in all parsing routines: make sure it's consistent and see if obvious bits of the js can be refactored
-
 ## Pinning
 
 * unpin server side: when `section_id` doesn't resolve (refreshing dependency content)
@@ -42,6 +32,10 @@
 * prompt for save on `close` if changed
 * on renaming, try to fix the affected section paths in docs depending on the renamed doc
 * rerender sections if showing (render sections and click click down the tree)
+
+## Sectioning
+
+* handle first `# Heading` changing in the content after saved, inc from other doc
 
 ## Listing options
 
@@ -91,6 +85,7 @@
 
 * refactor, document and test: try to simplify code and minimise bug potential
 * rename any other "section" nomenclature that should use "dependency"
+* sanity check logic in all parsing routines: make sure it's consistent and see if obvious bits of the js can be refactored
 * build the design and the thruflo.markdown js from a single source
 * explicitly resolve all the `@@`s
 * stop and consider where the `shit should have thought of that before going live`s are going to come from: can we avoid any?

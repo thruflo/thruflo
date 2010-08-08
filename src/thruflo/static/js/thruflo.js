@@ -760,14 +760,18 @@
         'expand': function () {},
         'collapse': function () {},
         'close': function () {
-          var editor_manager = $('#editor').get(0).editor_manager;
+          var editor = $('#editor').get(0);
+          var editor_manager = editor.editor_manager;
+          var doc_cache = editor.doc_cache;
           editor_manager.unregister(this.id);
           var tab_button = $('.tab-button', this.tab);
           tab_button.unbind('click');
           var i = $('li', $('#editor .tabs')).index(this.tab);
           $('#editor .tabs').tabs('remove', i);
           editor_manager.refresh_selected();
-          $(document).unbind('.' + this.id);
+          doc_cache.invalidate(this.id);
+          $(document).unbind('document:changed.' + this.id);
+          $(document).unbind('document:deleted.' + this.id);
         },
         'prepare_update': function () {
           this._current_content = this.bespin_editor.value;
