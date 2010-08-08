@@ -18,15 +18,14 @@ def app_factory(global_config, **local_conf):
     ### setup logging
     
     import logging
+    logging.getLogger('restkit').setLevel(logging.WARNING)
     
     if settings['debug']:
         logging.basicConfig(level=logging.DEBUG)
         logging.getLogger('beaker').setLevel(logging.INFO)
-        logging.getLogger('restkit').setLevel(logging.INFO)
     else:
         logging.basicConfig(level=logging.INFO)
         logging.getLogger('beaker').setLevel(logging.WARNING)
-        logging.getLogger('restkit').setLevel(logging.WARNING)
     
     ### create model.couch instance
     

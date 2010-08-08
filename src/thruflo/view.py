@@ -319,9 +319,6 @@ class Editor(RequestHandler):
           push the new / changed / deleted data to them.
         """
         
-        logging.debug('_notify_clients')
-        logging.debug(data)
-        
         redis = Redis(namespace=self.repository.id, expire_after=300)
         redis_ready_data = utils.json_encode(data)
         
@@ -469,7 +466,6 @@ class Editor(RequestHandler):
         """
         
         client_id = self.get_argument('client_id', u'')
-        #logging.debug(client_id)
         try:
             client_id = schema.ClientId(not_empty=True).to_python(client_id)
         except formencode.Invalid, err:
@@ -482,7 +478,6 @@ class Editor(RequestHandler):
             client_key = 'client-%s' % client_id
             redis[client_key] = client_id
             # wait for updates
-            #logging.debug('blocking waiting for %s' % client_id)
             response = redis('blpop', [client_id], timeout=timeout)
             # if it timed out, no worries
             if response is None:
@@ -495,7 +490,6 @@ class Editor(RequestHandler):
                 for k, v in item.iteritems():
                     response_item[k] = v.decode('utf8')
                 response.append(response_item)
-            #logging.debug(response)
             return response
         
         

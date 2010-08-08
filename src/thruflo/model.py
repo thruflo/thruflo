@@ -328,7 +328,6 @@ class Document(BaseDocument):
     
     @classmethod
     def get_docid_or_sections_key(cls, repo_id, section_id):
-        logging.debug('get_docid_or_sections_key: %s' % section_id)
         path, filename = cls.extract_path_and_filename(section_id)
         section_path = section_id.split(filename)[1]
         if not section_path:
@@ -377,7 +376,6 @@ class Document(BaseDocument):
             path_and_filename = u'%s.md' % path_and_filename
         if not path_and_filename.startswith('/'):
             path_and_filename = u'/%s' % path_and_filename
-        logging.debug(path_and_filename)
         parts = path_and_filename.split('/')
         path = u'/%s' % u'/'.join(parts[0:-1])
         filename = parts[-1]
@@ -387,7 +385,6 @@ class Document(BaseDocument):
     @classmethod
     def get_from_section_id(cls, section_id, rev=None):
         path, filename = cls.extract_path_and_filename(section_id)
-        logging.debug('path, filename: %s, %s' % (path, filename))
         docid = cls.generate_id(path=path, filename=filename)
         return cls.soft_get(docid, rev=rev)
         
@@ -445,7 +442,7 @@ class Document(BaseDocument):
         """@@ todo, optimise this...
         """
         
-        logging.debug('@@ todo: optimise _overwrite_content_at')
+        logging.warning('@@ todo: optimise _overwrite_content_at')
         
         self.content = u''.join([
                 self.content[:startpos].rstrip() + 
@@ -486,9 +483,6 @@ class Document(BaseDocument):
             endkey=[self.repository, self.id, []]
         ).all()
         
-        logging.debug('dependencies')
-        logging.debug(dependencies)
-        
         # weed out duplicates
         deduplicated = []
         section_ids = {}
@@ -498,9 +492,6 @@ class Document(BaseDocument):
                 section_ids[section_id] = True
                 deduplicated.append(item)
             
-        logging.debug('deduplicated')
-        logging.debug(deduplicated)
-        
         # weed out unchanged
         maybe_changed = []
         query_keys = []
@@ -512,22 +503,13 @@ class Document(BaseDocument):
             else:
                 query_keys.append([None, None])
         
-        logging.debug('query_keys')
-        logging.debug(query_keys)
-        
         results = couch.db.view('document/by_rev', keys=query_keys)
         result_ids = [item.get('id') for item in results]
-        
-        logging.debug('result_ids')
-        logging.debug(result_ids)
         
         for item in deduplicated:
             if not item.get('id') in result_ids:
                 maybe_changed.append(item)
             
-        logging.debug('maybe_changed')
-        logging.debug(maybe_changed)
-        
         for item in maybe_changed:
             section_id = item['key'][4]
             docid_or_section_key = Document.get_docid_or_sections_key(
@@ -543,11 +525,7 @@ class Document(BaseDocument):
                     actual_content = doc.content
             else:
                 section_key = docid_or_section_key
-                logging.debug('*** section_key ***')
-                logging.debug(section_key)
                 section = couch.db.view('document/sections', key=section_key).first()
-                logging.debug('*** section ***')
-                logging.debug(section)
                 if section is not None:
                     doc = Document.get(section['id'])
                     if doc is not None:
@@ -572,10 +550,6 @@ class Document(BaseDocument):
           <!-- end section:... -->`` comments and overwrites the content.
         """
         
-        logging.debug('overwrite_dependency_content')
-        logging.debug('section_id: %s' % section_id)
-        logging.debug(section_content)
-        
         section_content = section_content.strip()
         start_comment = re.compile(
             r'<!-- section:' + re.escape(section_id) + r' -->',
@@ -589,7 +563,6 @@ class Document(BaseDocument):
         # iterate through the content to handle all the instances 
         # of this dependency
         while True:
-            logging.debug('* :: %s' % start_scan_pos)
             # find the start comment
             match = start_comment.search(self.content, start_scan_pos)
             if not match: 
@@ -602,36 +575,27 @@ class Document(BaseDocument):
             match_number = 0
             scan_pos = startpos
             while True:
-                logging.debug('** :: %s' % startpos)
                 match = all_comments.search(self.content, scan_pos)
                 if not match:
-                    logging.debug('***')
                     start_scan_pos = startpos + 1
                     break;
-                logging.debug('****')
                 if self.content[match.start() - 3:match.start()] == 'end':
-                    logging.debug('*****')
                     # it's an end comment
                     if match_number == 0:
-                        logging.debug('******')
                         # we have the corresponding end comment
                         endpos = match.start() - 9
                         break;
                     else:
-                        logging.debug('*******')
                         # we're one match closer
                         match_number -= 1
                 else:
-                    logging.debug('********')
                     # we're one match further away
                     match_number += 1
                 scan_pos = match.end()
             if endpos < 0:
-                logging.debug('*********')
                 break;
             match_length = match.end() - match.start()
             start_scan_pos = startpos + len(section_content) + match_length
-            logging.debug('inserting from %s to %s' % (startpos, endpos))
             self._overwrite_content_at(startpos, endpos, section_content)
         
     
@@ -651,17 +615,11 @@ class Document(BaseDocument):
           
         """
         
-        logging.debug('overwrite_section_content')
-        logging.debug('section_id: %s' % section_id)
-        # logging.debug('section_content: %s' % section_content)
-        
         section_path = u'.md'.join(section_id.split(u'.md')[1:])
         
         if not section_path:
             self.content = u'\n%s\n' % section_content
             return
-        
-        logging.debug('it\'s a section')
         
         section_path = section_path.replace(r'\#', SAFE_HASH)
         section_path = section_path.replace(r'\/', SAFE_FWDSLASH)
@@ -679,7 +637,6 @@ class Document(BaseDocument):
             try:
                 s = section_path.index(hashes) + len(hashes)
             except ValueError:
-                logging.debug('**')
                 # when we're out of sections,
                 # set the endpos to either the start of 
                 # the next sibling heading or the end of doc
@@ -705,7 +662,6 @@ class Document(BaseDocument):
                 endpos = sibling_match and sibling_match.start() or -1
                 break;
             else:
-                logging.debug('*')
                 hashes += '#'
                 try:
                     e = section_path.index(hashes)
@@ -713,9 +669,6 @@ class Document(BaseDocument):
                     e = section_path.index('ord:') - 1
                 text = section_path[s:e].replace(SAFE_HASH, r'#')
                 text = text.replace(SAFE_FWDSLASH, r'/')
-                
-                logging.debug('text')
-                logging.debug(text)
                 
                 atx_pattern = r''.join([
                         r'^\#{',
@@ -757,12 +710,8 @@ class Document(BaseDocument):
                     else:
                         # if this is the n'th match where n = ord/2
                         startpos = match.end()
-                        logging.debug('have match at %s' % startpos)
-                        logging.debug('%s == %s' % (match_number, target_match_number))
                         if match_number == target_match_number:
                             # startpos = the end of the heading
-                            logging.debug('ord matches')
-                            logging.debug('startpos: %s' % startpos)
                             break;
                         match_number += 1
                 level += 1
@@ -778,9 +727,6 @@ class Document(BaseDocument):
     def update_dependencies(self, sections):
         """Updates other documents' section content.
         """
-        
-        logging.debug('update_dependencies')
-        logging.debug(sections)
         
         logging.warning(
           '@@ update_dependencies needs to take care over fetching and saving'
@@ -806,9 +752,6 @@ class Document(BaseDocument):
                     # if its changed
                     has_changed = data.get('changed', True)
                     if has_changed:
-                        logging.debug('doc.overwrite_section_content')
-                        logging.debug(section_id)
-                        logging.debug(data['content'])
                         # amend its content and try to save it 
                         doc.overwrite_section_content(section_id, data['content'])
                         # @@ this should be bulk & handled...

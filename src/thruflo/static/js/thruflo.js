@@ -571,7 +571,6 @@
           this._section_hashes = {};
           var content = saved_content ? saved_content : doc.content;
           this._content_hash = this._hash_section(content);
-          console.warn('this._content_hash: ' + this._content_hash);
           var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
           var i, l = sections_by_id.length, section;
           for (i = 0; i < l; i++) {
@@ -776,7 +775,6 @@
         'update': function (doc) {
           if (doc._id == this.id) {
             var stored_hash = this._content_hash;
-            console.warn('stored_hash: ' + stored_hash);
             if (this._current_content) {
               var current_content = this._current_content;
             }
@@ -784,7 +782,6 @@
               var current_content = this.bespin_editor.value;
             }
             var current_hash = this._hash_section(current_content);
-            console.warn('current_hash: ' + current_hash);
             var should_merge = !!(!!(current_hash == stored_hash) || confirm(
                 this._get_filename(current_content) + " has changed." + 
                 " Do you want to overwrite the file you have open?" + 
