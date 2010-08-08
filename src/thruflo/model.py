@@ -400,6 +400,46 @@ class Document(BaseDocument):
         return generate_hash(s=s)
         
     
+    @classmethod
+    def get_heading_from_section_key(cls, section_key):
+        """From::
+          
+              [
+                u'c18862966c9a294c0f4ed6558a63540b', 
+                u'/', 
+                u'test_doc_one.md', 
+                0, 
+                u'Test Doc One', 
+                0, 
+                u'Sub Head', 
+                0, 
+                None, 
+                0, 
+                None, 
+                0, 
+                None, 
+                0, 
+                None
+              ]
+          
+          To ``u'## Sub Head'``.
+          
+        """
+        
+        hashes = u'######'
+        c = 6
+        
+        while True:
+            i = 2 + (c * 2)
+            if section_key[i] is None:
+                c -= 1
+                if c < 1:
+                    return None
+            else:
+                return u'%s %s' % (hashes[:c], section_key[i])
+            
+        
+    
     
     def _overwrite_content_at(self, startpos, endpos, new_content):
         """@@ todo, optimise this...
@@ -495,6 +535,7 @@ class Document(BaseDocument):
                 section_id
             )
             doc = None
+            actual_content = None
             if isinstance(docid_or_section_key, basestring):
                 docid = docid_or_section_key
                 doc = Document.soft_get(docid)
@@ -502,11 +543,18 @@ class Document(BaseDocument):
                     actual_content = doc.content
             else:
                 section_key = docid_or_section_key
+                logging.debug('*** section_key ***')
+                logging.debug(section_key)
                 section = couch.db.view('document/sections', key=section_key).first()
+                logging.debug('*** section ***')
+                logging.debug(section)
                 if section is not None:
                     doc = Document.get(section['id'])
                     if doc is not None:
-                        actual_content = section['value'].strip()
+                        actual_content = u'%s\n\n%s' % (
+                            self.get_heading_from_section_key(section_key),
+                            section['value'].strip()
+                        )
             if actual_content is None:
                 logging.warning('*** @@ section_id doesn\'t resolve ***')
                 logging.warning('*** need to handle this by unpinning ***')
@@ -703,6 +751,7 @@ class Document(BaseDocument):
                 # loop through, matching via setext or atx from pos
                 while True:
                     match = target_heading.search(self.content, startpos)
+                    last_heading = match.groups()[0]
                     if not match:
                         break;
                     else:
@@ -719,6 +768,9 @@ class Document(BaseDocument):
                 level += 1
             
         if startpos > -1:
+            # remove the ##Heading from the section content
+            section_content = u''.join(section_content.split(last_heading)[1:])
+            # overwrite the content
             self._overwrite_content_at(startpos, endpos, section_content.strip())
             
         
@@ -754,6 +806,9 @@ class Document(BaseDocument):
                     # if its changed
                     has_changed = data.get('changed', True)
                     if has_changed:
+                        logging.debug('doc.overwrite_section_content')
+                        logging.debug(section_id)
+                        logging.debug(data['content'])
                         # amend its content and try to save it 
                         doc.overwrite_section_content(section_id, data['content'])
                         # @@ this should be bulk & handled...

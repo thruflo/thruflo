@@ -46,6 +46,14 @@
         // pass
       }
     };
+    var warn = function (what) {
+      try { 
+        console.warn(what);
+      }
+      catch (err) {
+        // pass
+      }
+    };
     
     var current_path = window.location.pathname;
     if (current_path.endsWith('/')) {
@@ -166,9 +174,7 @@
           }
         },
         'get_document': function (_id, callback, args) {
-          log('get_document: ' + _id);
           if (!this._docs.hasOwnProperty(_id)) {
-            log('^');
             // store the callback against the id
             if (!this._callbacks.hasOwnProperty(_id)) {
               this._callbacks[_id] = [];
@@ -211,7 +217,6 @@
                 }
               );
             }
-            log('^^');
           }
           else {
             callback(this._docs[_id], args);
@@ -288,6 +293,7 @@
             var editor_id = data['_id'];
             var editor = this._editors[editor_id];
             this.trigger_select(editor_id);
+            editor.prepare_update();
             editor.update(data);
           }
           else {
@@ -347,7 +353,7 @@
           }
           return title;
         },
-        '_extract_path_and_filename': function(section_id) {
+        '_extract_path_and_filename': function (section_id) {
           var path_and_filename = section_id.split('.md#')[0];
           if (!path_and_filename.endsWith('.md')) {
             path_and_filename = path_and_filename + '.md';
@@ -361,7 +367,6 @@
           return [path, filename];
         },
         '_get_docid_or_sections_key': function (repo_id, doc_id, section_id) {
-          log('_get_docid_or_sections_key(' + doc_id + ', ' + section_id + ')');
           var path_and_filename = this._extract_path_and_filename(section_id);
           var path = path_and_filename[0];
           var filename = path_and_filename[1];
@@ -405,7 +410,7 @@
                 break;
               }
               hashes += '#';
-              log('@@ matching ``ord:`` is open to clashes');
+              warn('@@ matching ``ord:`` is open to clashes');
               try {
                 var e = section_path.indexOf(hashes);
                 if (e < 0) {
@@ -428,6 +433,22 @@
               level += 1;
             }
             return key;
+          }
+        },
+        '_get_heading_from_section_key': function (section_key) {
+          var hashes = '######';
+          var i, c = 6;
+          while (true) {
+            i = -1 + (c * 2);
+            if (section_key[i] == null) {
+              c -= 1
+              if (c < 1) {
+                return null;
+              }
+            }
+            else {
+              return hashes.slice(0, c) + ' ' + section_key[i];
+            }
           }
         },
         '_generate_section_id': function (path, filename, section_path, sections) { /*
@@ -477,8 +498,15 @@
             return section_id;
           }
         },
+        '_hash_section': function (content) {
+          return Crypto.SHA256($.trim(content));
+        },
+        '_store_section_hash': function (section_id, content) {
+          var h = this._hash_section(content); 
+          this._section_hashes[section_id] = h;
+        },
         '_store_section_version': function (section_id, rev, content) {
-          this._section_hashes[section_id] = Crypto.SHA256(content);
+          this._store_section_hash(section_id, content);
           this._section_revs[section_id] = rev;
         },
         '_insert_content': function (path, filename, section_path, rev, content, sections) {
@@ -542,12 +570,13 @@
           this._section_revs = doc.dependencies;
           this._section_hashes = {};
           var content = saved_content ? saved_content : doc.content;
-          this._content_hash = Crypto.SHA256($.trim(content));
+          this._content_hash = this._hash_section(content);
+          console.warn('this._content_hash: ' + this._content_hash);
           var sections_by_id = thruflo.markdown.get_section_content_by_id(content);
           var i, l = sections_by_id.length, section;
           for (i = 0; i < l; i++) {
             section = sections_by_id[i];
-            this._section_hashes[section['id']] = Crypto.SHA256(section['content']);
+            this._store_section_hash(section['id'], section['content']);
           }
         },
         'init': function (doc) {
@@ -631,7 +660,7 @@
               section_id = section['id'];
               if (this._section_revs.hasOwnProperty(section_id)) {
                 section['rev'] = this._section_revs[section_id];
-                section_hash = Crypto.SHA256(section['content']);
+                section_hash = this._hash_section(section['content']);
                 if (this._section_hashes.hasOwnProperty(section_id)) {
                   if (section_hash == this._section_hashes[section_id]) {
                     section['changed'] = false;
@@ -686,8 +715,8 @@
                     }
                   },
                   'error': function (transport, text_status) {
-                    log('@@ save failed');
-                    log(transport.responseText);
+                    warn('@@ save failed');
+                    warn(transport.responseText);
                   },
                   'complete': function () {
                     self.focus();
@@ -717,9 +746,9 @@
                 'data': params,
                 'success': $.proxy(this, 'close'),
                 'error': function (transport) {
-                  log('@@ delete failed');
-                  log(transport.status);
-                  log(transport.responseText);
+                  warn('@@ delete failed');
+                  warn(transport.status);
+                  warn(transport.responseText);
                 }
               }
             );
@@ -741,12 +770,23 @@
           editor_manager.refresh_selected();
           $(document).unbind('.' + this.id);
         },
+        'prepare_update': function () {
+          this._current_content = this.bespin_editor.value;
+        },
         'update': function (doc) {
           if (doc._id == this.id) {
             var stored_hash = this._content_hash;
-            var current_hash = Crypto.SHA256($.trim(this.bespin_editor.value));
+            console.warn('stored_hash: ' + stored_hash);
+            if (this._current_content) {
+              var current_content = this._current_content;
+            }
+            else {
+              var current_content = this.bespin_editor.value;
+            }
+            var current_hash = this._hash_section(current_content);
+            console.warn('current_hash: ' + current_hash);
             var should_merge = !!(!!(current_hash == stored_hash) || confirm(
-                this.filename + " has changed." + 
+                this._get_filename(current_content) + " has changed." + 
                 " Do you want to overwrite the file you have open?" + 
                 " If you do, you'll lose your changes." +
                 " If you don't, you'll not be able to save them" +
@@ -756,20 +796,17 @@
             // if the content of the editor has changed
             // @@ todo: "merge", etc.
             if (should_merge) {
-              this._accept_doc(doc);
               var prev_line_number = this.bespin_editor.selection.start.row;
               this.bespin_editor.value = doc.content;
+              this.bespin_editor.dimensionsChanged();
               this.bespin_editor.setLineNumber(40000);
               this.bespin_editor.setLineNumber(prev_line_number);
-              this.bespin_editor.dimensionsChanged();
+              this._accept_doc(doc);
             }
           }
         },
         'update_section': function (content, section_id, content_to_insert, rev) {
-          log('update section');
           var ranges = thruflo.markdown.get_dependency_ranges(content, section_id);
-          log('ranges');
-          log(ranges);
           var start_comment = '<!-- section:' + section_id + ' -->\n\n';
           var end_comment = '\n\n<!-- end section:' + section_id + ' -->';
           var selection = start_comment + $.trim(content_to_insert) + end_comment;
@@ -777,9 +814,9 @@
           for (var i = ranges.length - 1; i >= 0; i--) {
             this.bespin_editor.replace(ranges[i], selection, true);
           }
+          this.bespin_editor.dimensionsChanged();
           this.bespin_editor.setLineNumber(40000);
           this.bespin_editor.setLineNumber(prev_line_number);
-          this.bespin_editor.dimensionsChanged();
           this._store_section_version(section_id, rev, content_to_insert);
         },
         'handle_document_changed': function (event, data) {
@@ -803,21 +840,16 @@
           var was_from_this_client = !!(data['client_id'] == client_id);
           var was_from_this_editor = !!(was_from_this_client && _odi == this.id);
           
-          log(this.id + ' handle_document_changed');
-          log('is_this_doc: ' + is_this_doc);
-          log('was_from_this_client: ' + was_from_this_client);
-          log('was_from_this_editor: ' + was_from_this_editor);
-          
           if (was_from_this_editor) {
             // ignore
           }
           else if (is_this_doc) {
-            log('a');
+            // @@ not sure why we need to cache this here but we do
+            this.prepare_update();
             doc_cache.get_document(
               data['_id'],
               $.proxy(
                 function (doc) {
-                  log('aa');
                   if (doc) {
                     this.update(doc);
                     // @@ hack to try to get the changes to display
@@ -835,8 +867,6 @@
             );
           }
           else {
-            log('b');
-            
             // we have the filename and path
             var stub = data['path'] + data['filename'];
             if (stub.startsWith('/')) {
@@ -853,14 +883,10 @@
             for (i = 0; i < l; i++) {
               section = sections_by_id[i];
               section_id = section['id'];
-              log('testing if ' + section_id + ' starts with ' + stub);
               if (section_id.startsWith(stub)) {
                 matched.push(section);
               }
             }
-            
-            log('matched');
-            log(matched);
             
             if (matched.length) {
               // get the new, uptodate sections
@@ -868,7 +894,6 @@
                 data['_id'],
                 $.proxy(
                   function (doc) {
-                    log('bb');
                     if (doc) { /*
                         
                         we want to compare the section content parsed out of our doc
@@ -897,8 +922,6 @@
                         docid_or_sections_key = this._get_docid_or_sections_key(
                           doc.repository, doc._id, section_id
                         );
-                        log('docid_or_sections_key for ' + section_id);
-                        log(docid_or_sections_key);
                         if (!(docid_or_sections_key instanceof Array)) {
                           content_to_insert = $.trim(doc.content);
                           found_content_to_insert = true;
@@ -939,27 +962,16 @@
                                 target,
                                 value;
                             
-                            log('iterating through ' + items.length + ' items');
-                            log('trying to find');
-                            log(section_key);
-                            
                             for (i = 0; i < l; i++) {
                               target = items[i];
                               var ord = target[0][slice_pos];
                               var val = target[0][slice_pos + 1];
-                              log(i);
-                              log(target[0]);
-                              log('ord: ' + ord);
-                              log('val: ' + val);
                               // if the stub matches
                               if (ord == section_key[0] && val == section_key[1]) { 
-                                log('stub matches');
                                 // if there's another level
                                 if (section_key.length > 3 && section_key[3] != null) {
-                                  log('the section_key goes on');
                                   // go through to the children
                                   if (target[2] && target[2].length) {
-                                    log('going through to children');
                                     return recurse.get_content(
                                       target[2],
                                       slice_pos += 2,
@@ -981,25 +993,28 @@
                             relevant_section_key
                           );
                           if (content_to_insert != null) {
+                            // add the ``## Section Heading`` to the top 
+                            // of the section content
+                            content_to_insert = this._get_heading_from_section_key(
+                              relevant_section_key
+                            ) + '\n' + content_to_insert;
                             found_content_to_insert = true;
                           }
                         }
                         if (found_content_to_insert) {
-                          log('found_content_to_insert');
-                          log('should insert: ' + content_to_insert);
-                          log('instead of: ' + section['content']);
-                          current_hash = Crypto.SHA256(section['content']);
+                          current_hash = this._hash_section(section['content']);
                           stored_hash = this._section_hashes[section_id];
-                          log(!!(current_hash == stored_hash));
-                          should_merge = !!(!!(current_hash == stored_hash) || confirm(
-                              '@@ ' + doc.filename + 
+                          var this_filename = this._get_filename(content);
+                          should_merge = !!(
+                            !!(current_hash == stored_hash) || confirm(
+                              '@@ ' + this_filename + 
                               ' contains ' + section['id'] + 
                               ' which has been updated. ' + 
                               ' Do you want to overwrite that section in ' + 
-                              doc.filename + '?'
-                          ));
+                              this_filename + '?'
+                            )
+                          );
                           if (should_merge) {
-                            log('should_merge');
                             this.update_section(
                               content, 
                               section_id, 
@@ -1018,7 +1033,7 @@
           }
         },
         'handle_document_deleted': function (event, data) {
-          log('@@ todo: handle_document_deleted');
+          warn('@@ todo: handle_document_deleted');
         },
         'handle_text_change': function (oldRange, newRange, newText) {
           /*

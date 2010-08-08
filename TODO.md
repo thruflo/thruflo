@@ -3,8 +3,11 @@
 
 ## Reuse Sections
 
-* editor with section changed after `update_section` triggers alert as if edited when then updated again
-* where did that duplicate title come from?  can we replicate?
++ editor with section changed after `update_section` triggers alert as if edited when then updated again
++ create document doesn't update the dependencies:
+  + saving the dependency content shouldn't include the heading
+  + the content within a dependency needs to include the heading
++ where did that duplicate title come from?  can we replicate?
 * sanity check manual test against all scenarios
 * sanity check logic in all parsing routines: make sure it's consistent and see if obvious bits of the js can be refactored
 
@@ -17,6 +20,7 @@
 
 * deploy instance on linode
 * minimal supervision / crontabbing for couch, redis & gunicorn
+* make source private
 
 
 # 0.5
