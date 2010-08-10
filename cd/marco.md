@@ -10,3 +10,5 @@
   * because it's hosted:
     * install as client / use offline?
     * SLA with uptime guarantees
+  
+

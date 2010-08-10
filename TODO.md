@@ -1,10 +1,33 @@
 
 # 0.4
 
-## Pinning
+## Dependency UI
 
-* unpin server side: when `section_id` doesn't resolve (refreshing dependency content)
-* unpin client side: doubleclick to lose the `<!-- section -->` comments
+* possibly use a collection of vertical sliders (like an accordion where you can open 0 to n panes)
+* when you drop on a dependency, you get upto three segement-panes: the content that was in the original editor before the position the dependency is dropped in at, the new dependency content and the content after the dependency:
+
+Before:
+
+    ---
+    hello
+    world
+    ---
+
+After:
+
+    ---
+    hello
+    ---
+    ---
+    dropped in
+    ---
+    ---
+    world
+    ---
+
+* in each chunk have an edit and a reorder mode (edit exposes a bespin editor with the markdown, reorder exposes a tree view based on headings like the RHS nav does atm)
+* drag from the RHS, hover to navigate allows you to drop over the section you want to drop into (i.e.: when hovering over a section, it reverts to "reorder mode", which shows a tree of the current sections, hover navigates the tree, at every level you can drop into the section as a child, selecting position ala http://jqueryui.com/demos/accordion/sortable.html, or drop as a new last sibling, i.e.: append to the parent section)
+* "auto nest headings" when dropping in / reordering, storing the equivalent of <!-- section:airbus.md hoffset:2 --> to then revert headings when saving and unpack and readjust when rendering
 
 ## Demo Deploy
 
