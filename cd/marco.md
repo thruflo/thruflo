@@ -1,5 +1,5 @@
 
-## Initial Chat
+## Initial Chat 5th August
 
 * company is ideal customer: has tried to cobble a soln together already
 * would def check it out / install / beta / advisory board
